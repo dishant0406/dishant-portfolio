@@ -1,26 +1,163 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
+/* Configure Tailwind v4 to use class-based dark mode */
+@variant dark (&:where(.dark, .dark *));
+
+/* 
+ * CSS Variables for Theme - prevents flash on page load
+ * The HTML element will have 'light' or 'dark' class added by next-themes
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light mode colors (default) */
+  --color-background: 255, 255, 255;
+  --color-foreground: 17, 24, 39;
+  --color-muted: 107, 114, 128;
+  --color-border: 229, 231, 235;
+  --color-card: 255, 255, 255;
+  --color-card-hover: 249, 250, 251;
+  --color-input: 255, 255, 255;
+  --color-primary: 17, 24, 39;
+  --color-primary-foreground: 255, 255, 255;
+  
+  /* Gradient colors for light mode */
+  --gradient-from: 250, 245, 255;
+  --gradient-via: 253, 242, 248;
+  --gradient-to: 239, 246, 255;
+  
+  /* Glass effect colors */
+  --glass-bg: 255, 255, 255;
+  --glass-border: 255, 255, 255;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Dark mode colors - TRUE BLACK theme */
+.dark {
+  --color-background: 0, 0, 0;
+  --color-foreground: 255, 255, 255;
+  --color-muted: 156, 163, 175;
+  --color-border: 38, 38, 38;
+  --color-card: 17, 17, 17;
+  --color-card-hover: 26, 26, 26;
+  --color-input: 17, 17, 17;
+  --color-primary: 255, 255, 255;
+  --color-primary-foreground: 0, 0, 0;
+  
+  /* Gradient colors for dark mode - BLACK based */
+  --gradient-from: 0, 0, 0;
+  --gradient-via: 10, 10, 15;
+  --gradient-to: 5, 5, 10;
+  
+  /* Glass effect colors - dark glass */
+  --glass-bg: 10, 10, 10;
+  --glass-border: 38, 38, 38;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Prevent flash - set background color immediately based on saved theme */
+html {
+  background-color: rgb(var(--gradient-from));
 }
 
+html.dark {
+  background-color: rgb(0, 0, 0);
+  color-scheme: dark;
+}
+
+html.light {
+  color-scheme: light;
+}
+
+/* Base body styles */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, 'Inter', system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: rgb(var(--color-foreground));
+  background: linear-gradient(
+    to bottom right,
+    rgba(var(--gradient-from), 1),
+    rgba(var(--gradient-via), 1),
+    rgba(var(--gradient-to), 1)
+  );
+  min-height: 100vh;
+}
+
+/* Dark mode body - solid black */
+.dark body {
+  background: rgb(0, 0, 0);
+}
+
+/* Glass container styles with CSS variables */
+.glass-container {
+  background: rgba(var(--glass-bg), 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(var(--glass-border), 0.3);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.dark .glass-container {
+  background: rgba(var(--glass-bg), 0.95);
+  border: 1px solid rgba(var(--glass-border), 0.5);
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.8),
+    inset 0 1px 1px rgba(255, 255, 255, 0.02);
+}
+
+/* Streaming animation for chat responses */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s infinite;
+}
+
+/* No global transitions - prevents flickering during theme switch */
+
+/* Hide scrollbars globally while maintaining scroll functionality */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Alternative: If you want scrollbars visible on hover for specific containers, uncomment below */
+/*
+.scrollable-on-hover {
+  scrollbar-width: thin;
+}
+.scrollable-on-hover::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  display: block;
+}
+.scrollable-on-hover::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 3px;
+}
+.scrollable-on-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+*/
+
+/* Utility classes for theme-aware colors */
+.text-theme-foreground {
+  color: rgb(var(--color-foreground));
+}
+
+.text-theme-muted {
+  color: rgb(var(--color-muted));
+}
+
+.bg-theme-card {
+  background-color: rgb(var(--color-card));
+}
+
+.border-theme {
+  border-color: rgb(var(--color-border));
 }
