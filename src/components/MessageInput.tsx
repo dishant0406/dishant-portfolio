@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUp, Clock, Plus } from 'lucide-react';
+import { ArrowUp, Clock } from 'lucide-react';
 import { IconButton, Input } from './ui';
 
 interface MessageInputProps {
@@ -19,7 +19,6 @@ export function MessageInput({
   value,
   onChange,
   onSend,
-  onAddClick,
   onHistoryClick,
   placeholder = 'Ask me anything about Dishant...',
   disabled = false,
@@ -52,14 +51,14 @@ export function MessageInput({
       {/* Left icons - align to top when textarea expands */}
       <div className="flex items-center gap-1 self-end ">
         {/* Plus button */}
-        <IconButton
+        {/* <IconButton
           icon={<Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
           onClick={onAddClick}
           variant="ghost"
           size="sm"
           ariaLabel="Add attachment"
           className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-        />
+        /> */}
 
         {/* History/Clock button */}
         <IconButton

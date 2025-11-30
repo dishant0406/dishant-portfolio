@@ -1,6 +1,6 @@
 'use client';
 
-import { Briefcase, Code, FolderGit2 } from 'lucide-react';
+import { Code, FileText, FolderGit2 } from 'lucide-react';
 import { ReactNode } from 'react';
 import { Button, Card } from './ui';
 
@@ -18,7 +18,7 @@ interface FeatureCardProps {
 const iconMap = {
   projects: FolderGit2,
   skills: Code,
-  experience: Briefcase,
+  resume: FileText,
 };
 
 export function FeatureCard({
@@ -67,7 +67,7 @@ export function FeatureCard({
 interface FeatureCardsProps {
   cards: Array<{
     id: string;
-    icon: 'projects' | 'skills' | 'experience';
+    icon: 'projects' | 'skills' | 'resume';
     title: string;
     description: string;
     buttonText: string;
@@ -81,7 +81,7 @@ export function FeatureCards({
   onCardAction,
   className = '',
 }: FeatureCardsProps) {
-  const getIcon = (iconType: 'projects' | 'skills' | 'experience') => {
+  const getIcon = (iconType: 'projects' | 'skills' | 'resume') => {
     const IconComponent = iconMap[iconType];
     return <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />;
   };

@@ -2,17 +2,91 @@
 
 import { formatDate, formatRelativeTime } from '@/store/useAppStore';
 import { Chat } from '@/types';
-import { Calendar, ChevronDown, Clock, MoreVertical, Search, Share2 } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, ChevronDown, Clock, MoreVertical, Search, Share2, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+
+interface ChatMenuDropdownProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onShare: () => void;
+  onDelete: () => void;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+}
+
+function ChatMenuDropdown({ isOpen, onClose, onShare, onDelete, anchorRef }: ChatMenuDropdownProps) {
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 140 // 140px is min-width of dropdown
+      });
+    }
+  }, [isOpen, anchorRef]);
+
+  if (!isOpen) return null;
+  
+  // Check if we're in browser environment for portal
+  if (typeof window === 'undefined') return null;
+  
+  return createPortal(
+    <>
+      <div 
+        className="fixed inset-0 z-[9999]" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }} 
+      />
+      <div 
+        ref={dropdownRef}
+        className="fixed bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800 py-2 min-w-[140px] z-[10000]"
+        style={{ top: position.top, left: position.left }}
+      >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onShare();
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors text-gray-700 dark:text-gray-300 flex items-center gap-2"
+        >
+          <Share2 className="w-4 h-4" />
+          Share
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+            onClose();
+          }}
+          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors text-red-600 dark:text-red-400 flex items-center gap-2"
+        >
+          <Trash2 className="w-4 h-4" />
+          Delete
+        </button>
+      </div>
+    </>,
+    document.body
+  );
+}
 
 interface ChatItemExpandedProps {
   chat: Chat;
   onSelect: (chatId: string) => void;
   onShare?: (chatId: string) => void;
-  onMore?: (chatId: string) => void;
+  onDelete?: (chatId: string) => void;
+  isMenuOpen: boolean;
+  onMenuToggle: (chatId: string | null) => void;
 }
 
-function ChatItemExpanded({ chat, onSelect, onShare, onMore }: ChatItemExpandedProps) {
+function ChatItemExpanded({ chat, onSelect, onShare, onDelete, isMenuOpen, onMenuToggle }: ChatItemExpandedProps) {
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  
   return (
     <div 
       onClick={() => onSelect(chat.id)}
@@ -50,12 +124,22 @@ function ChatItemExpanded({ chat, onSelect, onShare, onMore }: ChatItemExpandedP
           >
             <Share2 className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onMore?.(chat.id)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <button
+              ref={menuButtonRef}
+              onClick={() => onMenuToggle(isMenuOpen ? null : chat.id)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <ChatMenuDropdown
+              isOpen={isMenuOpen}
+              onClose={() => onMenuToggle(null)}
+              onShare={() => onShare?.(chat.id)}
+              onDelete={() => onDelete?.(chat.id)}
+              anchorRef={menuButtonRef}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -65,10 +149,15 @@ function ChatItemExpanded({ chat, onSelect, onShare, onMore }: ChatItemExpandedP
 interface ChatItemCompactProps {
   chat: Chat;
   onSelect: (chatId: string) => void;
-  onMore?: (chatId: string) => void;
+  onShare?: (chatId: string) => void;
+  onDelete?: (chatId: string) => void;
+  isMenuOpen: boolean;
+  onMenuToggle: (chatId: string | null) => void;
 }
 
-function ChatItemCompact({ chat, onSelect, onMore }: ChatItemCompactProps) {
+function ChatItemCompact({ chat, onSelect, onShare, onDelete, isMenuOpen, onMenuToggle }: ChatItemCompactProps) {
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  
   return (
     <div 
       onClick={() => onSelect(chat.id)}
@@ -84,12 +173,22 @@ function ChatItemCompact({ chat, onSelect, onMore }: ChatItemCompactProps) {
             <Calendar className="w-4 h-4" />
             <span className="text-sm hidden sm:inline">{formatDate(chat.createdAt)}</span>
           </div>
-          <button
-            onClick={() => onMore?.(chat.id)}
-            className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <button
+              ref={menuButtonRef}
+              onClick={() => onMenuToggle(isMenuOpen ? null : chat.id)}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+            <ChatMenuDropdown
+              isOpen={isMenuOpen}
+              onClose={() => onMenuToggle(null)}
+              onShare={() => onShare?.(chat.id)}
+              onDelete={() => onDelete?.(chat.id)}
+              anchorRef={menuButtonRef}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -117,6 +216,11 @@ export function ChatsListView({
 }: ChatsListViewProps) {
   const [sortBy, setSortBy] = useState<'recent' | 'oldest'>('recent');
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [openMenuChatId, setOpenMenuChatId] = useState<string | null>(null);
+
+  const handleMenuToggle = (chatId: string | null) => {
+    setOpenMenuChatId(chatId);
+  };
 
   const sortedChats = [...chats].sort((a, b) => {
     if (sortBy === 'recent') {
@@ -211,14 +315,19 @@ export function ChatsListView({
                 chat={chat}
                 onSelect={onSelectChat}
                 onShare={onShareChat}
-                onMore={onDeleteChat}
+                onDelete={onDeleteChat}
+                isMenuOpen={openMenuChatId === chat.id}
+                onMenuToggle={handleMenuToggle}
               />
             ) : (
               <ChatItemCompact
                 key={chat.id}
                 chat={chat}
                 onSelect={onSelectChat}
-                onMore={onDeleteChat}
+                onShare={onShareChat}
+                onDelete={onDeleteChat}
+                isMenuOpen={openMenuChatId === chat.id}
+                onMenuToggle={handleMenuToggle}
               />
             )
           ))

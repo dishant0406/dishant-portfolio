@@ -73,6 +73,15 @@ export interface User {
   greeting?: string;
 }
 
+// Tool Call Types
+export interface ToolCall {
+  id: string;
+  toolName: string;
+  args?: unknown;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  result?: unknown;
+}
+
 // Chat Message Types
 export interface ChatMessage {
   id: string;
@@ -80,6 +89,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isStreaming?: boolean;
+  toolCalls?: ToolCall[];
 }
 
 // Chat Types

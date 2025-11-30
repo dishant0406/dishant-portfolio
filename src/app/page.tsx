@@ -1,172 +1,109 @@
-'use client';
+import { HomePage } from '@/components';
+import { getThreadById } from '@/lib/get-thread';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
 
-import {
-  ChatView,
-  ChatsListView,
-  FeatureCards,
-  GlassContainer,
-  GreetingSection,
-  Header,
-  MessageInput,
-} from '@/components';
-import { getGreeting, useAppStore } from '@/store/useAppStore';
-import { useEffect } from 'react';
+// OG Image URL
+const ogImage = 'https://cdn.jsdelivr.net/gh/dishant0406/images-repo@master/dishantsharma.webp';
 
-export default function Home() {
-  const {
-    user,
-    currentView,
-    isSearchOpen,
-    searchQuery,
-    chatSearchQuery,
-    chats,
-    currentChatId,
-    message,
-    isLoading,
-    featureCards,
-    setUser,
-    setCurrentView,
-    setIsSearchOpen,
-    setSearchQuery,
-    setChatSearchQuery,
-    setMessage,
-    setCurrentChatId,
-    createNewChat,
-    sendMessage,
-    handleCardAction,
-    deleteChat,
-    getCurrentChat,
-    getFilteredChats,
-  } = useAppStore();
+// Default metadata
+const defaultMetadata: Metadata = {
+  title: 'Dishant Sharma | Full Stack Developer',
+  description: "Interactive portfolio of Dishant Sharma - Full Stack Developer. Chat with me to learn about my projects, skills, and experience.",
+  keywords: ['Dishant Sharma', 'Portfolio', 'Full Stack Developer', 'React', 'Next.js', 'TypeScript'],
+  openGraph: {
+    title: 'Dishant Sharma | Full Stack Developer',
+    description: 'Interactive portfolio - Chat with me to learn about my projects, skills, and experience.',
+    type: 'website',
+    images: [
+      {
+        url: ogImage,
+        width: 1200,
+        height: 630,
+        alt: 'Dishant Sharma - Full Stack Developer',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Dishant Sharma | Full Stack Developer',
+    description: 'Interactive portfolio - Chat with me to learn about my projects, skills, and experience.',
+    images: [ogImage],
+  },
+};
 
-  // Update greeting based on time of day
-  useEffect(() => {
-    const greeting = getGreeting();
-    setUser({ ...user, greeting });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+// Generate metadata based on chat ID in URL
+export async function generateMetadata({ 
+  searchParams 
+}: { 
+  searchParams: Promise<{ chat?: string }> 
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const chatId = params?.chat;
 
-  const handleNewChat = () => {
-    setCurrentChatId(null);
-    setCurrentView('home');
-  };
+  // If no chat ID, return default metadata
+  if (!chatId) {
+    return defaultMetadata;
+  }
 
-  const handleSearch = () => {
-    setIsSearchOpen(true);
-  };
+  try {
+    // Fetch thread data from Mastra memory
+    const thread = await getThreadById(chatId);
 
-  const handleGrid = () => {
-    setCurrentView('chats');
-  };
-
-  const handleShare = () => {
-    console.log('Share clicked');
-    // Add share functionality
-  };
-
-  const handleBack = () => {
-    // Always go back to home
-    setCurrentView('home');
-    setCurrentChatId(null);
-  };
-
-  const handleSelectChat = (chatId: string) => {
-    setCurrentChatId(chatId);
-  };
-
-  const handleAddClick = () => {
-    console.log('Add attachment clicked');
-    // Add attachment functionality
-  };
-
-  const handleHistoryClick = () => {
-    setCurrentView('chats');
-  };
-
-  const currentChat = getCurrentChat();
-  const filteredChats = getFilteredChats();
-
-  const renderContent = () => {
-    switch (currentView) {
-      case 'chats':
-        return (
-          <div className="flex-1 overflow-hidden px-3 sm:px-4 lg:px-6 py-2 sm:py-4">
-            <ChatsListView
-              chats={filteredChats}
-              searchQuery={chatSearchQuery}
-              onSearchChange={setChatSearchQuery}
-              onSelectChat={handleSelectChat}
-              onShareChat={(id) => console.log('Share chat:', id)}
-              onDeleteChat={deleteChat}
-            />
-          </div>
-        );
-      
-      case 'chat':
-        return (
-          <ChatView
-            chat={currentChat}
-            isLoading={isLoading}
-            className="flex-1 overflow-hidden"
-          />
-        );
-      
-      default:
-        return (
-          <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 lg:px-6 py-4 sm:py-6 min-h-0">
-            <GreetingSection
-              greeting={user.greeting || 'Hi'}
-              className="mb-4 sm:mb-6 lg:mb-8"
-            />
-            <FeatureCards
-              cards={featureCards}
-              onCardAction={handleCardAction}
-              className="mb-2 sm:mb-4"
-            />
-          </div>
-        );
+    if (!thread) {
+      return defaultMetadata;
     }
-  };
 
+    const title = thread.title 
+      ? `${thread.title} | Dishant Sharma` 
+      : 'Chat with Dishant Sharma';
+    
+    const description = thread.description || 
+      'A conversation about my projects, skills, and experience.';
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: 'website',
+        images: [
+          {
+            url: ogImage,
+            width: 1200,
+            height: 630,
+            alt: title,
+          },
+        ],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: [ogImage],
+      },
+    };
+  } catch (error) {
+    console.error('Error generating metadata:', error);
+    return defaultMetadata;
+  }
+}
+
+// Loading fallback component
+function LoadingFallback() {
   return (
-    <main className="h-screen w-screen overflow-hidden">
-      <GlassContainer className="h-full w-full flex flex-col rounded-none lg:m-4 lg:h-[calc(100vh-2rem)] lg:w-[calc(100vw-2rem)] lg:rounded-3xl">
-        {/* Header */}
-        <Header
-          onNewChat={handleNewChat}
-          onSearch={handleSearch}
-          onGrid={handleGrid}
-          onShare={handleShare}
-          onBack={handleBack}
-          showBackButton={currentView !== 'home'}
-          isSearchOpen={isSearchOpen}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onSearchClose={() => {
-            setIsSearchOpen(false);
-            setSearchQuery('');
-          }}
-          onSearchOpen={() => setIsSearchOpen(true)}
-        />
+    <div className="h-screen w-screen flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+    </div>
+  );
+}
 
-        {/* Main Content Area */}
-        {renderContent()}
-
-      </GlassContainer>
-      
-      {/* Message Input - absolute positioned at bottom */}
-      <div className="fixed bottom-0 left-0 right-0 lg:bottom-4 lg:left-4 lg:right-4 px-3 sm:px-4 lg:px-6 pb-3 sm:pb-4 lg:pb-6 pt-2 z-50">
-        <MessageInput
-          value={message}
-          onChange={setMessage}
-          onSend={sendMessage}
-          onAddClick={handleAddClick}
-          onHistoryClick={handleHistoryClick}
-          disabled={false}
-          isStreaming={isLoading}
-          className="max-w-2xl mx-auto"
-        />
-      </div>
-    </main>
+// Server Component - wraps the client HomePage with Suspense
+export default function Home() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <HomePage />
+    </Suspense>
   );
 }

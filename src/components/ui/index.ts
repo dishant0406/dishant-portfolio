@@ -4,4 +4,5 @@ export { GlassContainer } from './GlassContainer';
 export { IconButton } from './IconButton';
 export { Input } from './Input';
 export { Markdown } from './Markdown';
+export { Modal } from './Modal';
 

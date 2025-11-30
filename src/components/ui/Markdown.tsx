@@ -1,11 +1,107 @@
 'use client';
 
+import { ExternalLink, FileText } from 'lucide-react';
 import MarkdownToJSX from 'markdown-to-jsx';
 import { ReactNode } from 'react';
 
 interface MarkdownProps {
   children: string;
   className?: string;
+}
+
+// Resume/Document Embed Component - WhatsApp style
+const ResumeEmbed = ({ url }: { url: string }) => {
+  const fileName = 'Resume.pdf';
+  const fileExtension = fileName.split('.').pop()?.toUpperCase() || 'PDF';
+  
+  return (
+    <div className="my-4">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-stretch gap-0 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl overflow-hidden hover:shadow-md transition-all group max-w-sm"
+      >
+        {/* File Icon Section */}
+        <div className="flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 px-4 py-4">
+          <FileText className="w-8 h-8 text-white" />
+        </div>
+        
+        {/* File Info Section */}
+        <div className="flex-1 px-4 py-3 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
+              {fileName}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-neutral-700 px-2 py-0.5 rounded">
+              {fileExtension}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Document
+            </span>
+          </div>
+        </div>
+        
+        {/* Action Section */}
+        <div className="flex items-center px-3 border-l border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50 group-hover:bg-gray-100 dark:group-hover:bg-neutral-700/50 transition-colors">
+          <div className="flex flex-col items-center gap-1">
+            <ExternalLink className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+              Open
+            </span>
+          </div>
+        </div>
+      </a>
+    </div>
+  );
+};
+
+// Function to parse and extract embeds from content
+// Supports: [RESUME:url], {{resume:url}}, or <RESUME>url</RESUME> formats
+function parseContent(content: string): Array<{ type: 'text' | 'resume'; value: string }> {
+  const parts: Array<{ type: 'text' | 'resume'; value: string }> = [];
+  let lastIndex = 0;
+  
+  // Combine all patterns into one
+  const combinedPattern = /(?:\[RESUME:([^\]]+)\]|\{\{resume:([^}]+)\}\}|<RESUME>([^<]+)<\/RESUME>)/gi;
+  
+  const matches = Array.from(content.matchAll(combinedPattern));
+  
+  if (matches.length === 0) {
+    return [{ type: 'text', value: content }];
+  }
+  
+  for (const match of matches) {
+    const matchStart = match.index!;
+    
+    // Add text before this match
+    if (matchStart > lastIndex) {
+      const textBefore = content.substring(lastIndex, matchStart);
+      if (textBefore.trim()) {
+        parts.push({ type: 'text', value: textBefore });
+      }
+    }
+    
+    // Get the URL from whichever capture group matched
+    const url = (match[1] || match[2] || match[3] || '').trim();
+    if (url) {
+      parts.push({ type: 'resume', value: url });
+    }
+    
+    lastIndex = matchStart + match[0].length;
+  }
+  
+  // Add remaining text after last match
+  if (lastIndex < content.length) {
+    const textAfter = content.substring(lastIndex);
+    if (textAfter.trim()) {
+      parts.push({ type: 'text', value: textAfter });
+    }
+  }
+  
+  return parts;
 }
 
 // Custom styled components for markdown rendering with dark mode support
@@ -38,15 +134,15 @@ const Em = ({ children }: { children: ReactNode }) => (
 );
 
 const UnorderedList = ({ children }: { children: ReactNode }) => (
-  <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ul>
+  <ul className="list-disc ml-4 pl-1 space-y-1.5 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ul>
 );
 
 const OrderedList = ({ children }: { children: ReactNode }) => (
-  <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ol>
+  <ol className="list-decimal ml-4 pl-1 space-y-1.5 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ol>
 );
 
 const ListItem = ({ children }: { children: ReactNode }) => (
-  <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{children}</li>
+  <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">{children}</li>
 );
 
 const Blockquote = ({ children }: { children: ReactNode }) => (
@@ -104,38 +200,59 @@ const Td = ({ children }: { children: ReactNode }) => (
   <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{children}</td>
 );
 
+const markdownOptions = {
+  overrides: {
+    h1: { component: H1 },
+    h2: { component: H2 },
+    h3: { component: H3 },
+    h4: { component: H4 },
+    p: { component: Paragraph },
+    strong: { component: Strong },
+    em: { component: Em },
+    ul: { component: UnorderedList },
+    ol: { component: OrderedList },
+    li: { component: ListItem },
+    blockquote: { component: Blockquote },
+    code: { component: Code },
+    pre: { component: Pre },
+    a: { component: Link },
+    hr: { component: Hr },
+    table: { component: Table },
+    thead: { component: Thead },
+    tbody: { component: Tbody },
+    tr: { component: Tr },
+    th: { component: Th },
+    td: { component: Td },
+  },
+};
+
 export function Markdown({ children, className = '' }: MarkdownProps) {
+  // Parse content to extract embeds
+  const parts = parseContent(children);
+  
+  // If only text, render simple markdown
+  if (parts.length === 1 && parts[0].type === 'text') {
+    return (
+      <div className={`markdown-content ${className}`}>
+        <MarkdownToJSX options={markdownOptions}>{parts[0].value}</MarkdownToJSX>
+      </div>
+    );
+  }
+  
+  // Render parts with embeds
   return (
     <div className={`markdown-content ${className}`}>
-      <MarkdownToJSX
-        options={{
-          overrides: {
-            h1: { component: H1 },
-            h2: { component: H2 },
-            h3: { component: H3 },
-            h4: { component: H4 },
-            p: { component: Paragraph },
-            strong: { component: Strong },
-            em: { component: Em },
-            ul: { component: UnorderedList },
-            ol: { component: OrderedList },
-            li: { component: ListItem },
-            blockquote: { component: Blockquote },
-            code: { component: Code },
-            pre: { component: Pre },
-            a: { component: Link },
-            hr: { component: Hr },
-            table: { component: Table },
-            thead: { component: Thead },
-            tbody: { component: Tbody },
-            tr: { component: Tr },
-            th: { component: Th },
-            td: { component: Td },
-          },
-        }}
-      >
-        {children}
-      </MarkdownToJSX>
+      {parts.map((part, index) => {
+        if (part.type === 'resume') {
+          return <ResumeEmbed key={`resume-${index}`} url={part.value} />;
+        }
+        
+        return (
+          <MarkdownToJSX key={`text-${index}`} options={markdownOptions}>
+            {part.value}
+          </MarkdownToJSX>
+        );
+      })}
     </div>
   );
 }

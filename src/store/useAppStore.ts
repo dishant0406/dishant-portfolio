@@ -1,7 +1,12 @@
-import { Chat, ChatMessage, User } from '@/types';
+import { Chat, ChatMessage, ToolCall, User } from '@/types';
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface AppState {
+  // Hydration state
+  _hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
+  
   // User state
   user: User;
   setUser: (user: User) => void;
@@ -20,134 +25,46 @@ interface AppState {
   chatSearchQuery: string;
   setChatSearchQuery: (query: string) => void;
   
-  // Chat state
+  // Chat state - full chats stored locally
   chats: Chat[];
   currentChatId: string | null;
   setCurrentChatId: (id: string | null) => void;
   addChat: (chat: Chat) => void;
-  updateChat: (id: string, chat: Partial<Chat>) => void;
+  updateChat: (id: string, updates: Partial<Chat>) => void;
   deleteChat: (id: string) => void;
+  
+  // Loading states
+  isLoading: boolean;
+  setIsLoading: (isLoading: boolean) => void;
+  isChatLoading: boolean;
+  setIsChatLoading: (isLoading: boolean) => void;
   
   // Message state
   message: string;
   setMessage: (message: string) => void;
   
-  // Loading state
-  isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
-  
   // Feature cards
   featureCards: Array<{
     id: string;
-    icon: 'projects' | 'skills' | 'experience';
+    icon: 'projects' | 'skills' | 'resume';
     title: string;
     description: string;
     buttonText: string;
   }>;
   
+  // Resume URL
+  resumeUrl: string;
+  
   // Actions
   createNewChat: (title?: string) => string;
   sendMessage: () => void;
   handleCardAction: (cardId: string) => void;
+  loadChatFromApi: (threadId: string) => Promise<Chat | null>;
   
   // Getters
   getCurrentChat: () => Chat | undefined;
   getFilteredChats: () => Chat[];
 }
-
-// Portfolio response templates for Dishant
-const portfolioResponses: Record<string, string> = {
-  projects: `## 🚀 Featured Projects
-
-Here are some of my notable projects:
-
-### 1. AI-Powered Chat Portfolio
-A modern portfolio website with an AI chat interface where visitors can learn about me through conversation. Built with Next.js, Tailwind CSS, and Zustand.
-
-**Tech Stack:** Next.js 14, TypeScript, Tailwind CSS, Zustand
-
-### 2. E-Commerce Platform
-Full-stack e-commerce solution with real-time inventory management, payment processing, and admin dashboard.
-
-**Tech Stack:** React, Node.js, PostgreSQL, Stripe
-
-### 3. Real-Time Collaboration Tool
-A collaborative workspace application with live editing, video conferencing, and project management features.
-
-**Tech Stack:** Next.js, WebSockets, WebRTC, MongoDB
-
-### 4. Mobile Fitness App
-Cross-platform mobile app for workout tracking, nutrition planning, and progress visualization.
-
-**Tech Stack:** React Native, Firebase, Redux
-
-Would you like to know more about any specific project?`,
-
-  skills: `## 💻 Technical Skills
-
-### Frontend Development
-- **Languages:** JavaScript, TypeScript, HTML5, CSS3
-- **Frameworks:** React, Next.js, Vue.js
-- **Styling:** Tailwind CSS, Styled Components, SASS
-- **State Management:** Redux, Zustand, React Query
-
-### Backend Development
-- **Languages:** Node.js, Python, Go
-- **Frameworks:** Express, NestJS, FastAPI
-- **Databases:** PostgreSQL, MongoDB, Redis
-- **APIs:** REST, GraphQL, WebSockets
-
-### DevOps & Tools
-- **Cloud:** AWS, Google Cloud, Vercel
-- **CI/CD:** GitHub Actions, Docker
-- **Version Control:** Git, GitHub
-- **Testing:** Jest, Cypress, Playwright
-
-### Other Skills
-- UI/UX Design Principles
-- Agile/Scrum Methodologies
-- Technical Writing
-- Team Leadership
-
-What specific skills would you like to explore further?`,
-
-  experience: `## 👨‍💻 Professional Experience
-
-### Senior Software Engineer
-**Tech Company** | 2022 - Present
-- Lead development of customer-facing web applications
-- Architected microservices handling 1M+ daily requests
-- Mentored junior developers and conducted code reviews
-- Reduced deployment time by 60% through CI/CD optimization
-
-### Full Stack Developer
-**Startup Inc.** | 2020 - 2022
-- Built and launched 3 products from concept to production
-- Implemented real-time features using WebSockets
-- Collaborated with design team to improve UX
-- Increased test coverage from 40% to 85%
-
-### Frontend Developer
-**Digital Agency** | 2018 - 2020
-- Developed responsive web applications for various clients
-- Created reusable component libraries
-- Optimized performance achieving 95+ Lighthouse scores
-
-### Education
-**Bachelor's in Computer Science**
-University | 2014 - 2018
-
-Would you like to know more about any role or my educational background?`,
-
-  default: `I'd be happy to help you learn more about Dishant! Here are some things I can tell you about:
-
-📁 **Projects** - My featured work and side projects
-💻 **Skills** - Technical expertise and tools I use
-👨‍💻 **Experience** - Professional background and education
-📫 **Contact** - How to get in touch
-
-What would you like to know more about?`
-};
 
 // Helper to generate unique IDs
 const generateId = () => Math.random().toString(36).substring(2, 15);
@@ -182,374 +99,490 @@ export const formatRelativeTime = (date: Date) => {
   return formatDate(date);
 };
 
-// Sample chats for portfolio
-const sampleChats: Chat[] = [
-  {
-    id: 'sample-1',
-    title: "Tell me about Dishant's projects",
-    description: portfolioResponses.projects.substring(0, 200) + '...',
-    createdAt: new Date(Date.now() - 86400000 * 2),
-    updatedAt: new Date(Date.now() - 86400000 * 2),
-    messages: [
-      {
-        id: 'msg-1',
-        role: 'user',
-        content: "Tell me about Dishant's projects",
-        timestamp: new Date(Date.now() - 86400000 * 2),
-      },
-      {
-        id: 'msg-2',
-        role: 'assistant',
-        content: portfolioResponses.projects,
-        timestamp: new Date(Date.now() - 86400000 * 2),
-      },
-    ],
-  },
-  {
-    id: 'sample-2',
-    title: 'What are your technical skills?',
-    description: portfolioResponses.skills.substring(0, 150) + '...',
-    createdAt: new Date(Date.now() - 86400000 * 5),
-    updatedAt: new Date(Date.now() - 86400000 * 5),
-    messages: [
-      {
-        id: 'msg-3',
-        role: 'user',
-        content: 'What are your technical skills?',
-        timestamp: new Date(Date.now() - 86400000 * 5),
-      },
-      {
-        id: 'msg-4',
-        role: 'assistant',
-        content: portfolioResponses.skills,
-        timestamp: new Date(Date.now() - 86400000 * 5),
-      },
-    ],
-  },
-  {
-    id: 'sample-3',
-    title: "What's your professional background?",
-    description: portfolioResponses.experience.substring(0, 150) + '...',
-    createdAt: new Date(Date.now() - 86400000 * 10),
-    updatedAt: new Date(Date.now() - 86400000 * 10),
-    messages: [
-      {
-        id: 'msg-5',
-        role: 'user',
-        content: "What's your professional background?",
-        timestamp: new Date(Date.now() - 86400000 * 10),
-      },
-      {
-        id: 'msg-6',
-        role: 'assistant',
-        content: portfolioResponses.experience,
-        timestamp: new Date(Date.now() - 86400000 * 10),
-      },
-    ],
-  },
-];
+// Resource ID for memory (using a constant for visitor sessions)
+const RESOURCE_ID = 'portfolio-visitor';
 
-// Simulate streaming response for portfolio
-const simulateStreamingResponse = (
+// Stream response from the Mastra API
+const streamResponse = async (
   chatId: string,
-  content: string,
-  updateChat: (id: string, chat: Partial<Chat>) => void,
-  setIsLoading: (isLoading: boolean) => void
+  messages: Array<{ role: string; content: string }>,
+  updateChat: (id: string, updates: Partial<Chat>) => void,
+  setIsLoading: (isLoading: boolean) => void,
+  getChat: () => Chat | undefined
 ) => {
-  let currentContent = '';
-  let index = 0;
-  
   const messageId = generateId();
+  let fullContent = '';
+  let toolCalls: ToolCall[] = [];
+  
+  // Create initial assistant message
   const assistantMessage: ChatMessage = {
     id: messageId,
     role: 'assistant',
     content: '',
     timestamp: new Date(),
     isStreaming: true,
+    toolCalls: [],
   };
   
-  const interval = setInterval(() => {
-    if (index < content.length) {
-      currentContent += content[index];
-      index++;
-      
-      // Update the message content
-      assistantMessage.content = currentContent;
-      
-      // Get current chat and update
-      const store = useAppStore.getState();
-      const chat = store.chats.find(c => c.id === chatId);
-      if (chat && chat.messages) {
-        const updatedMessages = chat.messages.filter(m => m.id !== messageId);
-        updateChat(chatId, {
-          messages: [...updatedMessages, { ...assistantMessage }],
-          description: currentContent.substring(0, 150) + '...',
-        });
-      }
-    } else {
-      clearInterval(interval);
-      assistantMessage.isStreaming = false;
-      
-      const store = useAppStore.getState();
-      const chat = store.chats.find(c => c.id === chatId);
-      if (chat && chat.messages) {
-        const updatedMessages = chat.messages.filter(m => m.id !== messageId);
-        updateChat(chatId, {
-          messages: [...updatedMessages, { ...assistantMessage }],
-          updatedAt: new Date(),
-        });
-      }
-      setIsLoading(false);
-    }
-  }, 10); // Fast streaming
-};
-
-// Get appropriate response based on question
-const getPortfolioResponse = (question: string): string => {
-  const q = question.toLowerCase();
-  
-  if (q.includes('project') || q.includes('work') || q.includes('built') || q.includes('portfolio')) {
-    return portfolioResponses.projects;
-  }
-  if (q.includes('skill') || q.includes('tech') || q.includes('stack') || q.includes('language') || q.includes('framework')) {
-    return portfolioResponses.skills;
-  }
-  if (q.includes('experience') || q.includes('job') || q.includes('career') || q.includes('background') || q.includes('education')) {
-    return portfolioResponses.experience;
-  }
-  if (q.includes('contact') || q.includes('email') || q.includes('reach') || q.includes('hire')) {
-    return `## 📫 Get In Touch
-
-I'd love to hear from you! Here's how you can reach me:
-
-**Email:** dishant@example.com
-**LinkedIn:** linkedin.com/in/dishantsharma
-**GitHub:** github.com/dishantsharma
-**Twitter:** @dishantsharma
-
-Feel free to reach out for:
-- Job opportunities
-- Freelance projects
-- Collaborations
-- Just to say hi!
-
-I typically respond within 24-48 hours.`;
-  }
-  if (q.includes('about') || q.includes('who') || q.includes('introduce')) {
-    return `## 👋 About Dishant Sharma
-
-Hi! I'm Dishant, a passionate **Full Stack Developer** with a love for building beautiful, functional, and user-centric digital experiences.
-
-### Quick Facts
-- 🎯 **5+ years** of professional development experience
-- 💼 Currently working as a **Senior Software Engineer**
-- 🌍 Based in **India**
-- 🎓 **B.Tech in Computer Science**
-
-### What I Do
-I specialize in building modern web applications using cutting-edge technologies. My passion lies in creating seamless user experiences backed by robust, scalable architectures.
-
-### Beyond Code
-When I'm not coding, you'll find me:
-- 📚 Reading tech blogs and learning new skills
-- 🎮 Gaming and unwinding
-- ✍️ Writing technical articles
-- 🏃 Staying active with fitness routines
-
-What would you like to know more about?`;
-  }
-  
-  return portfolioResponses.default;
-};
-
-export const useAppStore = create<AppState>((set, get) => ({
-  // Initial user state (visitor)
-  user: {
-    id: 'visitor',
-    name: 'there',
-    email: '',
-    greeting: getGreeting(),
-  },
-  setUser: (user) => set({ user }),
-  
-  // View state
-  currentView: 'home',
-  setCurrentView: (view) => set({ currentView: view }),
-  
-  // Search state
-  isSearchOpen: false,
-  setIsSearchOpen: (isOpen) => set({ isSearchOpen: isOpen }),
-  searchQuery: '',
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  
-  // Chat search state
-  chatSearchQuery: '',
-  setChatSearchQuery: (query) => set({ chatSearchQuery: query }),
-  
-  // Chat state
-  chats: sampleChats,
-  currentChatId: null,
-  setCurrentChatId: (id) => {
-    set({ currentChatId: id });
-    if (id) {
-      set({ currentView: 'chat' });
-    }
-  },
-  addChat: (chat) => set((state) => ({ chats: [chat, ...state.chats] })),
-  updateChat: (id, updates) => set((state) => ({
-    chats: state.chats.map((chat) =>
-      chat.id === id ? { ...chat, ...updates } : chat
-    ),
-  })),
-  deleteChat: (id) => set((state) => ({
-    chats: state.chats.filter((chat) => chat.id !== id),
-    currentChatId: state.currentChatId === id ? null : state.currentChatId,
-  })),
-  
-  // Message state
-  message: '',
-  setMessage: (message) => set({ message }),
-  
-  // Loading state
-  isLoading: false,
-  setIsLoading: (isLoading) => set({ isLoading }),
-  
-  // Feature cards for portfolio
-  featureCards: [
-    {
-      id: 'projects',
-      icon: 'projects',
-      title: 'View my projects',
-      description: "Explore my portfolio of web apps, mobile apps, and open-source contributions.",
-      buttonText: 'See Projects',
-    },
-    {
-      id: 'skills',
-      icon: 'skills',
-      title: 'Technical skills',
-      description: 'Discover my tech stack, tools, and areas of expertise.',
-      buttonText: 'View Skills',
-    },
-    {
-      id: 'experience',
-      icon: 'experience',
-      title: 'My experience',
-      description: 'Learn about my professional journey, roles, and achievements.',
-      buttonText: 'Read More',
-    },
-  ],
-  
-  // Actions
-  createNewChat: (title = 'New Conversation') => {
-    const newChat: Chat = {
-      id: generateId(),
-      title,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      messages: [],
-    };
-    get().addChat(newChat);
-    return newChat.id;
-  },
-  
-  sendMessage: () => {
-    const { message, currentChatId, createNewChat, updateChat, setIsLoading, chats } = get();
-    
-    if (!message.trim()) return;
-    
-    let chatId = currentChatId;
-    
-    // Create new chat if none selected
-    if (!chatId) {
-      chatId = createNewChat(message.substring(0, 50));
-      set({ currentChatId: chatId, currentView: 'chat' });
-    }
-    
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: generateId(),
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-    };
-    
-    const chat = chats.find(c => c.id === chatId);
-    if (chat) {
+  // Helper to update the message in chat
+  const updateMessage = () => {
+    const chat = getChat();
+    if (chat && chat.messages) {
+      const updatedMessages = chat.messages.filter(m => m.id !== messageId);
       updateChat(chatId, {
-        messages: [...chat.messages, userMessage],
-        title: chat.messages.length === 0 ? message.substring(0, 50) : chat.title,
+        messages: [...updatedMessages, { 
+          ...assistantMessage, 
+          content: fullContent,
+          toolCalls: [...toolCalls],
+        }],
+        description: fullContent.substring(0, 150) + '...',
+      });
+    }
+  };
+  
+  try {
+    const response = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        messages,
+        threadId: chatId,
+        resourceId: RESOURCE_ID,
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+    
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+    
+    if (!reader) {
+      throw new Error('No reader available');
+    }
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          
+          if (data === '[DONE]') {
+            continue;
+          }
+          
+          try {
+            const parsed = JSON.parse(data);
+            
+            if (parsed.type === 'text' && parsed.text) {
+              fullContent += parsed.text;
+              updateMessage();
+            } else if (parsed.type === 'tool-call') {
+              // Add new tool call with running status
+              const newToolCall: ToolCall = {
+                id: parsed.toolCallId,
+                toolName: parsed.toolName,
+                args: parsed.args,
+                status: 'running',
+              };
+              toolCalls = [...toolCalls.filter(t => t.id !== parsed.toolCallId), newToolCall];
+              updateMessage();
+            } else if (parsed.type === 'tool-result') {
+              // Update tool call with completed status
+              toolCalls = toolCalls.map(t => 
+                t.id === parsed.toolCallId 
+                  ? { ...t, status: 'completed' as const, result: parsed.result }
+                  : t
+              );
+              updateMessage();
+            }
+          } catch {
+            // Skip invalid JSON
+          }
+        }
+      }
+    }
+    
+    // Finalize message
+    const chat = getChat();
+    if (chat && chat.messages) {
+      const updatedMessages = chat.messages.filter(m => m.id !== messageId);
+      updateChat(chatId, {
+        messages: [...updatedMessages, { 
+          ...assistantMessage, 
+          content: fullContent,
+          toolCalls,
+          isStreaming: false 
+        }],
         updatedAt: new Date(),
       });
     }
+  } catch (error) {
+    console.error('Streaming error:', error);
     
-    // Clear input and set loading
-    set({ message: '', isLoading: true });
+    // Fallback to non-streaming API
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          messages,
+          threadId: chatId,
+          resourceId: RESOURCE_ID,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        fullContent = data.text || 'Sorry, I encountered an error.';
+      } else {
+        fullContent = 'Sorry, I encountered an error processing your request.';
+      }
+    } catch {
+      fullContent = 'Sorry, I encountered an error. Please check if the API is properly configured.';
+    }
     
-    // Simulate AI response
-    setTimeout(() => {
-      const responseContent = getPortfolioResponse(message);
-      simulateStreamingResponse(chatId!, responseContent, updateChat, setIsLoading);
-    }, 500);
-  },
-  
-  handleCardAction: (cardId) => {
-    const { updateChat, setIsLoading, setCurrentChatId, addChat } = get();
-    
-    const cardMessages: Record<string, string> = {
-      projects: 'Tell me about your projects',
-      skills: 'What are your technical skills?',
-      experience: 'What is your professional experience?',
-    };
-    
-    const userQuestion = cardMessages[cardId] || 'Tell me more';
-    
-    // Create user message
-    const userMessage: ChatMessage = {
-      id: generateId(),
-      role: 'user',
-      content: userQuestion,
-      timestamp: new Date(),
-    };
-    
-    // Create new chat with the user message already included
-    const chatId = generateId();
-    const newChat: Chat = {
-      id: chatId,
-      title: userQuestion,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      messages: [userMessage],
-    };
-    
-    addChat(newChat);
-    setCurrentChatId(chatId);
-    
-    // Set loading and generate response
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      const responseContent = getPortfolioResponse(userQuestion);
-      simulateStreamingResponse(chatId, responseContent, updateChat, setIsLoading);
-    }, 500);
-  },
-  
-  // Getters
-  getCurrentChat: () => {
-    const { chats, currentChatId } = get();
-    return chats.find((chat) => chat.id === currentChatId);
-  },
-  
-  getFilteredChats: () => {
-    const { chats, chatSearchQuery } = get();
-    if (!chatSearchQuery.trim()) return chats;
-    
-    const query = chatSearchQuery.toLowerCase();
-    return chats.filter(
-      (chat) =>
-        chat.title.toLowerCase().includes(query) ||
-        chat.description?.toLowerCase().includes(query)
-    );
-  },
-}));
+    // Update with fallback content
+    const chat = getChat();
+    if (chat && chat.messages) {
+      const updatedMessages = chat.messages.filter(m => m.id !== messageId);
+      updateChat(chatId, {
+        messages: [...updatedMessages, { 
+          ...assistantMessage, 
+          content: fullContent,
+          isStreaming: false 
+        }],
+        updatedAt: new Date(),
+      });
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      // Hydration state
+      _hasHydrated: false,
+      setHasHydrated: (state) => set({ _hasHydrated: state }),
+      
+      // Initial user state (visitor)
+      user: {
+        id: 'visitor',
+        name: 'there',
+        email: '',
+        greeting: getGreeting(),
+      },
+      setUser: (user) => set({ user }),
+      
+      // View state
+      currentView: 'home',
+      setCurrentView: (view) => set({ currentView: view }),
+      
+      // Search state
+      isSearchOpen: false,
+      setIsSearchOpen: (isOpen) => set({ isSearchOpen: isOpen }),
+      searchQuery: '',
+      setSearchQuery: (query) => set({ searchQuery: query }),
+      
+      // Chat search state
+      chatSearchQuery: '',
+      setChatSearchQuery: (query) => set({ chatSearchQuery: query }),
+      
+      // Chat state - full chats stored locally
+      chats: [],
+      currentChatId: null,
+      setCurrentChatId: (id) => {
+        set({ currentChatId: id });
+        if (id) {
+          set({ currentView: 'chat' });
+        }
+      },
+      addChat: (chat) => set((state) => ({ 
+        chats: [chat, ...state.chats.filter(c => c.id !== chat.id)] 
+      })),
+      updateChat: (id, updates) => set((state) => ({
+        chats: state.chats.map((chat) =>
+          chat.id === id ? { ...chat, ...updates } : chat
+        ),
+      })),
+      deleteChat: (id) => set((state) => ({
+        chats: state.chats.filter((chat) => chat.id !== id),
+        currentChatId: state.currentChatId === id ? null : state.currentChatId,
+      })),
+      
+      // Loading states
+      isLoading: false,
+      setIsLoading: (isLoading) => set({ isLoading }),
+      isChatLoading: false,
+      setIsChatLoading: (isChatLoading) => set({ isChatLoading }),
+      
+      // Message state
+      message: '',
+      setMessage: (message) => set({ message }),
+      
+      // Feature cards for portfolio
+      featureCards: [
+        {
+          id: 'projects',
+          icon: 'projects',
+          title: 'View my projects',
+          description: "Explore my portfolio of web apps, mobile apps, and open-source contributions.",
+          buttonText: 'See Projects',
+        },
+        {
+          id: 'skills',
+          icon: 'skills',
+          title: 'Technical skills',
+          description: 'Discover my tech stack, tools, and areas of expertise.',
+          buttonText: 'View Skills',
+        },
+        {
+          id: 'resume',
+          icon: 'resume',
+          title: 'My resume',
+          description: 'Download my resume to learn about my professional journey and achievements.',
+          buttonText: 'View Resume',
+        },
+      ],
+      
+      // Resume URL
+      resumeUrl: 'https://drive.google.com/file/d/1_lHiNuU6GkdKPACsOQLrU-V-KdG-9P0k/view',
+      
+      // Actions
+      createNewChat: (title = 'New Conversation') => {
+        const chatId = generateId();
+        const now = new Date();
+        
+        const newChat: Chat = {
+          id: chatId,
+          title,
+          createdAt: now,
+          updatedAt: now,
+          messages: [],
+        };
+        
+        // Add chat and set current view in a single set call to ensure atomicity
+        set((state) => ({
+          chats: [newChat, ...state.chats.filter(c => c.id !== chatId)],
+          currentChatId: chatId,
+          currentView: 'chat' as const,
+        }));
+        
+        return chatId;
+      },
+      
+      sendMessage: () => {
+        const { message, currentChatId, createNewChat, updateChat, setIsLoading } = get();
+        
+        if (!message.trim()) return;
+        
+        let chatId = currentChatId;
+        let existingMessages: Array<{ role: string; content: string }> = [];
+        
+        // Create new chat if none selected
+        if (!chatId) {
+          chatId = createNewChat(message.substring(0, 50));
+        }
+        
+        // Get existing messages from current chat - use get() to ensure fresh state
+        const chat = get().chats.find(c => c.id === chatId);
+        if (chat) {
+          existingMessages = chat.messages.map(m => ({ role: m.role, content: m.content }));
+        }
+        
+        // Add user message
+        const userMessage: ChatMessage = {
+          id: generateId(),
+          role: 'user',
+          content: message,
+          timestamp: new Date(),
+        };
+        
+        // Get current chat again to get latest state
+        const currentChat = get().chats.find(c => c.id === chatId);
+        if (currentChat) {
+          updateChat(chatId!, {
+            messages: [...currentChat.messages, userMessage],
+            title: currentChat.messages.length === 0 ? message.substring(0, 50) : currentChat.title,
+            updatedAt: new Date(),
+          });
+        } else {
+          console.error('Chat not found after creation:', chatId);
+        }
+        
+        // Clear input and set loading
+        set({ message: '', isLoading: true });
+        
+        // Build messages array for API - include new user message directly
+        const apiMessages = [
+          ...existingMessages,
+          { role: 'user', content: message }
+        ];
+        
+        // Call the Mastra API
+        streamResponse(
+          chatId!, 
+          apiMessages, 
+          updateChat, 
+          setIsLoading, 
+          () => get().chats.find(c => c.id === chatId)
+        );
+      },
+      
+      handleCardAction: (cardId) => {
+        const { updateChat, setIsLoading } = get();
+        
+        const cardMessages: Record<string, string> = {
+          projects: 'Tell me about your projects',
+          skills: 'What are your technical skills?',
+          resume: 'Can you share your resume?',
+        };
+        
+        const userQuestion = cardMessages[cardId] || 'Tell me more';
+        
+        // Create user message
+        const userMessage: ChatMessage = {
+          id: generateId(),
+          role: 'user',
+          content: userQuestion,
+          timestamp: new Date(),
+        };
+        
+        // Create new chat with the user message already included
+        const chatId = generateId();
+        const now = new Date();
+        const newChat: Chat = {
+          id: chatId,
+          title: userQuestion,
+          createdAt: now,
+          updatedAt: now,
+          messages: [userMessage],
+        };
+        
+        // Add chat and set state atomically
+        set((state) => ({
+          chats: [newChat, ...state.chats.filter(c => c.id !== chatId)],
+          currentChatId: chatId,
+          currentView: 'chat' as const,
+          isLoading: true,
+        }));
+        
+        // Build messages array for API
+        const apiMessages = [{ role: 'user', content: userQuestion }];
+        
+        // Call the Mastra API
+        streamResponse(
+          chatId, 
+          apiMessages, 
+          updateChat, 
+          setIsLoading, 
+          () => get().chats.find(c => c.id === chatId)
+        );
+      },
+      
+      // Load chat from API (for shared URLs)
+      loadChatFromApi: async (threadId: string) => {
+        const { setIsChatLoading, addChat } = get();
+        
+        setIsChatLoading(true);
+        
+        try {
+          const response = await fetch(`/api/chat/${threadId}`);
+          
+          if (!response.ok) {
+            return null;
+          }
+          
+          const data = await response.json();
+          
+          // Convert API messages to our format
+          const messages: ChatMessage[] = (data.messages || []).map((msg: { id: string; role: string; content: string; createdAt?: string }) => ({
+            id: msg.id || generateId(),
+            role: msg.role as 'user' | 'assistant',
+            content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+            timestamp: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+          }));
+          
+          const chat: Chat = {
+            id: threadId,
+            title: data.thread?.title || 'Conversation',
+            createdAt: data.thread?.createdAt ? new Date(data.thread.createdAt) : new Date(),
+            updatedAt: data.thread?.updatedAt ? new Date(data.thread.updatedAt) : new Date(),
+            messages,
+          };
+          
+          // Add to local chats
+          addChat(chat);
+          
+          return chat;
+        } catch (error) {
+          console.error('Error loading chat:', error);
+          return null;
+        } finally {
+          setIsChatLoading(false);
+        }
+      },
+      
+      // Getters
+      getCurrentChat: () => {
+        const { chats, currentChatId } = get();
+        return chats.find((chat) => chat.id === currentChatId);
+      },
+      
+      getFilteredChats: () => {
+        const { chats, chatSearchQuery } = get();
+        if (!chatSearchQuery.trim()) return chats;
+        
+        const query = chatSearchQuery.toLowerCase();
+        return chats.filter(
+          (chat) =>
+            chat.title.toLowerCase().includes(query) ||
+            chat.description?.toLowerCase().includes(query)
+        );
+      },
+    }),
+    {
+      name: 'portfolio-chat-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        chats: state.chats,
+        user: state.user,
+      }),
+      // Rehydrate dates after loading from localStorage
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.chats = state.chats.map(chat => ({
+            ...chat,
+            createdAt: new Date(chat.createdAt),
+            updatedAt: new Date(chat.updatedAt),
+            messages: chat.messages.map(msg => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp),
+            })),
+          }));
+          // Always update greeting to current time on rehydration
+          state.user = {
+            ...state.user,
+            greeting: getGreeting(),
+          };
+          state._hasHydrated = true;
+        }
+      },
+    }
+  )
+);
 
 export default useAppStore;

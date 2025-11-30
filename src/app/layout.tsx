@@ -1,20 +1,55 @@
 import { ThemeProvider } from '@/components';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
+// OG Image URL
+const ogImage = 'https://cdn.jsdelivr.net/gh/dishant0406/images-repo@master/dishantsharma.webp';
+
+// Base metadata - specific page metadata will override these
 export const metadata: Metadata = {
-  title: 'Dishant Sharma | Full Stack Developer',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://dishant.dev'),
+  title: {
+    default: 'Dishant Sharma | Full Stack Developer',
+    template: '%s | Dishant Sharma',
+  },
   description: 'Interactive portfolio of Dishant Sharma - Full Stack Developer. Chat with me to learn about my projects, skills, and experience.',
   keywords: ['Dishant Sharma', 'Portfolio', 'Full Stack Developer', 'React', 'Next.js', 'TypeScript'],
   authors: [{ name: 'Dishant Sharma' }],
+  creator: 'Dishant Sharma',
   openGraph: {
-    title: 'Dishant Sharma | Full Stack Developer',
-    description: 'Interactive portfolio - Chat with me to learn about my projects, skills, and experience.',
     type: 'website',
+    locale: 'en_US',
+    siteName: 'Dishant Sharma Portfolio',
+    images: [
+      {
+        url: ogImage,
+        width: 1200,
+        height: 630,
+        alt: 'Dishant Sharma - Full Stack Developer',
+      },
+    ],
   },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@dishant0406',
+    images: [ogImage],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
+  width: 'device-width',
+  initialScale: 1,
 };
 
 // Script to prevent flash on page load
