@@ -87,21 +87,46 @@ export function FeatureCards({
   };
 
   return (
-    <div
-      className={`grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-3xl ${className}`}
-    >
-      {cards.map((card) => (
-        <FeatureCard
-          key={card.id}
-          id={card.id}
-          icon={getIcon(card.icon)}
-          title={card.title}
-          description={card.description}
-          buttonText={card.buttonText}
-          onAction={onCardAction}
-        />
-      ))}
-    </div>
+    <>
+      {/* Mobile: Horizontal scroll container with proper padding */}
+      <div
+        className={`sm:hidden flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 w-full max-w-full ${className}`}
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        {cards.map((card, index) => (
+          <div 
+            key={card.id} 
+            className={`snap-center flex-shrink-0 w-[75vw] max-w-[260px] ${index === 0 ? 'ml-0' : ''} ${index === cards.length - 1 ? 'mr-0' : ''}`}
+          >
+            <FeatureCard
+              id={card.id}
+              icon={getIcon(card.icon)}
+              title={card.title}
+              description={card.description}
+              buttonText={card.buttonText}
+              onAction={onCardAction}
+            />
+          </div>
+        ))}
+      </div>
+      
+      {/* Desktop/Tablet: Grid layout */}
+      <div
+        className={`hidden sm:grid sm:grid-cols-3 gap-3 sm:gap-4 w-full max-w-3xl ${className}`}
+      >
+        {cards.map((card) => (
+          <FeatureCard
+            key={card.id}
+            id={card.id}
+            icon={getIcon(card.icon)}
+            title={card.title}
+            description={card.description}
+            buttonText={card.buttonText}
+            onAction={onCardAction}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 

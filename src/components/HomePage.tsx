@@ -235,9 +235,9 @@ export function HomePage() {
         );
       
       default:
-        // Account for fixed message input at bottom (approx 80px on mobile, 100px on desktop)
+        // Greeting and feature cards - centered on desktop, compact on mobile
         return (
-          <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 lg:px-6 py-4 sm:py-6 min-h-0 pb-20 sm:pb-24 lg:pb-28">
+          <div className="h-full flex flex-col items-center justify-center px-3 sm:px-4 lg:px-6 pb-20 sm:pb-24 lg:pb-28">
             <GreetingSection
               greeting={user.greeting || 'Hi'}
               className="mb-4 sm:mb-6 lg:mb-8"
