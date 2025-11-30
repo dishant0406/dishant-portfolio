@@ -250,11 +250,12 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
   }
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col h-full ${className}`}>
       {/* Messages container - full width for scroll, content centered and constrained */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-auto py-6 pb-28"
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-6 pb-28"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {/* Centered content wrapper - matches input width */}
         <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-6">

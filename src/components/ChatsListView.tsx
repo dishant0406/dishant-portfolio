@@ -301,7 +301,10 @@ export function ChatsListView({
       </div>
 
       {/* Chat List */}
-      <div className="flex-1 overflow-auto space-y-3">
+      <div 
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain space-y-3 pb-4"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {sortedChats.length === 0 ? (
           <div className="text-center py-16 text-gray-500 dark:text-gray-400">
             <p className="text-base">No chats found</p>

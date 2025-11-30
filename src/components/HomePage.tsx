@@ -1,14 +1,14 @@
 'use client';
 
 import {
-    ChatView,
-    ChatsListView,
-    FeatureCards,
-    GlassContainer,
-    GreetingSection,
-    Header,
-    MessageInput,
-    ShareModal,
+  ChatView,
+  ChatsListView,
+  FeatureCards,
+  GlassContainer,
+  GreetingSection,
+  Header,
+  MessageInput,
+  ShareModal,
 } from '@/components';
 import { useAppStore } from '@/store/useAppStore';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -253,31 +253,37 @@ export function HomePage() {
   };
 
   return (
-    <main className="h-screen w-screen overflow-hidden">
-      <GlassContainer className="h-full w-full flex flex-col rounded-none lg:m-4 lg:h-[calc(100vh-2rem)] lg:w-[calc(100vw-2rem)] lg:rounded-3xl">
-        <Header
-          onNewChat={handleNewChat}
-          onSearch={handleSearch}
-          onGrid={handleGrid}
-          onShare={handleShare}
-          onBack={handleBack}
-          showBackButton={currentView !== 'home'}
-          showShareButton={!!currentChatId}
-          isSearchOpen={isSearchOpen}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onSearchClose={() => {
-            setIsSearchOpen(false);
-            setSearchQuery('');
-          }}
-          onSearchOpen={() => setIsSearchOpen(true)}
-        />
-        {renderContent()}
+    <main className="h-[100dvh] w-screen overflow-hidden fixed inset-0">
+      <GlassContainer className="h-full w-full flex flex-col rounded-none lg:m-4 lg:h-[calc(100dvh-2rem)] lg:w-[calc(100vw-2rem)] lg:rounded-3xl overflow-hidden">
+        {/* Fixed Header - never scrolls */}
+        <div className="flex-shrink-0">
+          <Header
+            onNewChat={handleNewChat}
+            onSearch={handleSearch}
+            onGrid={handleGrid}
+            onShare={handleShare}
+            onBack={handleBack}
+            showBackButton={currentView !== 'home'}
+            showShareButton={!!currentChatId}
+            isSearchOpen={isSearchOpen}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onSearchClose={() => {
+              setIsSearchOpen(false);
+              setSearchQuery('');
+            }}
+            onSearchOpen={() => setIsSearchOpen(true)}
+          />
+        </div>
+        {/* Scrollable content area */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {renderContent()}
+        </div>
       </GlassContainer>
       
       {/* Hide message input on chats list view */}
       {currentView !== 'chats' && (
-        <div className="fixed bottom-0 left-0 right-0 lg:bottom-4 lg:left-4 lg:right-4 px-3 sm:px-4 lg:px-6 pb-3 sm:pb-4 lg:pb-6 pt-2 z-50">
+        <div className="fixed bottom-0 left-0 right-0 lg:bottom-4 lg:left-4 lg:right-4 px-3 sm:px-4 lg:px-6 pb-safe sm:pb-4 lg:pb-6 pt-2 z-50 safe-area-bottom">
           <MessageInput
             value={message}
             onChange={setMessage}
