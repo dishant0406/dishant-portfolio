@@ -254,11 +254,11 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
       {/* Messages container - full width for scroll, content centered and constrained */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-6 pb-28"
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-4 sm:py-6 pb-24 sm:pb-28"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {/* Centered content wrapper - matches input width */}
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 space-y-6">
+        {/* Centered content wrapper - matches input width, less padding on mobile */}
+        <div className="max-w-2xl mx-auto px-2 sm:px-4 lg:px-6 space-y-4 sm:space-y-6">
           {chat.messages.map((message, index) => {
             // Check if this is the last message from the same role
             const nextMessage = chat.messages[index + 1];

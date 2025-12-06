@@ -1,5 +1,6 @@
 'use client';
 
+import { analytics } from '@/lib/analytics';
 import { ExternalLink, FileText } from 'lucide-react';
 import MarkdownToJSX from 'markdown-to-jsx';
 import { ReactNode } from 'react';
@@ -80,12 +81,17 @@ const ResumeEmbed = ({ url }: { url: string }) => {
   const fileName = 'Resume.pdf';
   const fileExtension = fileName.split('.').pop()?.toUpperCase() || 'PDF';
   
+  const handleClick = () => {
+    analytics.resumeDownloaded();
+  };
+  
   return (
     <div className="my-4">
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={handleClick}
         className="flex items-stretch gap-0 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl overflow-hidden hover:shadow-md transition-all group max-w-sm"
       >
         {/* File Icon Section */}
@@ -206,7 +212,7 @@ const H4 = ({ children }: { children: ReactNode }) => (
 );
 
 const Paragraph = ({ children }: { children: ReactNode }) => (
-  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 last:mb-0">{children}</p>
+  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 last:mb-0 break-words overflow-wrap-anywhere">{children}</p>
 );
 
 const Strong = ({ children }: { children: ReactNode }) => (
@@ -252,7 +258,7 @@ const Link = ({ children, href }: { children: ReactNode; href?: string }) => (
     href={href}
     target="_blank"
     rel="noopener noreferrer"
-    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline break-all"
   >
     {children}
   </a>

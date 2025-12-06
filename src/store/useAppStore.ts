@@ -1,3 +1,4 @@
+import { analytics } from '@/lib/analytics';
 import { Chat, ChatMessage, ToolCall, User } from '@/types';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -308,6 +309,8 @@ export const useAppStore = create<AppState>()(
         set({ currentChatId: id });
         if (id) {
           set({ currentView: 'chat' });
+          // Track chat selected
+          analytics.chatSelected(id);
         }
       },
       addChat: (chat) => set((state) => ({ 
@@ -318,10 +321,14 @@ export const useAppStore = create<AppState>()(
           chat.id === id ? { ...chat, ...updates } : chat
         ),
       })),
-      deleteChat: (id) => set((state) => ({
-        chats: state.chats.filter((chat) => chat.id !== id),
-        currentChatId: state.currentChatId === id ? null : state.currentChatId,
-      })),
+      deleteChat: (id) => {
+        // Track chat deleted
+        analytics.chatDeleted(id);
+        set((state) => ({
+          chats: state.chats.filter((chat) => chat.id !== id),
+          currentChatId: state.currentChatId === id ? null : state.currentChatId,
+        }));
+      },
       
       // Loading states
       isLoading: false,
@@ -381,6 +388,9 @@ export const useAppStore = create<AppState>()(
           currentView: 'chat' as const,
         }));
         
+        // Track new chat creation
+        analytics.newChatCreated();
+        
         return chatId;
       },
       
@@ -426,6 +436,9 @@ export const useAppStore = create<AppState>()(
         // Clear input and set loading
         set({ message: '', isLoading: true });
         
+        // Track message sent
+        analytics.messageSent(chatId || undefined);
+        
         // Build messages array for API - include new user message directly
         const apiMessages = [
           ...existingMessages,
@@ -444,6 +457,9 @@ export const useAppStore = create<AppState>()(
       
       handleCardAction: (cardId) => {
         const { updateChat, setIsLoading } = get();
+        
+        // Track feature card click
+        analytics.featureCardClicked(cardId);
         
         const cardMessages: Record<string, string> = {
           projects: 'Tell me about your projects',
@@ -527,6 +543,9 @@ export const useAppStore = create<AppState>()(
           
           // Add to local chats
           addChat(chat);
+          
+          // Track shared chat opened
+          analytics.sharedChatOpened(threadId);
           
           return chat;
         } catch (error) {

@@ -212,3 +212,29 @@ body {
 .border-theme {
   border-color: rgb(var(--color-border));
 }
+
+/* Text overflow handling */
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Markdown content container - prevents overflow */
+.markdown-content {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.markdown-content a {
+  word-break: break-all;
+}
+
+.markdown-content pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.markdown-content code {
+  word-break: break-word;
+}

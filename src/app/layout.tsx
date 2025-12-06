@@ -82,6 +82,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="f85088d6-f79d-45a1-844e-45417e551ac4"
+        />
       </head>
       <body className={inter.className}>
         <ThemeProvider

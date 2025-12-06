@@ -1,5 +1,6 @@
 'use client';
 
+import { analytics } from '@/lib/analytics';
 import { useTheme as useNextTheme } from 'next-themes';
 import { useSyncExternalStore } from 'react';
 
@@ -28,11 +29,9 @@ export function useTheme(): UseThemeReturn {
   const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const toggleTheme = () => {
-    if (resolvedTheme === 'dark') {
-      setTheme('light');
-    } else {
-      setTheme('dark');
-    }
+    const newTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    analytics.themeToggled(newTheme);
   };
 
   const currentTheme = (theme as Theme) || 'system';

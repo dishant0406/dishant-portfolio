@@ -4,23 +4,36 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { Suspense } from 'react';
 
-// Weather condition to emoji mapping
-const weatherEmoji: Record<number, string> = {
-  0: '☀️', // Clear sky
-  1: '🌤️', 2: '⛅', 3: '☁️', // Mainly clear, partly cloudy, overcast
-  45: '🌫️', 48: '🌫️', // Fog
-  51: '🌧️', 53: '🌧️', 55: '🌧️', // Drizzle
-  61: '🌧️', 63: '🌧️', 65: '🌧️', // Rain
-  71: '🌨️', 73: '🌨️', 75: '🌨️', // Snow
-  77: '🌨️', // Snow grains
-  80: '🌦️', 81: '🌦️', 82: '🌦️', // Rain showers
-  85: '🌨️', 86: '🌨️', // Snow showers
-  95: '⛈️', // Thunderstorm
-  96: '⛈️', 99: '⛈️', // Thunderstorm with hail
+// Weather condition to emoji and description mapping
+const weatherInfo: Record<number, { emoji: string; description: string }> = {
+  0: { emoji: '☀️', description: 'sunny' },
+  1: { emoji: '🌤️', description: 'mostly sunny' },
+  2: { emoji: '⛅', description: 'partly cloudy' },
+  3: { emoji: '☁️', description: 'cloudy' },
+  45: { emoji: '🌫️', description: 'foggy' },
+  48: { emoji: '🌫️', description: 'misty' },
+  51: { emoji: '🌧️', description: 'drizzly' },
+  53: { emoji: '🌧️', description: 'drizzly' },
+  55: { emoji: '🌧️', description: 'drizzly' },
+  61: { emoji: '🌧️', description: 'rainy' },
+  63: { emoji: '🌧️', description: 'rainy' },
+  65: { emoji: '🌧️', description: 'rainy' },
+  71: { emoji: '🌨️', description: 'snowy' },
+  73: { emoji: '🌨️', description: 'snowy' },
+  75: { emoji: '🌨️', description: 'snowy' },
+  77: { emoji: '🌨️', description: 'snowy' },
+  80: { emoji: '🌦️', description: 'showery' },
+  81: { emoji: '🌦️', description: 'showery' },
+  82: { emoji: '🌦️', description: 'showery' },
+  85: { emoji: '🌨️', description: 'snowy' },
+  86: { emoji: '🌨️', description: 'snowy' },
+  95: { emoji: '⛈️', description: 'stormy' },
+  96: { emoji: '⛈️', description: 'stormy' },
+  99: { emoji: '⛈️', description: 'stormy' },
 };
 
 // Get weather info using Open-Meteo free API
-async function getWeather(lat: string, lon: string): Promise<{ temp: number; emoji: string } | null> {
+async function getWeather(lat: string, lon: string): Promise<{ temp: number; emoji: string; description: string } | null> {
   try {
     const response = await fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`,
@@ -32,21 +45,98 @@ async function getWeather(lat: string, lon: string): Promise<{ temp: number; emo
     const data = await response.json();
     const weatherCode = data.current_weather?.weathercode || 0;
     const temp = Math.round(data.current_weather?.temperature || 0);
+    const info = weatherInfo[weatherCode] || { emoji: '🌡️', description: 'pleasant' };
     
     return {
       temp,
-      emoji: weatherEmoji[weatherCode] || '🌡️'
+      emoji: info.emoji,
+      description: info.description
     };
   } catch {
     return null;
   }
 }
 
+// Get upcoming holidays using Nager.Date API (free, no API key needed)
+interface Holiday {
+  name: string;
+  date: string;
+  emoji: string;
+}
+
+async function getUpcomingHoliday(countryCode: string): Promise<Holiday | null> {
+  try {
+    const year = new Date().getFullYear();
+    const response = await fetch(
+      `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`,
+      { next: { revalidate: 86400 } } // Cache for 24 hours
+    );
+    
+    if (!response.ok) return null;
+    
+    const holidays = await response.json();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Find next upcoming holiday within 7 days
+    for (const holiday of holidays) {
+      const holidayDate = new Date(holiday.date);
+      const diffDays = Math.ceil((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays >= 0 && diffDays <= 7) {
+        // Holiday emoji mapping based on common holiday types
+        let emoji = '🎉';
+        const nameLower = holiday.name.toLowerCase();
+        if (nameLower.includes('christmas')) emoji = '🎄';
+        else if (nameLower.includes('new year')) emoji = '🎆';
+        else if (nameLower.includes('independence') || nameLower.includes('republic')) emoji = '🇮🇳';
+        else if (nameLower.includes('diwali')) emoji = '🪔';
+        else if (nameLower.includes('holi')) emoji = '🎨';
+        else if (nameLower.includes('easter')) emoji = '🐰';
+        else if (nameLower.includes('gandhi')) emoji = '🕊️';
+        else if (nameLower.includes('labour') || nameLower.includes('labor')) emoji = '👷';
+        
+        return {
+          name: holiday.localName || holiday.name,
+          date: holiday.date,
+          emoji
+        };
+      }
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Country code mapping for common timezones
+function getCountryCode(timezone: string): string {
+  const tzToCountry: Record<string, string> = {
+    'Asia/Kolkata': 'IN',
+    'Asia/Mumbai': 'IN',
+    'Asia/Delhi': 'IN',
+    'America/New_York': 'US',
+    'America/Los_Angeles': 'US',
+    'America/Chicago': 'US',
+    'Europe/London': 'GB',
+    'Europe/Paris': 'FR',
+    'Europe/Berlin': 'DE',
+    'Asia/Tokyo': 'JP',
+    'Asia/Singapore': 'SG',
+    'Australia/Sydney': 'AU',
+    'Asia/Dubai': 'AE',
+  };
+  
+  return tzToCountry[timezone] || 'US'; // Default to US
+}
+
 // Get personalized greeting data from Vercel headers
 interface GreetingData {
   greeting: string;
   city?: string;
-  weather?: { temp: number; emoji: string };
+  weather?: { temp: number; emoji: string; description: string };
+  holiday?: Holiday;
 }
 
 async function getPersonalizedGreeting(): Promise<GreetingData> {
@@ -79,9 +169,16 @@ async function getPersonalizedGreeting(): Promise<GreetingData> {
   else greeting = 'Good Evening';
   
   // Get weather if we have coordinates
-  let weather: { temp: number; emoji: string } | null = null;
+  let weather: { temp: number; emoji: string; description: string } | null = null;
   if (latitude && longitude) {
     weather = await getWeather(latitude, longitude);
+  }
+  
+  // Get upcoming holiday based on timezone
+  let holiday: Holiday | null = null;
+  if (timezone) {
+    const countryCode = getCountryCode(timezone);
+    holiday = await getUpcomingHoliday(countryCode);
   }
   
   // Decode city name (it's RFC3986 encoded)
@@ -90,7 +187,8 @@ async function getPersonalizedGreeting(): Promise<GreetingData> {
   return {
     greeting,
     city: decodedCity,
-    weather: weather || undefined
+    weather: weather || undefined,
+    holiday: holiday || undefined
   };
 }
 
@@ -200,6 +298,7 @@ export default async function Home() {
         serverGreeting={greetingData.greeting}
         city={greetingData.city}
         weather={greetingData.weather}
+        holiday={greetingData.holiday}
       />
     </Suspense>
   );

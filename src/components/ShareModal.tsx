@@ -1,7 +1,8 @@
 'use client';
 
+import { analytics } from '@/lib/analytics';
 import { Check, Copy, Link } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from './ui/Modal';
 
 interface ShareModalProps {
@@ -37,6 +38,15 @@ const TelegramIcon = ({ className = '' }: { className?: string }) => (
 
 export function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
+  
+  // Extract threadId from URL for tracking
+  useEffect(() => {
+    if (isOpen && url) {
+      const threadIdMatch = url.match(/chat=([^&]+)/);
+      const threadId = threadIdMatch ? threadIdMatch[1] : 'unknown';
+      analytics.chatShared(threadId);
+    }
+  }, [isOpen, url]);
 
   const handleCopy = async () => {
     try {

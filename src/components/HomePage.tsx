@@ -14,13 +14,20 @@ import { useAppStore } from '@/store/useAppStore';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+interface Holiday {
+  name: string;
+  date: string;
+  emoji: string;
+}
+
 interface HomePageProps {
   serverGreeting?: string;
   city?: string;
-  weather?: { temp: number; emoji: string };
+  weather?: { temp: number; emoji: string; description: string };
+  holiday?: Holiday;
 }
 
-export function HomePage({ serverGreeting, city, weather }: HomePageProps) {
+export function HomePage({ serverGreeting, city, weather, holiday }: HomePageProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [isLoadingSharedChat, setIsLoadingSharedChat] = useState(false);
@@ -248,6 +255,7 @@ export function HomePage({ serverGreeting, city, weather }: HomePageProps) {
               greeting={serverGreeting || user.greeting || 'Hi'}
               city={city}
               weather={weather}
+              holiday={holiday}
               className="mb-4 sm:mb-6 lg:mb-8"
             />
             <FeatureCards

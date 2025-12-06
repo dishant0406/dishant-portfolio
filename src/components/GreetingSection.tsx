@@ -1,13 +1,20 @@
 'use client';
 
-import { MapPin, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+
+interface Holiday {
+  name: string;
+  date: string;
+  emoji: string;
+}
 
 interface GreetingSectionProps {
   greeting?: string;
   userName?: string;
   subtitle?: string;
   city?: string;
-  weather?: { temp: number; emoji: string };
+  weather?: { temp: number; emoji: string; description: string };
+  holiday?: Holiday;
   className?: string;
 }
 
@@ -17,28 +24,68 @@ export function GreetingSection({
   subtitle = "I'm Dishant Sharma. Ask me anything about my work, skills, or experience!",
   city,
   weather,
+  holiday,
   className = '',
 }: GreetingSectionProps) {
-  // Build location/weather string
-  const locationInfo = city || weather ? (
-    <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mt-1">
-      {city && (
+  // Build a natural, personalized greeting
+  const buildPersonalizedGreeting = () => {
+    // If we have location data, create a more personalized greeting
+    if (city && weather) {
+      // "Good Morning from sunny Delhi! ☀️"
+      return (
         <>
-          <MapPin className="w-3 h-3" />
-          <span>{city}</span>
+          <span className="font-normal">{greeting}</span>
+          <span className="text-gray-400 dark:text-gray-500 font-light"> from </span>
+          <span className="text-gray-500 dark:text-gray-400">{weather.description} {city}</span>
+          <span className="ml-1">{weather.emoji}</span>
         </>
-      )}
-      {city && weather && <span>•</span>}
-      {weather && (
-        <span>
-          {weather.emoji} {weather.temp}°C
-        </span>
-      )}
+      );
+    }
+    
+    if (city) {
+      // "Good Morning from Delhi!"
+      return (
+        <>
+          <span className="font-normal">{greeting}</span>
+          <span className="text-gray-400 dark:text-gray-500 font-light"> from </span>
+          <span className="text-gray-500 dark:text-gray-400">{city}</span>
+          <span className="ml-1">📍</span>
+        </>
+      );
+    }
+    
+    // Default greeting
+    return (
+      <>
+        <span className="font-normal">{greeting},</span>{' '}
+        <span className="text-gray-500 dark:text-gray-400">{userName}!</span>
+        <span className="ml-1">👋</span>
+      </>
+    );
+  };
+
+  // Build holiday banner if there's an upcoming holiday
+  const holidayBanner = holiday ? (
+    <div className="mb-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200/50 dark:border-amber-800/30 inline-flex items-center gap-1.5">
+      <span>{holiday.emoji}</span>
+      <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+        {holiday.name} coming up!
+      </span>
     </div>
+  ) : null;
+
+  // Temperature badge if weather available
+  const tempBadge = weather ? (
+    <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">
+      {weather.temp}°C
+    </span>
   ) : null;
 
   return (
     <div className={`flex flex-col items-center text-center px-4 ${className}`}>
+      {/* Holiday Banner */}
+      {holidayBanner}
+
       {/* Sparkle Icon */}
       <div className="mb-2 sm:mb-3">
         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-50 dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 flex items-center justify-center shadow-sm">
@@ -46,14 +93,11 @@ export function GreetingSection({
         </div>
       </div>
 
-      {/* Greeting */}
-      <h1 className="text-xl sm:text-2xl lg:text-3xl font-light text-gray-900 dark:text-white mb-1">
-        <span className="font-normal">{greeting},</span>{' '}
-        <span className="text-gray-500 dark:text-gray-400">{userName}! 👋</span>
+      {/* Personalized Greeting */}
+      <h1 className="text-xl sm:text-2xl lg:text-3xl font-light text-gray-900 dark:text-white mb-1 flex items-center flex-wrap justify-center">
+        {buildPersonalizedGreeting()}
+        {tempBadge}
       </h1>
-
-      {/* Location & Weather Info */}
-      {locationInfo}
 
       {/* Subtitle */}
       <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm max-w-xs sm:max-w-md mt-1">{subtitle}</p>
