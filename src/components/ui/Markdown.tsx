@@ -3,7 +3,7 @@
 import { analytics } from '@/lib/analytics';
 import { ExternalLink, FileText } from 'lucide-react';
 import MarkdownToJSX from 'markdown-to-jsx';
-import { ReactNode } from 'react';
+import React, { ReactNode } from 'react';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
 
@@ -232,9 +232,49 @@ const OrderedList = ({ children }: { children: ReactNode }) => (
   <ol className="list-decimal ml-4 pl-1 space-y-1.5 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ol>
 );
 
-const ListItem = ({ children }: { children: ReactNode }) => (
-  <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">{children}</li>
-);
+// List item that handles embedded images - converts multiple images to carousel
+const ListItem = ({ children }: { children: ReactNode }) => {
+  // Check if children contains images - we need to extract them for carousel
+  const childArray = React.Children.toArray(children);
+  const imageUrls: string[] = [];
+  const otherChildren: ReactNode[] = [];
+  
+  // Process children to separate images from text
+  childArray.forEach((child) => {
+    if (React.isValidElement(child)) {
+      // Check if it's our Img component or a native img
+      const childType = child.type as { name?: string } | string;
+      const typeName = typeof childType === 'function' ? childType.name : childType;
+      
+      if (typeName === 'Img' || typeName === 'img') {
+        const src = (child.props as { src?: string }).src;
+        if (src) {
+          imageUrls.push(src);
+        }
+      } else {
+        otherChildren.push(child);
+      }
+    } else {
+      // Keep text nodes and other content
+      otherChildren.push(child);
+    }
+  });
+  
+  // If we have multiple images, render them in a carousel
+  if (imageUrls.length > 1) {
+    return (
+      <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">
+        {otherChildren}
+        <ImageGallery urls={imageUrls} />
+      </li>
+    );
+  }
+  
+  // Single image or no images - render normally
+  return (
+    <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">{children}</li>
+  );
+};
 
 const Blockquote = ({ children }: { children: ReactNode }) => (
   <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 py-2 my-3 text-gray-600 dark:text-gray-400 italic bg-gray-50 dark:bg-neutral-800 rounded-r">
@@ -292,6 +332,28 @@ const Td = ({ children }: { children: ReactNode }) => (
   <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{children}</td>
 );
 
+// Custom image component that renders nicely
+const Img = ({ src, alt }: { src?: string; alt?: string }) => {
+  if (!src) return null;
+  return (
+    <span className="inline-block my-1 mr-1">
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block rounded-lg overflow-hidden bg-gray-100 dark:bg-neutral-800"
+      >
+        <img
+          src={src}
+          alt={alt || 'Image'}
+          className="w-auto h-32 sm:h-40 object-cover"
+          style={{ maxWidth: '200px' }}
+        />
+      </a>
+    </span>
+  );
+};
+
 const markdownOptions = {
   overrides: {
     h1: { component: H1 },
@@ -308,6 +370,7 @@ const markdownOptions = {
     code: { component: Code },
     pre: { component: Pre },
     a: { component: Link },
+    img: { component: Img },
     hr: { component: Hr },
     table: { component: Table },
     thead: { component: Thead },
