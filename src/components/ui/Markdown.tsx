@@ -12,14 +12,15 @@ interface MarkdownProps {
   className?: string;
 }
 
-// Image Carousel Component using Swiper - shows 1.5 images, swipeable, no arrows
+// Image Carousel Component using Swiper - shows 1.3 images, swipeable, no arrows
 const ImageCarousel = ({ urls }: { urls: string[] }) => {
   return (
-    <div className="my-3 overflow-hidden select-none">
+    <div className="my-3 -mx-1 overflow-hidden select-none">
       <Swiper
-        spaceBetween={8}
+        spaceBetween={6}
         slidesPerView={1.3}
         grabCursor={true}
+        className="!overflow-visible"
       >
         {urls.map((url, index) => (
           <SwiperSlide key={index}>
@@ -32,7 +33,7 @@ const ImageCarousel = ({ urls }: { urls: string[] }) => {
               <img
                 src={url}
                 alt={`Image ${index + 1}`}
-                className="w-full h-44 object-cover select-none pointer-events-none"
+                className="w-full h-36 sm:h-44 object-cover select-none pointer-events-none"
                 draggable={false}
               />
             </a>
@@ -212,7 +213,7 @@ const H4 = ({ children }: { children: ReactNode }) => (
 );
 
 const Paragraph = ({ children }: { children: ReactNode }) => (
-  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 last:mb-0 break-words overflow-wrap-anywhere">{children}</p>
+  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 last:mb-0" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{children}</p>
 );
 
 const Strong = ({ children }: { children: ReactNode }) => (
@@ -258,7 +259,8 @@ const Link = ({ children, href }: { children: ReactNode; href?: string }) => (
     href={href}
     target="_blank"
     rel="noopener noreferrer"
-    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline break-all"
+    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline inline-block max-w-full"
+    style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
   >
     {children}
   </a>
@@ -323,7 +325,7 @@ export function Markdown({ children, className = '' }: MarkdownProps) {
   // If only text, render simple markdown
   if (parts.length === 1 && parts[0].type === 'text') {
     return (
-      <div className={`markdown-content ${className}`}>
+      <div className={`markdown-content overflow-hidden ${className}`} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
         <MarkdownToJSX options={markdownOptions}>{parts[0].value}</MarkdownToJSX>
       </div>
     );
@@ -331,7 +333,7 @@ export function Markdown({ children, className = '' }: MarkdownProps) {
   
   // Render parts with embeds
   return (
-    <div className={`markdown-content ${className}`}>
+    <div className={`markdown-content overflow-hidden ${className}`} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
       {parts.map((part, index) => {
         if (part.type === 'resume') {
           return <ResumeEmbed key={`resume-${index}`} url={part.value} />;

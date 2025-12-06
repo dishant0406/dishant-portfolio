@@ -1,10 +1,20 @@
+import { checkApiSecurity, getCorsHeaders } from "@/lib/security";
 import { mastra } from "@/mastra";
 import { NextRequest, NextResponse } from "next/server";
+
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  const security = checkApiSecurity(request);
+  return security.response!;
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ threadId: string }> }
 ) {
+  // Security check (lighter for GET - just CORS, no rate limiting)
+  const corsHeaders = getCorsHeaders(request);
+  
   try {
     const { threadId } = await params;
 
@@ -46,12 +56,14 @@ export async function GET(
     return NextResponse.json({
       thread,
       messages: uiMessages,
+    }, {
+      headers: corsHeaders,
     });
   } catch (error) {
     console.error("Get chat error:", error);
     return NextResponse.json(
       { error: "Internal server error", details: String(error) },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

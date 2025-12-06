@@ -133,22 +133,23 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
       </div>
 
       {/* Message Content */}
-      <div className={`flex-1 max-w-[80%] sm:max-w-[75%] ${isUser ? 'flex justify-end' : ''}`}>
+      <div className={`flex-1 min-w-0 max-w-[85%] sm:max-w-[80%] ${isUser ? 'flex justify-end' : ''}`}>
         {isUser ? (
           <div 
             className={`
-              inline-block px-4 py-2.5 
+              inline-block px-3 sm:px-4 py-2 sm:py-2.5 
               rounded-2xl rounded-tr-md
               bg-gray-900 dark:bg-white 
               text-white dark:text-gray-900 
-              text-[15px] leading-relaxed
+              text-[14px] sm:text-[15px] leading-relaxed
               shadow-sm
+              break-words
             `}
           >
             {message.content}
           </div>
         ) : (
-          <div className="space-y-0">
+          <div className="space-y-0 min-w-0 w-full">
             {/* Tool calls display */}
             {hasToolCalls && (
               <ToolCallsList toolCalls={message.toolCalls!} />
@@ -158,11 +159,12 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
             {(message.content || (!hasActiveToolCalls && !message.isStreaming)) && (
               <div 
                 className={`
-                  px-4 py-3
+                  px-3 sm:px-4 py-2.5 sm:py-3
                   rounded-2xl rounded-tl-md
                   bg-white/90 dark:bg-neutral-900/95
                   border border-gray-200/60 dark:border-neutral-700/50
                   shadow-sm dark:shadow-neutral-900/20
+                  overflow-hidden
                 `}
               >
                 {message.isStreaming && !message.content && !hasActiveToolCalls ? (
@@ -172,7 +174,7 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
                     <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 ) : message.content ? (
-                  <div className="text-[15px] leading-relaxed text-gray-800 dark:text-gray-100">
+                  <div className="text-[14px] sm:text-[15px] leading-relaxed text-gray-800 dark:text-gray-100 overflow-hidden break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     <Markdown>{message.content}</Markdown>
                     {message.isStreaming && (
                       <span className="inline-block w-1.5 h-4 bg-gray-400 dark:bg-gray-500 animate-blink ml-0.5 rounded-sm" />
@@ -257,8 +259,8 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
         className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-4 sm:py-6 pb-24 sm:pb-28"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        {/* Centered content wrapper - matches input width, less padding on mobile */}
-        <div className="max-w-2xl mx-auto px-2 sm:px-4 lg:px-6 space-y-4 sm:space-y-6">
+        {/* Centered content wrapper - matches input width, minimal padding on mobile */}
+        <div className="max-w-2xl mx-auto px-1 sm:px-4 lg:px-6 space-y-3 sm:space-y-6">
           {chat.messages.map((message, index) => {
             // Check if this is the last message from the same role
             const nextMessage = chat.messages[index + 1];

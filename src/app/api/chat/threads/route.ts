@@ -1,9 +1,19 @@
+import { checkApiSecurity, getCorsHeaders } from "@/lib/security";
 import { mastra } from "@/mastra";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const RESOURCE_ID = 'portfolio-visitor';
 
-export async function GET() {
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  const security = checkApiSecurity(request);
+  return security.response!;
+}
+
+export async function GET(request: NextRequest) {
+  // Security check (lighter for GET - just CORS, no rate limiting)
+  const corsHeaders = getCorsHeaders(request);
+  
   try {
     const agent = mastra.getAgent("portfolioAgent");
     const memory = await agent.getMemory();
@@ -20,12 +30,14 @@ export async function GET() {
 
     return NextResponse.json({
       threads: threads || [],
+    }, {
+      headers: corsHeaders,
     });
   } catch (error) {
     console.error("Get threads error:", error);
     return NextResponse.json(
       { error: "Internal server error", details: String(error) },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

@@ -1,14 +1,19 @@
-import { checkRateLimit, createRateLimitResponse, getClientIP } from "@/lib/rate-limit";
+import { checkApiSecurity } from "@/lib/security";
 import { mastra } from "@/mastra";
 import { NextRequest } from "next/server";
 
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  const security = checkApiSecurity(request);
+  return security.response!;
+}
+
 export async function POST(request: NextRequest) {
-  // Rate limiting - 1 message per second per IP
-  const clientIP = getClientIP(request);
-  const rateLimitResult = checkRateLimit(clientIP);
+  // Security check (CORS + Rate Limiting)
+  const security = checkApiSecurity(request);
   
-  if (!rateLimitResult.success) {
-    return createRateLimitResponse(rateLimitResult.resetIn);
+  if (!security.success && security.response) {
+    return security.response;
   }
   
   try {
