@@ -31,25 +31,28 @@ export function GreetingSection({
   const buildPersonalizedGreeting = () => {
     // If we have location data, create a more personalized greeting
     if (city && weather) {
-      // "Good Afternoon! ☀️ Sunny in Bengaluru"
+      // "Good afternoon! It's partly cloudy in Bengaluru ⛅"
+      const weatherLower = weather.description.toLowerCase();
       return (
         <>
           <span className="font-normal">{greeting}!</span>
-          <span className="mx-1.5">{weather.emoji}</span>
-          <span className="text-gray-500 dark:text-gray-400 font-light capitalize">{weather.description}</span>
-          <span className="text-gray-400 dark:text-gray-500 font-light mx-1">in</span>
-          <span className="text-gray-500 dark:text-gray-400">{city}</span>
+          <span className="text-gray-400 dark:text-gray-500 font-light ml-1.5">It&apos;s</span>
+          <span className="text-gray-500 dark:text-gray-400 font-light ml-1">{weatherLower}</span>
+          <span className="text-gray-400 dark:text-gray-500 font-light ml-1">in</span>
+          <span className="text-gray-500 dark:text-gray-400 ml-1">{city}</span>
+          <span className="ml-1.5">{weather.emoji}</span>
         </>
       );
     }
     
     if (city) {
-      // "Good Morning! 📍 Bengaluru"
+      // "Good morning from Bengaluru 📍"
       return (
         <>
-          <span className="font-normal">{greeting}!</span>
-          <span className="mx-1.5">📍</span>
-          <span className="text-gray-500 dark:text-gray-400">{city}</span>
+          <span className="font-normal">{greeting}</span>
+          <span className="text-gray-400 dark:text-gray-500 font-light ml-1">from</span>
+          <span className="text-gray-500 dark:text-gray-400 ml-1">{city}</span>
+          <span className="ml-1.5">📍</span>
         </>
       );
     }
