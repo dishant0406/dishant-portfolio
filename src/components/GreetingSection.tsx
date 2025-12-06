@@ -34,10 +34,10 @@ export function GreetingSection({
       // "Good Afternoon! ☀️ Sunny in Bengaluru"
       return (
         <>
-          <span className="font-normal">{greeting}!</span>{' '}
-          <span>{weather.emoji}</span>{' '}
-          <span className="text-gray-500 dark:text-gray-400 font-light capitalize">{weather.description}</span>{' '}
-          <span className="text-gray-400 dark:text-gray-500 font-light">in</span>{' '}
+          <span className="font-normal">{greeting}!</span>
+          <span className="mx-1.5">{weather.emoji}</span>
+          <span className="text-gray-500 dark:text-gray-400 font-light capitalize">{weather.description}</span>
+          <span className="text-gray-400 dark:text-gray-500 font-light mx-1">in</span>
           <span className="text-gray-500 dark:text-gray-400">{city}</span>
         </>
       );
@@ -47,8 +47,8 @@ export function GreetingSection({
       // "Good Morning! 📍 Bengaluru"
       return (
         <>
-          <span className="font-normal">{greeting}!</span>{' '}
-          <span>📍</span>{' '}
+          <span className="font-normal">{greeting}!</span>
+          <span className="mx-1.5">📍</span>
           <span className="text-gray-500 dark:text-gray-400">{city}</span>
         </>
       );
@@ -57,9 +57,9 @@ export function GreetingSection({
     // Default greeting
     return (
       <>
-        <span className="font-normal">{greeting},</span>{' '}
-        <span className="text-gray-500 dark:text-gray-400">{userName}!</span>{' '}
-        <span>👋</span>
+        <span className="font-normal">{greeting},</span>
+        <span className="text-gray-500 dark:text-gray-400 ml-1">{userName}!</span>
+        <span className="ml-1.5">👋</span>
       </>
     );
   };
