@@ -448,6 +448,7 @@ export const useAppStore = create<AppState>()(
         const cardMessages: Record<string, string> = {
           projects: 'Tell me about your projects',
           skills: 'What are your technical skills?',
+          screenshots: 'Show me some screenshots of your projects',
           resume: 'Can you share your resume?',
         };
         

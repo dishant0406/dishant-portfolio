@@ -3,11 +3,77 @@
 import { ExternalLink, FileText } from 'lucide-react';
 import MarkdownToJSX from 'markdown-to-jsx';
 import { ReactNode } from 'react';
+import 'swiper/css';
+import { Swiper, SwiperSlide } from 'swiper/react';
 
 interface MarkdownProps {
   children: string;
   className?: string;
 }
+
+// Image Carousel Component using Swiper - shows 1.5 images, swipeable, no arrows
+const ImageCarousel = ({ urls }: { urls: string[] }) => {
+  return (
+    <div className="my-3 overflow-hidden select-none">
+      <Swiper
+        spaceBetween={8}
+        slidesPerView={1.3}
+        grabCursor={true}
+      >
+        {urls.map((url, index) => (
+          <SwiperSlide key={index}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg overflow-hidden bg-gray-100 dark:bg-neutral-800 select-none"
+            >
+              <img
+                src={url}
+                alt={`Image ${index + 1}`}
+                className="w-full h-44 object-cover select-none pointer-events-none"
+                draggable={false}
+              />
+            </a>
+          </SwiperSlide>
+        ))}
+      </Swiper>
+    </div>
+  );
+};
+
+// Single Image Component - centered
+const SingleImage = ({ url }: { url: string }) => {
+  return (
+    <div className="my-3 flex justify-center select-none">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block rounded-lg overflow-hidden bg-gray-100 dark:bg-neutral-800 select-none"
+        style={{ maxWidth: '280px' }}
+      >
+        <img
+          src={url}
+          alt="Shared image"
+          className="w-full h-auto object-cover select-none"
+          style={{ maxHeight: '200px' }}
+        />
+      </a>
+    </div>
+  );
+};
+
+// Image Gallery Component - handles single or multiple images
+const ImageGallery = ({ urls }: { urls: string[] }) => {
+  if (urls.length === 0) return null;
+  
+  if (urls.length === 1) {
+    return <SingleImage url={urls[0]} />;
+  }
+  
+  return <ImageCarousel urls={urls} />;
+};
 
 // Resume/Document Embed Component - WhatsApp style
 const ResumeEmbed = ({ url }: { url: string }) => {
@@ -58,14 +124,20 @@ const ResumeEmbed = ({ url }: { url: string }) => {
   );
 };
 
+// Types for parsed content parts
+type ContentPart = 
+  | { type: 'text'; value: string }
+  | { type: 'resume'; value: string }
+  | { type: 'images'; value: string[] };
+
 // Function to parse and extract embeds from content
-// Supports: [RESUME:url], {{resume:url}}, or <RESUME>url</RESUME> formats
-function parseContent(content: string): Array<{ type: 'text' | 'resume'; value: string }> {
-  const parts: Array<{ type: 'text' | 'resume'; value: string }> = [];
+// Supports: [RESUME:url], {{resume:url}}, <RESUME>url</RESUME>, and <IMG>url</IMG> formats
+function parseContent(content: string): ContentPart[] {
+  const parts: ContentPart[] = [];
   let lastIndex = 0;
   
-  // Combine all patterns into one
-  const combinedPattern = /(?:\[RESUME:([^\]]+)\]|\{\{resume:([^}]+)\}\}|<RESUME>([^<]+)<\/RESUME>)/gi;
+  // Combined pattern for resume and image tags
+  const combinedPattern = /(?:\[RESUME:([^\]]+)\]|\{\{resume:([^}]+)\}\}|<RESUME>([^<]+)<\/RESUME>|(<IMG>(?:[^<]+)<\/IMG>)+)/gi;
   
   const matches = Array.from(content.matchAll(combinedPattern));
   
@@ -84,10 +156,22 @@ function parseContent(content: string): Array<{ type: 'text' | 'resume'; value: 
       }
     }
     
-    // Get the URL from whichever capture group matched
-    const url = (match[1] || match[2] || match[3] || '').trim();
-    if (url) {
-      parts.push({ type: 'resume', value: url });
+    // Check if it's an image match (contains <IMG>)
+    if (match[0].includes('<IMG>')) {
+      // Extract all consecutive <IMG> tags
+      const imgPattern = /<IMG>([^<]+)<\/IMG>/gi;
+      const imgMatches = Array.from(match[0].matchAll(imgPattern));
+      const imageUrls = imgMatches.map(m => m[1].trim()).filter(url => url);
+      
+      if (imageUrls.length > 0) {
+        parts.push({ type: 'images', value: imageUrls });
+      }
+    } else {
+      // It's a resume match
+      const url = (match[1] || match[2] || match[3] || '').trim();
+      if (url) {
+        parts.push({ type: 'resume', value: url });
+      }
     }
     
     lastIndex = matchStart + match[0].length;
@@ -245,6 +329,10 @@ export function Markdown({ children, className = '' }: MarkdownProps) {
       {parts.map((part, index) => {
         if (part.type === 'resume') {
           return <ResumeEmbed key={`resume-${index}`} url={part.value} />;
+        }
+        
+        if (part.type === 'images') {
+          return <ImageGallery key={`images-${index}`} urls={part.value} />;
         }
         
         return (

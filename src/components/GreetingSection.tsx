@@ -1,11 +1,13 @@
 'use client';
 
-import { Sparkles } from 'lucide-react';
+import { MapPin, Sparkles } from 'lucide-react';
 
 interface GreetingSectionProps {
   greeting?: string;
   userName?: string;
   subtitle?: string;
+  city?: string;
+  weather?: { temp: number; emoji: string };
   className?: string;
 }
 
@@ -13,8 +15,28 @@ export function GreetingSection({
   greeting = 'Hi',
   userName = 'there',
   subtitle = "I'm Dishant Sharma. Ask me anything about my work, skills, or experience!",
+  city,
+  weather,
   className = '',
 }: GreetingSectionProps) {
+  // Build location/weather string
+  const locationInfo = city || weather ? (
+    <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 mt-1">
+      {city && (
+        <>
+          <MapPin className="w-3 h-3" />
+          <span>{city}</span>
+        </>
+      )}
+      {city && weather && <span>•</span>}
+      {weather && (
+        <span>
+          {weather.emoji} {weather.temp}°C
+        </span>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className={`flex flex-col items-center text-center px-4 ${className}`}>
       {/* Sparkle Icon */}
@@ -30,8 +52,11 @@ export function GreetingSection({
         <span className="text-gray-500 dark:text-gray-400">{userName}! 👋</span>
       </h1>
 
+      {/* Location & Weather Info */}
+      {locationInfo}
+
       {/* Subtitle */}
-      <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm max-w-xs sm:max-w-md">{subtitle}</p>
+      <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm max-w-xs sm:max-w-md mt-1">{subtitle}</p>
     </div>
   );
 }
