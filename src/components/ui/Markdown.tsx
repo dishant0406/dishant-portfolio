@@ -66,14 +66,11 @@ const SingleImage = ({ url }: { url: string }) => {
   );
 };
 
-// Image Gallery Component - handles single or multiple images
+// Image Gallery Component - always uses carousel for consistent display
 const ImageGallery = ({ urls }: { urls: string[] }) => {
   if (urls.length === 0) return null;
   
-  if (urls.length === 1) {
-    return <SingleImage url={urls[0]} />;
-  }
-  
+  // Always use carousel for consistent styling
   return <ImageCarousel urls={urls} />;
 };
 
@@ -232,9 +229,9 @@ const OrderedList = ({ children }: { children: ReactNode }) => (
   <ol className="list-decimal ml-4 pl-1 space-y-1.5 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ol>
 );
 
-// List item that handles embedded images - converts multiple images to carousel
+// List item that handles embedded images - always uses ImageGallery for consistent styling
 const ListItem = ({ children }: { children: ReactNode }) => {
-  // Check if children contains images - we need to extract them for carousel
+  // Check if children contains images - we need to extract them for gallery/carousel
   const childArray = React.Children.toArray(children);
   const imageUrls: string[] = [];
   const otherChildren: ReactNode[] = [];
@@ -260,8 +257,8 @@ const ListItem = ({ children }: { children: ReactNode }) => {
     }
   });
   
-  // If we have multiple images, render them in a carousel
-  if (imageUrls.length > 1) {
+  // If we have any images, render them using ImageGallery (handles single or multiple)
+  if (imageUrls.length > 0) {
     return (
       <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">
         {otherChildren}
@@ -270,7 +267,7 @@ const ListItem = ({ children }: { children: ReactNode }) => {
     );
   }
   
-  // Single image or no images - render normally
+  // No images - render normally
   return (
     <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">{children}</li>
   );
