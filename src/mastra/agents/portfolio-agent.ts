@@ -1,8 +1,14 @@
 import { createAzure } from "@ai-sdk/azure";
 import { Agent } from "@mastra/core/agent";
+import {
+  PIIDetector,
+  PromptInjectionDetector,
+  UnicodeNormalizer,
+} from "@mastra/core/processors";
 import { Memory } from "@mastra/memory";
 import { PgVector, PostgresStore } from "@mastra/pg";
 import { portfolioTools } from "../tools/portfolio-tools";
+import { PortfolioScopeProcessor } from "./input-processors/portfolio-scope-processor";
 
 // Create Azure OpenAI provider
 const azure = createAzure({
@@ -169,4 +175,31 @@ IMPORTANT for images:
   model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
   tools: portfolioTools,
   memory,
+  inputProcessors: [
+    // 1. Normalize Unicode and strip control characters
+    new UnicodeNormalizer({ stripControlChars: true }),
+    
+    // 2. Detect and block prompt injection attempts
+    new PromptInjectionDetector({ 
+      model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
+      strategy: 'block',
+      structuredOutputOptions: {
+        jsonPromptInjection: true // Use prompt injection for older API versions
+      }
+    }),
+    
+    // 3. Ensure questions are portfolio-related only
+    new PortfolioScopeProcessor({ 
+      model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI")
+    }),
+    
+    // 4. Detect and redact PII for privacy protection
+    new PIIDetector({ 
+      model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
+      strategy: 'redact',
+      structuredOutputOptions: {
+        jsonPromptInjection: true // Use prompt injection for older API versions
+      }
+    }),
+  ],
 });

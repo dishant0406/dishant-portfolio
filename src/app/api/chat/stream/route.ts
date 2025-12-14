@@ -98,6 +98,17 @@ export async function POST(request: NextRequest) {
               }) + "\n";
               controller.enqueue(encoder.encode(`data: ${data}\n`));
             }
+            // Handle tripwire (guardrail blocked the request)
+            else if (chunkType === 'tripwire') {
+              const tripwireReason = c.tripwireReason || payload?.tripwireReason || 'Request blocked by guardrails';
+              
+              // Send the tripwire message as a text message
+              const data = JSON.stringify({ 
+                type: 'text',
+                text: tripwireReason,
+              }) + "\n";
+              controller.enqueue(encoder.encode(`data: ${data}\n`));
+            }
             // Fallback: Log unknown chunk types for debugging
             else {
               console.log('Unknown chunk type:', chunkType, Object.keys(c));
