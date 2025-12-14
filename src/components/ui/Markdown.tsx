@@ -306,27 +306,37 @@ const Link = ({ children, href }: { children: ReactNode; href?: string }) => (
 const Hr = () => <hr className="border-gray-200 dark:border-neutral-700 my-4" />;
 
 const Table = ({ children }: { children: ReactNode }) => (
-  <div className="overflow-x-auto mb-3">
-    <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700 text-sm">{children}</table>
+  <div className="overflow-x-auto mb-4 -mx-2 px-2">
+    <div className="inline-block min-w-full align-middle">
+      <div className="overflow-hidden border border-gray-200 dark:border-neutral-700 rounded-lg shadow-sm">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700 text-sm">{children}</table>
+      </div>
+    </div>
   </div>
 );
 
 const Thead = ({ children }: { children: ReactNode }) => (
-  <thead className="bg-gray-50 dark:bg-neutral-800">{children}</thead>
+  <thead className="bg-gray-100 dark:bg-neutral-800">{children}</thead>
 );
 
 const Tbody = ({ children }: { children: ReactNode }) => (
-  <tbody className="divide-y divide-gray-200 dark:divide-neutral-700">{children}</tbody>
+  <tbody className="divide-y divide-gray-200 dark:divide-neutral-700 bg-white dark:bg-neutral-900">{children}</tbody>
 );
 
-const Tr = ({ children }: { children: ReactNode }) => <tr>{children}</tr>;
+const Tr = ({ children }: { children: ReactNode }) => (
+  <tr className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors">{children}</tr>
+);
 
 const Th = ({ children }: { children: ReactNode }) => (
-  <th className="px-4 py-2 text-left font-semibold text-gray-900 dark:text-white">{children}</th>
+  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-neutral-700">
+    {children}
+  </th>
 );
 
 const Td = ({ children }: { children: ReactNode }) => (
-  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{children}</td>
+  <td className="px-4 py-3 text-gray-900 dark:text-gray-100 whitespace-nowrap">
+    {children}
+  </td>
 );
 
 // Custom image component that renders nicely
