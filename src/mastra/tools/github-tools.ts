@@ -7,7 +7,7 @@ const PERSONAL_INFO_GIST_ID = "3bddbc95bab218eae656576eb3665328";
 
 // Helper function to fetch from GitHub API
 async function fetchGitHub(endpoint: string) {
-  const token = process.env.GITHUB_TOKEN;
+  const token = process.env.PROFILE_G_TOKEN;
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github.v3+json',
     'User-Agent': 'Portfolio-Agent',
@@ -123,7 +123,7 @@ export const getGitHubReposTool = createTool({
       const includeForks = context?.include_forks === true; // Default false
 
       // Use authenticated endpoint if token is available to get private repos
-      const hasToken = !!process.env.GITHUB_TOKEN;
+      const hasToken = !!process.env.PROFILE_G_TOKEN;
       let allRepos: unknown[] = [];
       
       if (hasToken && includePrivate) {
@@ -224,7 +224,7 @@ export const getRepoReadmeTool = createTool({
         headers: {
           'Accept': 'application/vnd.github.v3.raw',
           'User-Agent': 'Portfolio-Agent',
-          ...(process.env.GITHUB_TOKEN ? { 'Authorization': `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
+          ...(process.env.PROFILE_G_TOKEN ? { 'Authorization': `Bearer ${process.env.PROFILE_G_TOKEN}` } : {}),
         },
       });
 
@@ -499,7 +499,7 @@ export const getPersonalInfoTool = createTool({
         headers: {
           'Accept': 'application/vnd.github.v3+json',
           'User-Agent': 'Portfolio-Agent',
-          ...(process.env.GITHUB_TOKEN ? { 'Authorization': `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
+          ...(process.env.PROFILE_G_TOKEN ? { 'Authorization': `Bearer ${process.env.PROFILE_G_TOKEN}` } : {}),
         },
       });
 
