@@ -1,6 +1,7 @@
 import { checkApiSecurity, getCorsHeaders } from "@/lib/security";
-import { mastra } from "@/mastra";
 import { NextRequest, NextResponse } from "next/server";
+
+const MASTRA_API = process.env.MASTRA_API_URL || 'http://localhost:4000';
 
 // Handle CORS preflight
 export async function OPTIONS(request: NextRequest) {
@@ -25,38 +26,24 @@ export async function GET(
       );
     }
 
-    const agent = mastra.getAgent("portfolioAgent");
-    const memory = await agent.getMemory();
-
-    if (!memory) {
-      return NextResponse.json(
-        { error: "Memory not configured" },
-        { status: 500 }
-      );
-    }
-
-    // Get thread info
-    const thread = await memory.getThreadById({ threadId });
-
-    if (!thread) {
-      return NextResponse.json(
-        { error: "Thread not found" },
-        { status: 404 }
-      );
-    }
-
-    // Get messages from the thread
-    const { uiMessages } = await memory.query({
-      threadId,
-      selectBy: {
-        last: 100, // Get last 100 messages
-      },
+    // Forward request to Mastra server
+    const response = await fetch(`${MASTRA_API}/threads/${threadId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
     });
 
-    return NextResponse.json({
-      thread,
-      messages: uiMessages,
-    }, {
+    if (!response.ok) {
+      if (response.status === 404) {
+        return NextResponse.json(
+          { error: "Thread not found" },
+          { status: 404, headers: corsHeaders }
+        );
+      }
+      throw new Error('Mastra API request failed');
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data, {
       headers: corsHeaders,
     });
   } catch (error) {

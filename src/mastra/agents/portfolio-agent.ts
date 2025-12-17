@@ -1,14 +1,21 @@
 import { createAzure } from "@ai-sdk/azure";
 import { Agent } from "@mastra/core/agent";
 import {
-  PIIDetector,
-  PromptInjectionDetector,
-  UnicodeNormalizer,
+    PIIDetector,
+    PromptInjectionDetector,
+    UnicodeNormalizer,
 } from "@mastra/core/processors";
 import { Memory } from "@mastra/memory";
 import { PgVector, PostgresStore } from "@mastra/pg";
 import { portfolioTools } from "../tools/portfolio-tools";
 import { PortfolioScopeProcessor } from "./input-processors/portfolio-scope-processor";
+
+// Cache expensive instances across serverless invocations
+declare global {
+  var _postgresStore: PostgresStore | undefined;
+  var _pgVector: PgVector | undefined;
+  var _memory: Memory | undefined;
+}
 
 // Create Azure OpenAI provider
 const azure = createAzure({
@@ -25,28 +32,38 @@ const memoryModel = createAzure({
         useDeploymentBasedUrls: true,
         }).textEmbedding(process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME!)
 
-// Create PostgreSQL storage for memory
-const storage = new PostgresStore({
-  connectionString: process.env.MEMORY_DATABASE_URL!,
-});
+// Create or reuse PostgreSQL storage for memory (cached globally)
+if (!global._postgresStore) {
+  global._postgresStore = new PostgresStore({
+    connectionString: process.env.MEMORY_DATABASE_URL!,
+  });
+}
+const storage = global._postgresStore;
 
-const vector =  new PgVector({
-  connectionString: process.env.MEMORY_DATABASE_URL!,
-})
+// Create or reuse PgVector instance (cached globally)
+if (!global._pgVector) {
+  global._pgVector = new PgVector({
+    connectionString: process.env.MEMORY_DATABASE_URL!,
+  });
+}
+const vector = global._pgVector;
 
-// Create memory instance with PostgreSQL storage
-const memory = new Memory({
-  storage,
-  vector,
-  embedder: memoryModel,
-  options: {
-    lastMessages: 20,
-        semanticRecall: {
-      topK: 3, // Optimized: Reduced from 5 
-      messageRange: 2, // Optimized: Reduced from 3
+// Create or reuse memory instance (cached globally)
+if (!global._memory) {
+  global._memory = new Memory({
+    storage,
+    vector,
+    embedder: memoryModel,
+    options: {
+      lastMessages: 20,
+          semanticRecall: {
+        topK: 3, // Optimized: Reduced from 5 
+        messageRange: 2, // Optimized: Reduced from 3
+      },
     },
-  },
-});
+  });
+}
+const memory = global._memory;
 
 
 export const portfolioAgent = new Agent({

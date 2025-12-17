@@ -1,6 +1,7 @@
 import { checkApiSecurity } from "@/lib/security";
-import { mastra } from "@/mastra";
 import { NextRequest, NextResponse } from "next/server";
+
+const MASTRA_API = process.env.MASTRA_API_URL || 'http://localhost:4000';
 
 // Handle CORS preflight
 export async function OPTIONS(request: NextRequest) {
@@ -18,39 +19,20 @@ export async function POST(request: NextRequest) {
   
   try {
     const body = await request.json();
-    const { messages, threadId, resourceId } = body;
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json(
-        { error: "Messages array is required and cannot be empty" },
-        { status: 400 }
-      );
-    }
-
-    const agent = mastra.getAgent("portfolioAgent");
-
-    // Get the last user message
-    const lastUserMessage = messages.filter((m: { role: string }) => m.role === 'user').pop();
-    
-    if (!lastUserMessage) {
-      return NextResponse.json(
-        { error: "At least one user message is required" },
-        { status: 400 }
-      );
-    }
-
-    // Call agent with the user message and memory context
-    const result = await agent.generate(lastUserMessage.content, {
-      memory: threadId && resourceId ? {
-        thread: threadId,
-        resource: resourceId,
-      } : undefined,
+    // Forward request to Mastra server
+    const response = await fetch(`${MASTRA_API}/agent/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
     });
 
-    return NextResponse.json({
-      text: result.text,
-      toolResults: result.toolResults,
-    });
+    if (!response.ok) {
+      throw new Error('Mastra API request failed');
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(

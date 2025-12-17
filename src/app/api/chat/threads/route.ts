@@ -1,7 +1,7 @@
 import { checkApiSecurity, getCorsHeaders } from "@/lib/security";
-import { mastra } from "@/mastra";
 import { NextRequest, NextResponse } from "next/server";
 
+const MASTRA_API = process.env.MASTRA_API_URL || 'http://localhost:4000';
 const RESOURCE_ID = 'portfolio-visitor';
 
 // Handle CORS preflight
@@ -15,22 +15,18 @@ export async function GET(request: NextRequest) {
   const corsHeaders = getCorsHeaders(request);
   
   try {
-    const agent = mastra.getAgent("portfolioAgent");
-    const memory = await agent.getMemory();
+    // Forward request to Mastra server
+    const response = await fetch(`${MASTRA_API}/threads?resourceId=${RESOURCE_ID}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
 
-    if (!memory) {
-      return NextResponse.json(
-        { error: "Memory not configured" },
-        { status: 500 }
-      );
+    if (!response.ok) {
+      throw new Error('Mastra API request failed');
     }
 
-    // Get all threads for the resource
-    const threads = await memory.getThreadsByResourceId({ resourceId: RESOURCE_ID });
-
-    return NextResponse.json({
-      threads: threads || [],
-    }, {
+    const data = await response.json();
+    return NextResponse.json(data, {
       headers: corsHeaders,
     });
   } catch (error) {

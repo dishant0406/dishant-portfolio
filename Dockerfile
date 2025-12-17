@@ -1,7 +1,7 @@
 FROM node:lts as dependencies
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm install -f
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
 FROM node:lts as builder
 WORKDIR /app
@@ -15,6 +15,7 @@ ARG AZURE_DEPLOYMENT_NAME_MINI
 ARG AZURE_EMBEDDING_DEPLOYMENT_NAME
 ARG MEMORY_DATABASE_URL
 ARG PROFILE_G_TOKEN
+ARG ALLOWED_ORIGINS
 
 # Set environment variables from build arguments
 ENV NODE_ENV=production
@@ -28,11 +29,13 @@ ENV AZURE_DEPLOYMENT_NAME_MINI=${AZURE_DEPLOYMENT_NAME_MINI}
 ENV AZURE_EMBEDDING_DEPLOYMENT_NAME=${AZURE_EMBEDDING_DEPLOYMENT_NAME}
 ENV MEMORY_DATABASE_URL=${MEMORY_DATABASE_URL}
 ENV PROFILE_G_TOKEN=${PROFILE_G_TOKEN}
+ENV ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
 
 COPY ./ .
 COPY --from=dependencies /app/node_modules ./node_modules
 
-RUN yarn run build
+# Build both Next.js and Mastra server
+RUN npm run build
 
 FROM node:lts as runner
 WORKDIR /app
@@ -46,9 +49,9 @@ ARG AZURE_DEPLOYMENT_NAME_MINI
 ARG AZURE_EMBEDDING_DEPLOYMENT_NAME
 ARG MEMORY_DATABASE_URL
 ARG PROFILE_G_TOKEN
-ARG GROQ_API_KEY
+ARG ALLOWED_ORIGINS
 
-# Set runtime environment variables
+# Set runtime environment variables (needed for Mastra server)
 ENV AZURE_RESOURCE_NAME=${AZURE_RESOURCE_NAME}
 ENV AZURE_API_KEY=${AZURE_API_KEY}
 ENV AZURE_API_VERSION=${AZURE_API_VERSION}
@@ -57,14 +60,24 @@ ENV AZURE_DEPLOYMENT_NAME_MINI=${AZURE_DEPLOYMENT_NAME_MINI}
 ENV AZURE_EMBEDDING_DEPLOYMENT_NAME=${AZURE_EMBEDDING_DEPLOYMENT_NAME}
 ENV MEMORY_DATABASE_URL=${MEMORY_DATABASE_URL}
 ENV PROFILE_G_TOKEN=${PROFILE_G_TOKEN}
+ENV ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+ENV MASTRA_API_URL=http://localhost:4000
+ENV MASTRA_PORT=4000
 
 COPY --from=builder /app/next.config.ts ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/mastra-server ./mastra-server
+COPY --from=builder /app/start.sh ./start.sh
+COPY --from=builder /app/src ./src
+
+# Make start script executable
+RUN chmod +x start.sh
 
 ENV HOSTNAME="0.0.0.0"
-EXPOSE 4000
+# Only expose Next.js port - Mastra runs internally on 4000
+EXPOSE 3000
 
 CMD ["npm", "run", "start"]
