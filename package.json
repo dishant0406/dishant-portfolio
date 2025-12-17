@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run mastra:dev\"",
-    "build": "next build && npm run mastra:build",
+    "build": "TURBOPACK=0 next build && npm run mastra:build",
     "start": "sh start.sh",
     "start:next": "next start",
     "lint": "eslint",
     "mastra:dev": "cd mastra-server && tsx watch --env-file=../.env.local index.ts",
-    "mastra:build": "cd mastra-server && tsc",
+    "mastra:build": "cd mastra-server && npx esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:pg-native --external:@mastra/* --external:@ai-sdk/* --format=cjs",
     "mastra:start": "node mastra-server/dist/index.js"
   },
   "dependencies": {
@@ -41,6 +41,7 @@
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "concurrently": "^8.2.2",
+    "esbuild": "^0.24.2",
     "eslint": "^9",
     "eslint-config-next": "16.0.5",
     "tailwindcss": "^4",
