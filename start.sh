@@ -10,10 +10,9 @@ MASTRA_PID=$!
 cleanup() {
     echo "Shutting down servers..."
     kill $MASTRA_PID 2>/dev/null || true
-    exit
 }
 
-trap cleanup SIGTERM SIGINT
+trap cleanup EXIT TERM INT
 
 # Wait for Mastra to be ready
 echo "Waiting for Mastra server to start..."
