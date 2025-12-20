@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 /**
  * Proxy to add geo-location headers using IP-based geo-location API
  */
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   // Get client IP from Azure Container Apps x-forwarded-for header
@@ -13,8 +13,8 @@ export function proxy(request: NextRequest) {
 
   console.log('Client IP detected:', clientIP);
 
-  // Fetch geo-location data using the client IP
-  fetchGeoLocationData(clientIP, response);
+  // Await geo-location data fetch to ensure headers are set before returning
+  await fetchGeoLocationData(clientIP, response);
 
   return response;
 }
@@ -22,9 +22,8 @@ export function proxy(request: NextRequest) {
 // Async function to fetch geo-location data and set headers
 async function fetchGeoLocationData(ip: string, response: NextResponse) {
   try {
-    // Using ipapi.co free service (1000 requests/month)
-    // Alternative services: ip-api.com, ipgeolocation.io, etc.
-    const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`, {
+    // Using custom Azure Container Apps geo-location API
+    const geoResponse = await fetch(`https://ipinfo.proudsmoke-360acd96.centralindia.azurecontainerapps.io/lookup/${ip}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       next: { revalidate: 3600 } // Cache for 1 hour
     });
@@ -32,17 +31,18 @@ async function fetchGeoLocationData(ip: string, response: NextResponse) {
     if (geoResponse.ok) {
       const geoData = await geoResponse.json();
       
-      // Set custom geo headers
+      // Set custom geo headers based on the API response format
       response.headers.set('x-geo-timezone', geoData.timezone || 'America/New_York');
       response.headers.set('x-geo-city', geoData.city || 'New York');
-      response.headers.set('x-geo-latitude', geoData.latitude?.toString() || '40.7128');
-      response.headers.set('x-geo-longitude', geoData.longitude?.toString() || '-74.0060');
-      response.headers.set('x-geo-country', geoData.country_code || 'US');
+      response.headers.set('x-geo-latitude', geoData.ll?.[0]?.toString() || '40.7128');
+      response.headers.set('x-geo-longitude', geoData.ll?.[1]?.toString() || '-74.0060');
+      response.headers.set('x-geo-country', geoData.country || 'US');
       
       console.log('Geo data fetched:', {
         city: geoData.city,
-        country: geoData.country_code,
-        timezone: geoData.timezone
+        country: geoData.country,
+        timezone: geoData.timezone,
+        coordinates: geoData.ll
       });
     } else {
       setDefaultHeaders(response);
