@@ -176,9 +176,6 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
                 ) : message.content ? (
                   <div className="text-[14px] sm:text-[15px] leading-relaxed text-gray-800 dark:text-gray-100 overflow-hidden break-words" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     <Markdown>{message.content}</Markdown>
-                    {message.isStreaming && (
-                      <span className="inline-block w-1.5 h-4 bg-gray-400 dark:bg-gray-500 animate-blink ml-0.5 rounded-sm" />
-                    )}
                   </div>
                 ) : null}
               </div>
