@@ -1,55 +1,233 @@
 @import 'tailwindcss';
 
 /* Configure Tailwind v4 to use class-based dark mode */
+/* stylelint-disable-next-line at-rule-no-unknown */
 @variant dark (&:where(.dark, .dark *));
 
-/* 
- * CSS Variables for Theme - prevents flash on page load
- * The HTML element will have 'light' or 'dark' class added by next-themes
- */
-:root {
-  /* Light mode colors (default) */
-  --color-background: 255, 255, 255;
-  --color-foreground: 17, 24, 39;
-  --color-muted: 107, 114, 128;
-  --color-border: 229, 231, 235;
-  --color-card: 255, 255, 255;
-  --color-card-hover: 249, 250, 251;
-  --color-input: 255, 255, 255;
-  --color-primary: 17, 24, 39;
-  --color-primary-foreground: 255, 255, 255;
-  
-  /* Gradient colors for light mode */
-  --gradient-from: 250, 245, 255;
-  --gradient-via: 253, 242, 248;
-  --gradient-to: 239, 246, 255;
-  
-  /* Glass effect colors */
-  --glass-bg: 255, 255, 255;
-  --glass-border: 255, 255, 255;
+/* Shadcn color tokens mapped to existing theme variables */
+/* stylelint-disable-next-line at-rule-no-unknown */
+@theme {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-foreground);
+  --color-popover: var(--color-card);
+  --color-popover-foreground: var(--color-foreground);
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+  --color-tertiary: var(--color-tertiary);
+  --color-tertiary-foreground: var(--color-tertiary-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
+  --color-destructive: var(--color-destructive);
+  --color-destructive-foreground: var(--color-destructive-foreground);
+  --color-success: var(--color-success);
+  --color-success-foreground: var(--color-success-foreground);
+  --color-warning: var(--color-warning);
+  --color-warning-foreground: var(--color-warning-foreground);
+  --color-info: var(--color-info);
+  --color-info-foreground: var(--color-info-foreground);
+  --color-link: var(--color-link);
+  --color-link-hover: var(--color-link-hover);
+  --color-overlay: var(--color-overlay);
+  --color-code-bg: var(--color-code-bg);
+  --color-code-fg: var(--color-code-fg);
+  --color-border: var(--color-border);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-primary);
+  --radius: 0.75rem;
 }
 
-/* Dark mode colors - TRUE BLACK theme */
-.dark {
-  --color-background: 0, 0, 0;
-  --color-foreground: 255, 255, 255;
-  --color-muted: 156, 163, 175;
-  --color-border: 38, 38, 38;
-  --color-card: 17, 17, 17;
-  --color-card-hover: 26, 26, 26;
-  --color-input: 17, 17, 17;
-  --color-primary: 255, 255, 255;
-  --color-primary-foreground: 0, 0, 0;
+:root {
+  /* Light mode colors - Minimal Monochrome Theme */
+  --color-background: rgb(255, 255, 255);
+  --color-foreground: rgb(10, 10, 10);
+  --color-muted: rgb(245, 245, 245);
+  --color-muted-foreground: rgb(115, 115, 115);
+  --color-border: rgb(229, 229, 229);
+  --color-card: rgb(255, 255, 255);
+  --color-card-foreground: rgb(10, 10, 10);
+  --color-card-hover: rgb(250, 250, 250);
+  --color-input: rgb(229, 229, 229);
+  --color-primary: rgb(23, 23, 23);
+  --color-primary-foreground: rgb(250, 250, 250);
+  --color-secondary: rgb(245, 245, 245);
+  --color-secondary-foreground: rgb(23, 23, 23);
+  --color-tertiary: rgb(245, 245, 245);
+  --color-tertiary-foreground: rgb(23, 23, 23);
+  --color-accent: rgb(245, 245, 245);
+  --color-accent-foreground: rgb(23, 23, 23);
+  --color-destructive: rgb(231, 0, 11);
+  --color-destructive-foreground: rgb(255, 255, 255);
+  --color-success: rgb(34, 197, 94);
+  --color-success-foreground: rgb(255, 255, 255);
+  --color-warning: rgb(251, 191, 36);
+  --color-warning-foreground: rgb(23, 23, 23);
+  --color-info: rgb(58, 129, 246);
+  --color-info-foreground: rgb(255, 255, 255);
+  --color-link: rgb(23, 23, 23);
+  --color-link-hover: rgb(115, 115, 115);
+  --color-overlay: rgb(0, 0, 0);
+  --color-code-bg: rgb(23, 23, 23);
+  --color-code-fg: rgb(250, 250, 250);
+  --color-ring: rgb(161, 161, 161);
   
-  /* Gradient colors for dark mode - BLACK based */
-  --gradient-from: 0, 0, 0;
-  --gradient-via: 10, 10, 15;
-  --gradient-to: 5, 5, 10;
+  /* Popover colors */
+  --color-popover: rgb(255, 255, 255);
+  --color-popover-foreground: rgb(10, 10, 10);
+  
+  /* Sidebar colors */
+  --color-sidebar: rgb(250, 250, 250);
+  --color-sidebar-foreground: rgb(10, 10, 10);
+  --color-sidebar-primary: rgb(23, 23, 23);
+  --color-sidebar-primary-foreground: rgb(250, 250, 250);
+  --color-sidebar-accent: rgb(245, 245, 245);
+  --color-sidebar-accent-foreground: rgb(23, 23, 23);
+  --color-sidebar-border: rgb(229, 229, 229);
+  --color-sidebar-ring: rgb(161, 161, 161);
+  
+  /* Chart colors */
+  --color-chart-1: rgb(145, 197, 255);
+  --color-chart-2: rgb(58, 129, 246);
+  --color-chart-3: rgb(37, 99, 239);
+  --color-chart-4: rgb(26, 78, 218);
+  --color-chart-5: rgb(31, 63, 173);
+  
+  /* Gradient colors for light mode */
+  --gradient-from: rgb(255, 255, 255);
+  --gradient-via: rgb(245, 245, 245);
+  --gradient-to: rgb(23, 23, 23);
+  
+  /* Glass effect colors */
+  --glass-bg: rgb(255, 255, 255);
+  --glass-border: rgb(229, 229, 229);
+  
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  
+  /* Border radius */
+  --radius: 0.625rem;
+  --radius-sm: calc(0.625rem - 4px);
+  --radius-md: calc(0.625rem - 2px);
+  --radius-lg: 0.625rem;
+  --radius-xl: calc(0.625rem + 4px);
+  
+  /* Subtle shadows */
+  --shadow-x: 0;
+  --shadow-y: 1px;
+  --shadow-blur: 3px;
+  --shadow-spread: 0px;
+  --shadow-opacity: 0.1;
+  --shadow-color: rgb(0, 0, 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  
+  /* Letter spacing */
+  --tracking-normal: 0em;
+  --tracking-tighter: -0.05em;
+  --tracking-tight: -0.025em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+  
+  /* Spacing */
+  --spacing: 0.25rem;
+}
+
+/* Dark mode colors - Minimal Monochrome Dark Theme */
+.dark {
+  --color-background: rgb(10, 10, 10);
+  --color-foreground: rgb(250, 250, 250);
+  --color-muted: rgb(38, 38, 38);
+  --color-muted-foreground: rgb(161, 161, 161);
+  --color-border: rgb(40, 40, 40);
+  --color-card: rgb(23, 23, 23);
+  --color-card-foreground: rgb(250, 250, 250);
+  --color-card-hover: rgb(33, 33, 33);
+  --color-input: rgb(52, 52, 52);
+  --color-primary: rgb(229, 229, 229);
+  --color-primary-foreground: rgb(23, 23, 23);
+  --color-secondary: rgb(38, 38, 38);
+  --color-secondary-foreground: rgb(250, 250, 250);
+  --color-tertiary: rgb(38, 38, 38);
+  --color-tertiary-foreground: rgb(250, 250, 250);
+  --color-accent: rgb(64, 64, 64);
+  --color-accent-foreground: rgb(250, 250, 250);
+  --color-destructive: rgb(255, 100, 103);
+  --color-destructive-foreground: rgb(250, 250, 250);
+  --color-success: rgb(34, 197, 94);
+  --color-success-foreground: rgb(255, 255, 255);
+  --color-warning: rgb(251, 191, 36);
+  --color-warning-foreground: rgb(10, 10, 10);
+  --color-info: rgb(58, 129, 246);
+  --color-info-foreground: rgb(255, 255, 255);
+  --color-link: rgb(229, 229, 229);
+  --color-link-hover: rgb(161, 161, 161);
+  --color-overlay: rgb(0, 0, 0);
+  --color-code-bg: rgb(10, 10, 10);
+  --color-code-fg: rgb(250, 250, 250);
+  --color-ring: rgb(115, 115, 115);
+  
+  /* Popover colors */
+  --color-popover: rgb(38, 38, 38);
+  --color-popover-foreground: rgb(250, 250, 250);
+  
+  /* Sidebar colors */
+  --color-sidebar: rgb(23, 23, 23);
+  --color-sidebar-foreground: rgb(250, 250, 250);
+  --color-sidebar-primary: rgb(20, 71, 230);
+  --color-sidebar-primary-foreground: rgb(250, 250, 250);
+  --color-sidebar-accent: rgb(38, 38, 38);
+  --color-sidebar-accent-foreground: rgb(250, 250, 250);
+  --color-sidebar-border: rgb(40, 40, 40);
+  --color-sidebar-ring: rgb(82, 82, 82);
+  
+  /* Chart colors */
+  --color-chart-1: rgb(145, 197, 255);
+  --color-chart-2: rgb(58, 129, 246);
+  --color-chart-3: rgb(37, 99, 239);
+  --color-chart-4: rgb(26, 78, 218);
+  --color-chart-5: rgb(31, 63, 173);
+  
+  /* Gradient colors for dark mode */
+  --gradient-from: rgb(10, 10, 10);
+  --gradient-via: rgb(38, 38, 38);
+  --gradient-to: rgb(229, 229, 229);
   
   /* Glass effect colors - dark glass */
-  --glass-bg: 10, 10, 10;
-  --glass-border: 38, 38, 38;
+  --glass-bg: rgb(23, 23, 23);
+  --glass-border: rgb(40, 40, 40);
+  
+  /* Subtle shadows - same in dark mode */
+  --shadow-color: rgb(0, 0, 0);
+  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
 }
+
+/* Apply letter spacing to body */
+body {
+  letter-spacing: var(--tracking-normal);
+}
+
+
 
 /* Prevent flash - set background color immediately based on saved theme */
 html {
@@ -237,4 +415,15 @@ body {
 
 .markdown-content code {
   word-break: break-word;
+}
+
+/* Utility to hide scrollbars while maintaining scroll functionality */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

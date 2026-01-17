@@ -87,8 +87,8 @@ export function Input({
         w-full
         bg-transparent
         outline-none
-        text-gray-900 dark:text-white
-        placeholder-gray-400 dark:placeholder-gray-500
+        text-foreground
+        placeholder:text-muted-foreground
         disabled:opacity-50
         disabled:cursor-not-allowed
         resize-none

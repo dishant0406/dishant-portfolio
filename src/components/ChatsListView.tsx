@@ -36,7 +36,7 @@ function ChatMenuDropdown({ isOpen, onClose, onShare, onDelete, anchorRef }: Cha
   return createPortal(
     <>
       <div 
-        className="fixed inset-0 z-[9999]" 
+        className="fixed inset-0 z-9999" 
         onClick={(e) => {
           e.stopPropagation();
           onClose();
@@ -44,7 +44,7 @@ function ChatMenuDropdown({ isOpen, onClose, onShare, onDelete, anchorRef }: Cha
       />
       <div 
         ref={dropdownRef}
-        className="fixed bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800 py-2 min-w-[140px] z-[10000]"
+        className="fixed bg-card rounded-xl shadow-lg border border-border py-2 min-w-35 z-10000"
         style={{ top: position.top, left: position.left }}
       >
         <button
@@ -53,7 +53,7 @@ function ChatMenuDropdown({ isOpen, onClose, onShare, onDelete, anchorRef }: Cha
             onShare();
             onClose();
           }}
-          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors text-gray-700 dark:text-gray-300 flex items-center gap-2"
+          className="w-full px-4 py-2 text-left text-sm hover:bg-secondary transition-colors text-foreground/90 flex items-center gap-2"
         >
           <Share2 className="w-4 h-4" />
           Share
@@ -64,7 +64,7 @@ function ChatMenuDropdown({ isOpen, onClose, onShare, onDelete, anchorRef }: Cha
             onDelete();
             onClose();
           }}
-          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors text-red-600 dark:text-red-400 flex items-center gap-2"
+          className="w-full px-4 py-2 text-left text-sm hover:bg-secondary transition-colors text-destructive flex items-center gap-2"
         >
           <Trash2 className="w-4 h-4" />
           Delete
@@ -90,29 +90,29 @@ function ChatItemExpanded({ chat, onSelect, onShare, onDelete, isMenuOpen, onMen
   return (
     <div 
       onClick={() => onSelect(chat.id)}
-      className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border border-gray-100 dark:border-neutral-800 rounded-2xl p-4 sm:p-5 cursor-pointer hover:shadow-md dark:hover:bg-neutral-800/80 transition-all"
+      className="bg-card/80 backdrop-blur-sm border border-border rounded-2xl p-4 sm:p-5 cursor-pointer hover:shadow-md hover:bg-secondary/80 transition-all"
     >
       {/* Date */}
       <div className="flex items-center gap-2 mb-3">
-        <Calendar className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-        <span className="text-sm text-gray-500 dark:text-gray-400">{formatDate(chat.createdAt)}</span>
+        <Calendar className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">{formatDate(chat.createdAt)}</span>
       </div>
       
       {/* Title */}
-      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
+      <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">
         {chat.title}
       </h3>
       
       {/* Description */}
       {chat.description && (
-        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-4 line-clamp-3">
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-3">
           {chat.description}
         </p>
       )}
       
       {/* Footer */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
+        <div className="flex items-center gap-2 text-muted-foreground">
           <Clock className="w-4 h-4" />
           <span className="text-sm">{formatRelativeTime(chat.updatedAt)}</span>
         </div>
@@ -120,7 +120,7 @@ function ChatItemExpanded({ chat, onSelect, onShare, onDelete, isMenuOpen, onMen
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onShare?.(chat.id)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+            className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground/80"
           >
             <Share2 className="w-4 h-4" />
           </button>
@@ -128,7 +128,7 @@ function ChatItemExpanded({ chat, onSelect, onShare, onDelete, isMenuOpen, onMen
             <button
               ref={menuButtonRef}
               onClick={() => onMenuToggle(isMenuOpen ? null : chat.id)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              className="p-2 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground/80"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -161,15 +161,15 @@ function ChatItemCompact({ chat, onSelect, onShare, onDelete, isMenuOpen, onMenu
   return (
     <div 
       onClick={() => onSelect(chat.id)}
-      className="bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border border-gray-100 dark:border-neutral-800 rounded-xl px-4 py-3 cursor-pointer hover:shadow-md dark:hover:bg-neutral-800/80 transition-all"
+      className="bg-card/80 backdrop-blur-sm border border-border rounded-xl px-4 py-3 cursor-pointer hover:shadow-md hover:bg-secondary/80 transition-all"
     >
       <div className="flex items-center justify-between gap-4">
-        <h3 className="text-sm sm:text-base font-medium text-gray-900 dark:text-white truncate flex-1">
+        <h3 className="text-sm sm:text-base font-medium text-foreground truncate flex-1">
           {chat.title}
         </h3>
         
-        <div className="flex items-center gap-3 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
+        <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span className="text-sm hidden sm:inline">{formatDate(chat.createdAt)}</span>
           </div>
@@ -177,7 +177,7 @@ function ChatItemCompact({ chat, onSelect, onShare, onDelete, isMenuOpen, onMenu
             <button
               ref={menuButtonRef}
               onClick={() => onMenuToggle(isMenuOpen ? null : chat.id)}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
+              className="p-1.5 hover:bg-secondary rounded-lg transition-colors text-muted-foreground hover:text-foreground/80"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -230,26 +230,26 @@ export function ChatsListView({
   });
 
   return (
-    <div className={`flex flex-col h-full max-w-3xl mx-auto ${className}`}>
+    <div className={`flex flex-col h-full ${className}`}>
       {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
         {/* Title */}
-        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white">
-          Chats <span className="text-gray-400 dark:text-gray-500 font-normal">({chats.length})</span>
+        <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
+          Chats <span className="text-muted-foreground font-normal">({chats.length})</span>
         </h2>
         
         {/* Search and Sort */}
         <div className="flex items-center gap-3">
           {/* Search Input */}
           <div className="relative flex-1 sm:flex-initial">
-            <div className="flex items-center gap-2 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border border-gray-200 dark:border-neutral-800 rounded-full px-4 py-2.5 min-w-[180px] sm:min-w-[220px]">
-              <Search className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+            <div className="flex items-center gap-2 bg-card/80 backdrop-blur-sm border border-border rounded-full px-4 py-2.5 min-w-45 sm:min-w-55">
+              <Search className="w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search for chats"
-                className="flex-1 bg-transparent outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+                className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
@@ -258,7 +258,7 @@ export function ChatsListView({
           <div className="relative">
             <button
               onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border border-gray-200 dark:border-neutral-800 rounded-full text-sm text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-neutral-800 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 bg-card/80 backdrop-blur-sm border border-border rounded-full text-sm text-foreground/90 hover:bg-secondary transition-colors"
             >
               <span>Sort by</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
@@ -270,14 +270,14 @@ export function ChatsListView({
                   className="fixed inset-0 z-10" 
                   onClick={() => setShowSortDropdown(false)} 
                 />
-                <div className="absolute right-0 top-full mt-2 bg-white dark:bg-neutral-900 rounded-xl shadow-lg border border-gray-200 dark:border-neutral-800 py-2 min-w-[140px] z-20">
+                <div className="absolute right-0 top-full mt-2 bg-card rounded-xl shadow-lg border border-border py-2 min-w-35 z-20">
                   <button
                     onClick={() => {
                       setSortBy('recent');
                       setShowSortDropdown(false);
                     }}
-                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors ${
-                      sortBy === 'recent' ? 'text-gray-900 dark:text-white font-medium bg-gray-50 dark:bg-neutral-800' : 'text-gray-600 dark:text-gray-400'
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-secondary transition-colors ${
+                      sortBy === 'recent' ? 'text-foreground font-medium bg-secondary' : 'text-muted-foreground'
                     }`}
                   >
                     Most Recent
@@ -287,8 +287,8 @@ export function ChatsListView({
                       setSortBy('oldest');
                       setShowSortDropdown(false);
                     }}
-                    className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors ${
-                      sortBy === 'oldest' ? 'text-gray-900 dark:text-white font-medium bg-gray-50 dark:bg-neutral-800' : 'text-gray-600 dark:text-gray-400'
+                    className={`w-full px-4 py-2 text-left text-sm hover:bg-secondary transition-colors ${
+                      sortBy === 'oldest' ? 'text-foreground font-medium bg-secondary' : 'text-muted-foreground'
                     }`}
                   >
                     Oldest First
@@ -302,11 +302,11 @@ export function ChatsListView({
 
       {/* Chat List */}
       <div 
-        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain space-y-3 pb-4"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain space-y-3 pb-4 max-w-3xl mx-auto w-full"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {sortedChats.length === 0 ? (
-          <div className="text-center py-16 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-16 text-muted-foreground">
             <p className="text-base">No chats found</p>
             <p className="text-sm mt-1">Start a new conversation</p>
           </div>

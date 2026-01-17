@@ -6,10 +6,13 @@ import MarkdownToJSX from 'markdown-to-jsx';
 import React, { ReactNode } from 'react';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
+import { JsonRendererEmbed } from './JsonRendererEmbed';
+import type { JsonRendererResult } from '@/json-render/types';
 
 interface MarkdownProps {
   children: string;
   className?: string;
+  jsonRendererLookup?: Record<string, JsonRendererResult>;
 }
 
 // Image Carousel Component using Swiper - shows 1.3 images, swipeable, no arrows
@@ -28,7 +31,7 @@ const ImageCarousel = ({ urls }: { urls: string[] }) => {
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block rounded-lg overflow-hidden bg-gray-100 dark:bg-neutral-800 select-none"
+              className="block rounded-lg overflow-hidden bg-muted select-none"
             >
               <img
                 src={url}
@@ -52,7 +55,7 @@ const SingleImage = ({ url }: { url: string }) => {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-block rounded-lg overflow-hidden bg-gray-100 dark:bg-neutral-800 select-none"
+        className="inline-block rounded-lg overflow-hidden bg-muted select-none"
         style={{ maxWidth: '280px' }}
       >
         <img
@@ -90,35 +93,35 @@ const ResumeEmbed = ({ url }: { url: string }) => {
         target="_blank"
         rel="noopener noreferrer"
         onClick={handleClick}
-        className="flex items-stretch gap-0 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl overflow-hidden hover:shadow-md transition-all group max-w-sm"
+        className="flex items-stretch gap-0 bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-all group max-w-sm"
       >
         {/* File Icon Section */}
-        <div className="flex items-center justify-center bg-gradient-to-br from-red-500 to-red-600 px-4 py-4">
-          <FileText className="w-8 h-8 text-white" />
+        <div className="flex items-center justify-center bg-[linear-gradient(135deg,rgba(var(--color-primary),0.95),rgba(var(--color-info),0.9))] px-4 py-4">
+          <FileText className="w-8 h-8 text-primary-foreground" />
         </div>
         
         {/* File Info Section */}
         <div className="flex-1 px-4 py-3 min-w-0">
           <div className="flex items-center gap-2">
-            <p className="font-medium text-gray-900 dark:text-white text-sm truncate">
+            <p className="font-medium text-foreground text-sm truncate">
               {fileName}
             </p>
           </div>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-neutral-700 px-2 py-0.5 rounded">
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
               {fileExtension}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-muted-foreground">
               Document
             </span>
           </div>
         </div>
         
         {/* Action Section */}
-        <div className="flex items-center px-3 border-l border-gray-200 dark:border-neutral-700 bg-gray-50 dark:bg-neutral-800/50 group-hover:bg-gray-100 dark:group-hover:bg-neutral-700/50 transition-colors">
+        <div className="flex items-center px-3 border-l border-border bg-secondary/60 group-hover:bg-secondary transition-colors">
           <div className="flex flex-col items-center gap-1">
-            <ExternalLink className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors" />
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+            <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-link transition-colors" />
+            <span className="text-[10px] text-muted-foreground group-hover:text-link transition-colors">
               Open
             </span>
           </div>
@@ -132,7 +135,8 @@ const ResumeEmbed = ({ url }: { url: string }) => {
 type ContentPart = 
   | { type: 'text'; value: string }
   | { type: 'resume'; value: string }
-  | { type: 'images'; value: string[] };
+  | { type: 'images'; value: string[] }
+  | { type: 'json-renderer'; value: string };
 
 // Function to parse and extract embeds from content
 // Supports: [RESUME:url], {{resume:url}}, <RESUME>url</RESUME>, and <IMG>url</IMG> formats
@@ -141,7 +145,7 @@ function parseContent(content: string): ContentPart[] {
   let lastIndex = 0;
   
   // Combined pattern for resume and image tags
-  const combinedPattern = /(?:\[RESUME:([^\]]+)\]|\{\{resume:([^}]+)\}\}|<RESUME>([^<]+)<\/RESUME>|(<IMG>(?:[^<]+)<\/IMG>)+)/gi;
+  const combinedPattern = /(?:\[RESUME:([^\]]+)\]|\{\{resume:([^}]+)\}\}|<RESUME>([^<]+)<\/RESUME>|(<IMG>(?:[^<]+)<\/IMG>)+|<JSONRenderer>([^<]+)<\/JSONRenderer>)/gi;
   
   const matches = Array.from(content.matchAll(combinedPattern));
   
@@ -170,6 +174,11 @@ function parseContent(content: string): ContentPart[] {
       if (imageUrls.length > 0) {
         parts.push({ type: 'images', value: imageUrls });
       }
+    } else if (match[0].includes('<JSONRenderer>')) {
+      const jsonRendererId = (match[5] || '').trim();
+      if (jsonRendererId) {
+        parts.push({ type: 'json-renderer', value: jsonRendererId });
+      }
     } else {
       // It's a resume match
       const url = (match[1] || match[2] || match[3] || '').trim();
@@ -194,39 +203,39 @@ function parseContent(content: string): ContentPart[] {
 
 // Custom styled components for markdown rendering with dark mode support
 const H1 = ({ children }: { children: ReactNode }) => (
-  <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 mt-6 first:mt-0">{children}</h1>
+  <h1 className="text-2xl font-bold text-foreground mb-4 mt-6 first:mt-0">{children}</h1>
 );
 
 const H2 = ({ children }: { children: ReactNode }) => (
-  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3 mt-5 first:mt-0">{children}</h2>
+  <h2 className="text-xl font-semibold text-foreground mb-3 mt-5 first:mt-0">{children}</h2>
 );
 
 const H3 = ({ children }: { children: ReactNode }) => (
-  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 mt-4 first:mt-0">{children}</h3>
+  <h3 className="text-lg font-semibold text-foreground mb-2 mt-4 first:mt-0">{children}</h3>
 );
 
 const H4 = ({ children }: { children: ReactNode }) => (
-  <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-2 mt-3 first:mt-0">{children}</h4>
+  <h4 className="text-base font-semibold text-foreground mb-2 mt-3 first:mt-0">{children}</h4>
 );
 
 const Paragraph = ({ children }: { children: ReactNode }) => (
-  <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3 last:mb-0" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{children}</p>
+  <p className="text-sm text-foreground/90 leading-relaxed mb-3 last:mb-0" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>{children}</p>
 );
 
 const Strong = ({ children }: { children: ReactNode }) => (
-  <strong className="font-semibold text-gray-900 dark:text-white">{children}</strong>
+  <strong className="font-semibold text-foreground">{children}</strong>
 );
 
 const Em = ({ children }: { children: ReactNode }) => (
-  <em className="italic text-gray-700 dark:text-gray-300">{children}</em>
+  <em className="italic text-foreground/90">{children}</em>
 );
 
 const UnorderedList = ({ children }: { children: ReactNode }) => (
-  <ul className="list-disc ml-4 pl-1 space-y-1.5 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ul>
+  <ul className="list-disc ml-4 pl-1 space-y-1.5 mb-3 text-sm text-foreground/90">{children}</ul>
 );
 
 const OrderedList = ({ children }: { children: ReactNode }) => (
-  <ol className="list-decimal ml-4 pl-1 space-y-1.5 mb-3 text-sm text-gray-700 dark:text-gray-300">{children}</ol>
+  <ol className="list-decimal ml-4 pl-1 space-y-1.5 mb-3 text-sm text-foreground/90">{children}</ol>
 );
 
 // List item that handles embedded images - always uses ImageGallery for consistent styling
@@ -260,7 +269,7 @@ const ListItem = ({ children }: { children: ReactNode }) => {
   // If we have any images, render them using ImageGallery (handles single or multiple)
   if (imageUrls.length > 0) {
     return (
-      <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">
+      <li className="text-sm text-foreground/90 leading-relaxed pl-1">
         {otherChildren}
         <ImageGallery urls={imageUrls} />
       </li>
@@ -269,24 +278,24 @@ const ListItem = ({ children }: { children: ReactNode }) => {
   
   // No images - render normally
   return (
-    <li className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pl-1">{children}</li>
+    <li className="text-sm text-foreground/90 leading-relaxed pl-1">{children}</li>
   );
 };
 
 const Blockquote = ({ children }: { children: ReactNode }) => (
-  <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 py-2 my-3 text-gray-600 dark:text-gray-400 italic bg-gray-50 dark:bg-neutral-800 rounded-r">
+  <blockquote className="border-l-4 border-border pl-4 py-2 my-3 text-muted-foreground italic bg-secondary rounded-r">
     {children}
   </blockquote>
 );
 
 const Code = ({ children }: { children: ReactNode }) => (
-  <code className="bg-gray-100 dark:bg-neutral-800 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-sm font-mono">
+  <code className="bg-muted text-foreground/90 px-1.5 py-0.5 rounded text-sm font-mono">
     {children}
   </code>
 );
 
 const Pre = ({ children }: { children: ReactNode }) => (
-  <pre className="bg-gray-900 dark:bg-black text-gray-100 p-4 rounded-lg overflow-x-auto mb-3 text-sm font-mono border border-gray-800 dark:border-neutral-700">
+  <pre className="bg-code-bg text-code-fg p-4 rounded-lg overflow-x-auto mb-3 text-sm font-mono border border-border">
     {children}
   </pre>
 );
@@ -296,45 +305,45 @@ const Link = ({ children, href }: { children: ReactNode; href?: string }) => (
     href={href}
     target="_blank"
     rel="noopener noreferrer"
-    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline inline-block max-w-full"
+    className="text-link hover:text-link-hover underline inline-block max-w-full"
     style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
   >
     {children}
   </a>
 );
 
-const Hr = () => <hr className="border-gray-200 dark:border-neutral-700 my-4" />;
+const Hr = () => <hr className="border-border my-4" />;
 
 const Table = ({ children }: { children: ReactNode }) => (
   <div className="overflow-x-auto mb-4 -mx-2 px-2">
     <div className="inline-block min-w-full align-middle">
-      <div className="overflow-hidden border border-gray-200 dark:border-neutral-700 rounded-lg shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700 text-sm">{children}</table>
+      <div className="overflow-hidden border border-border rounded-lg shadow-sm">
+        <table className="min-w-full divide-y divide-border text-sm">{children}</table>
       </div>
     </div>
   </div>
 );
 
 const Thead = ({ children }: { children: ReactNode }) => (
-  <thead className="bg-gray-100 dark:bg-neutral-800">{children}</thead>
+  <thead className="bg-muted">{children}</thead>
 );
 
 const Tbody = ({ children }: { children: ReactNode }) => (
-  <tbody className="divide-y divide-gray-200 dark:divide-neutral-700 bg-white dark:bg-neutral-900">{children}</tbody>
+  <tbody className="divide-y divide-border bg-card">{children}</tbody>
 );
 
 const Tr = ({ children }: { children: ReactNode }) => (
-  <tr className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors">{children}</tr>
+  <tr className="hover:bg-secondary/60 transition-colors">{children}</tr>
 );
 
 const Th = ({ children }: { children: ReactNode }) => (
-  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap border-b border-gray-200 dark:border-neutral-700">
+  <th className="px-4 py-3 text-left text-xs font-semibold text-foreground/90 uppercase tracking-wider whitespace-nowrap border-b border-border">
     {children}
   </th>
 );
 
 const Td = ({ children }: { children: ReactNode }) => (
-  <td className="px-4 py-3 text-gray-900 dark:text-gray-100 whitespace-nowrap">
+  <td className="px-4 py-3 text-foreground whitespace-nowrap">
     {children}
   </td>
 );
@@ -348,7 +357,7 @@ const Img = ({ src, alt }: { src?: string; alt?: string }) => {
         href={src}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-block rounded-lg overflow-hidden bg-gray-100 dark:bg-neutral-800"
+        className="inline-block rounded-lg overflow-hidden bg-muted"
       >
         <img
           src={src}
@@ -388,7 +397,7 @@ const markdownOptions = {
   },
 };
 
-export function Markdown({ children, className = '' }: MarkdownProps) {
+export function Markdown({ children, className = '', jsonRendererLookup }: MarkdownProps) {
   // Parse content to extract embeds
   const parts = parseContent(children);
   
@@ -411,6 +420,18 @@ export function Markdown({ children, className = '' }: MarkdownProps) {
         
         if (part.type === 'images') {
           return <ImageGallery key={`images-${index}`} urls={part.value} />;
+        }
+
+        if (part.type === 'json-renderer') {
+          const result = jsonRendererLookup?.[part.value];
+          if (!result) {
+            return (
+              <div key={`json-renderer-${index}`} className="my-4 rounded-xl border border-dashed border-border/70 px-4 py-3 text-xs text-muted-foreground">
+                JSON renderer output pending: {part.value}
+              </div>
+            );
+          }
+          return <JsonRendererEmbed key={`json-renderer-${index}`} result={result} />;
         }
         
         return (

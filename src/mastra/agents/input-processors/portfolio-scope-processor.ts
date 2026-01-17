@@ -79,8 +79,33 @@ Return {} if the question is related to Dishant's portfolio.`,
       return messages;
     }
 
+    // Build conversation context for better follow-up question understanding
+    let conversationContext = "";
+    
+    // Include the last 3 conversation turns (assistant + user pairs) for context
+    const contextMessages = messages.slice(-6, -1);
+    if (contextMessages.length > 0) {
+      conversationContext = "Recent conversation:\n";
+      for (const msg of contextMessages) {
+        const role = msg.role === "user" ? "User" : "Assistant";
+        let msgText = "";
+        if (msg.content.parts) {
+          msgText = msg.content.parts
+            .filter((part) => part.type === "text")
+            .map((part) => (part as { type: "text"; text: string }).text)
+            .join(" ");
+        }
+        if (msgText) {
+          conversationContext += `${role}: ${msgText.substring(0, 200)}...\n`;
+        }
+      }
+      conversationContext += `\nCurrent question: ${content}`;
+    } else {
+      conversationContext = content;
+    }
+
     try {
-      const result = await this.detectionAgent.generate(content, {
+      const result = await this.detectionAgent.generate(conversationContext, {
         output: z.object({
           allowed: z.boolean().optional(),
           reason: z.string().optional(),

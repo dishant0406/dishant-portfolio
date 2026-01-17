@@ -40,7 +40,7 @@ export function Header({
       `}
     >
       {/* Left Section */}
-      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 shrink-0">
         {/* Back Button */}
         {showBackButton && (
           <IconButton
@@ -49,7 +49,7 @@ export function Header({
             variant="ghost"
             size="sm"
             ariaLabel="Go back"
-            className="w-8 h-8 sm:w-9 sm:h-9 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+            className="w-8 h-8 sm:w-9 sm:h-9 text-muted-foreground hover:text-foreground"
           />
         )}
 
@@ -57,10 +57,9 @@ export function Header({
 
         {/* New Chat Button */}
         <Button
-          variant="outline"
           size="sm"
           onClick={onNewChat}
-          className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 bg-white/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-700 flex items-center gap-1"
+          className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 flex items-center gap-1"
         >
           <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span className="hidden xs:inline">New Chat</span>
@@ -69,7 +68,7 @@ export function Header({
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 shrink-0">
         {/* Theme Toggle Button */}
         {mounted && (
           <IconButton
@@ -77,7 +76,7 @@ export function Header({
             onClick={toggleTheme}
             size="sm"
             ariaLabel={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="w-8 h-8 sm:w-9 sm:h-9 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700"
+            className="w-8 h-8 sm:w-9 sm:h-9 bg-card/80 border border-border text-muted-foreground hover:text-foreground hover:bg-card"
           />
         )}
 
@@ -87,7 +86,7 @@ export function Header({
           onClick={onGrid}
           size="sm"
           ariaLabel="View all chats"
-          className="w-8 h-8 sm:w-9 sm:h-9 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-gray-700"
+          className="w-8 h-8 sm:w-9 sm:h-9 bg-card/80 border border-border text-muted-foreground hover:text-foreground hover:bg-card"
         />
 
         {/* Share Button - Only shown when there's an active chat */}
@@ -96,7 +95,7 @@ export function Header({
             variant="outline"
             size="sm"
             onClick={onShare}
-            className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 bg-white/80 dark:bg-gray-800/80 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-700 flex items-center gap-1"
+            className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 bg-card/80 border-border text-foreground/90 hover:bg-card flex items-center gap-1"
           >
             <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Share

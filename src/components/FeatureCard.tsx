@@ -32,30 +32,30 @@ export function FeatureCard({
 }: FeatureCardProps) {
   return (
     <Card
-      className={`flex flex-col h-full w-full sm:min-w-[180px] sm:max-w-[220px] lg:min-w-[200px] lg:max-w-[240px] ${className}`}
+      className={`flex flex-col h-full w-full sm:min-w-45 sm:max-w-55 lg:min-w-50 lg:max-w-60 ${className}`}
       padding="sm"
     >
       {/* Icon */}
       <div className="mb-2 sm:mb-3">
-        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gray-50 dark:bg-neutral-800 border border-gray-100 dark:border-neutral-700 flex items-center justify-center">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-secondary border border-border flex items-center justify-center">
           {icon}
         </div>
       </div>
 
       {/* Title */}
-      <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white mb-1">{title}</h3>
+      <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-1">{title}</h3>
 
       {/* Description */}
-      <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 leading-relaxed mb-2 sm:mb-3 flex-grow line-clamp-2 sm:line-clamp-3">
+      <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed mb-2 sm:mb-3 grow line-clamp-2 sm:line-clamp-3">
         {description}
       </p>
 
       {/* Action Button */}
       <Button
-        variant="outline"
+        variant="primary"
         size="sm"
         onClick={() => onAction?.(id)}
-        className="w-full justify-center text-xs bg-transparent dark:bg-neutral-800 border-gray-200 dark:border-neutral-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-neutral-700"
+        className="w-full justify-center text-xs"
       >
         {buttonText}
       </Button>
@@ -83,7 +83,7 @@ export function FeatureCards({
 }: FeatureCardsProps) {
   const getIcon = (iconType: 'projects' | 'skills' | 'resume') => {
     const IconComponent = iconMap[iconType];
-    return <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />;
+    return <IconComponent className="w-4 h-4 sm:w-5 sm:h-5 text-foreground/80" />;
   };
 
   return (
@@ -96,7 +96,7 @@ export function FeatureCards({
         {cards.map((card, index) => (
           <div 
             key={card.id} 
-            className={`snap-center flex-shrink-0 w-[75vw] max-w-[260px] ${index === 0 ? 'ml-0' : ''} ${index === cards.length - 1 ? 'mr-0' : ''}`}
+            className={`snap-center shrink-0 w-[75vw] max-w-65 ${index === 0 ? 'ml-0' : ''} ${index === cards.length - 1 ? 'mr-0' : ''}`}
           >
             <FeatureCard
               id={card.id}

@@ -19,6 +19,7 @@ const getAllowedOrigins = (): string[] => {
     'https://dishantsharma.dev',
     'https://www.dishantsharma.dev',
     'http://localhost:3000',
+    'http://localhost:3001',
   ];
   
   return origins;

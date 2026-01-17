@@ -63,25 +63,25 @@ export function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
       name: 'Twitter',
       icon: TwitterIcon,
       url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent('Check out this conversation!')}`,
-      color: 'hover:bg-gray-900 hover:text-white dark:hover:bg-white dark:hover:text-black',
+      color: 'hover:bg-primary hover:text-primary-foreground',
     },
     {
       name: 'LinkedIn',
       icon: LinkedInIcon,
       url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
-      color: 'hover:bg-[#0a66c2] hover:text-white',
+      color: 'hover:bg-info hover:text-info-foreground',
     },
     {
       name: 'WhatsApp',
       icon: WhatsAppIcon,
       url: `https://wa.me/?text=${encodeURIComponent(url)}`,
-      color: 'hover:bg-[#128c7e] hover:text-white',
+      color: 'hover:bg-success hover:text-success-foreground',
     },
     {
       name: 'Telegram',
       icon: TelegramIcon,
       url: `https://t.me/share/url?url=${encodeURIComponent(url)}`,
-      color: 'hover:bg-[#0088cc] hover:text-white',
+      color: 'hover:bg-info hover:text-info-foreground',
     },
   ];
 
@@ -107,7 +107,7 @@ export function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
               className={`
                 p-2 rounded-lg transition-all duration-200
                 ${copied 
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' 
+                  ? 'bg-success/10 text-success' 
                   : 'bg-[rgba(var(--color-card),1)] text-theme-muted hover:text-theme-foreground'
                 }
                 border border-[rgba(var(--color-border),0.5)]
@@ -122,7 +122,7 @@ export function ShareModal({ isOpen, onClose, url }: ShareModalProps) {
             </button>
           </div>
           {copied && (
-            <p className="mt-2 text-sm text-green-600 dark:text-green-400">
+            <p className="mt-2 text-sm text-success">
               Copied to clipboard!
             </p>
           )}

@@ -5,12 +5,11 @@ import { GlassContainerProps } from '@/types';
 export function GlassContainer({
   children,
   className = '',
-  blur = 'md',
 }: GlassContainerProps) {
   return (
     <div
       className={`
-        glass-container
+        bg-background
         rounded-2xl lg:rounded-3xl
         overflow-hidden
         ${className}

@@ -217,8 +217,8 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     if (isLoadingChat) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-300 border-t-gray-900 dark:border-neutral-600 dark:border-t-white"></div>
-          <span className="text-sm text-gray-500 dark:text-gray-400">Loading chat...</span>
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-border border-t-primary"></div>
+          <span className="text-sm text-muted-foreground">Loading chat...</span>
         </div>
       );
     }
@@ -226,7 +226,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     switch (currentView) {
       case 'chats':
         return (
-          <div className="flex-1 overflow-hidden px-3 sm:px-4 lg:px-6 py-2 sm:py-4">
+          <div className="flex-1 flex flex-col h-full px-3 sm:px-4 lg:px-6 py-2 sm:py-4">
             <ChatsListView
               chats={filteredChats}
               searchQuery={chatSearchQuery}
@@ -269,10 +269,10 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   };
 
   return (
-    <main className="h-[100dvh] w-screen overflow-hidden fixed inset-0">
+    <main className="h-dvh w-screen overflow-hidden fixed inset-0">
       <GlassContainer className="h-full w-full flex flex-col rounded-none lg:m-4 lg:h-[calc(100dvh-2rem)] lg:w-[calc(100vw-2rem)] lg:rounded-3xl overflow-hidden">
         {/* Fixed Header - never scrolls */}
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Header
             onNewChat={handleNewChat}
             onSearch={handleSearch}
@@ -308,7 +308,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
             onHistoryClick={handleHistoryClick}
             disabled={false}
             isStreaming={isLoading}
-            className="max-w-2xl mx-auto"
+            className="md:max-w-[50vw] mx-auto"
           />
         </div>
       )}

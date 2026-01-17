@@ -40,9 +40,9 @@ export function MessageInput({
       className={`
         flex items-end gap-1.5 sm:gap-2 lg:gap-3
         px-2 sm:px-3 lg:px-4 py-2 sm:py-2.5 lg:py-3
-        bg-white/90 dark:bg-neutral-900/90
+        bg-card/90
         backdrop-blur-md
-        border border-gray-200 dark:border-neutral-800
+        border border-border
         rounded-2xl
         shadow-sm
         ${className}
@@ -57,7 +57,7 @@ export function MessageInput({
           variant="ghost"
           size="sm"
           ariaLabel="Add attachment"
-          className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0 text-muted-foreground hover:text-foreground/80"
         /> */}
 
         {/* History/Clock button */}
@@ -67,7 +67,7 @@ export function MessageInput({
           variant="ghost"
           size="sm"
           ariaLabel="View history"
-          className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 text-muted-foreground hover:text-foreground/80"
         />
       </div>
 
@@ -91,14 +91,14 @@ export function MessageInput({
           disabled={!canSend}
           aria-label="Send message"
           className={`
-            w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0
+            w-7 h-7 sm:w-8 sm:h-8 shrink-0
             inline-flex items-center justify-center
             rounded-full
             transition-colors duration-150 ease-in-out
-            focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-600 focus:ring-offset-2 dark:focus:ring-offset-neutral-900
+            focus:outline-none focus:ring-2 focus:ring-ring/40 focus:ring-offset-2 focus:ring-offset-background
             ${canSend 
-              ? 'bg-white dark:bg-white text-black border border-gray-200 dark:border-transparent hover:bg-gray-100 dark:hover:bg-gray-200 cursor-pointer' 
-              : 'bg-transparent text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-neutral-700 cursor-not-allowed opacity-50'
+              ? 'bg-primary text-primary-foreground border border-primary hover:bg-primary/90 cursor-pointer' 
+              : 'bg-transparent text-muted-foreground border border-border cursor-not-allowed opacity-50'
             }
           `}
         >

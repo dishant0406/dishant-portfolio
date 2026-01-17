@@ -35,12 +35,17 @@ app.post('/agent/stream', async (req, res) => {
       return res.status(400).json({ error: 'At least one user message is required' });
     }
 
-    // Start streaming
+    // Start streaming with full message history for guardrails context
     const stream = await agent.stream(lastUserMessage.content, {
       memory: threadId && resourceId ? {
         thread: threadId,
         resource: resourceId,
       } : undefined,
+      // Pass previous messages to guardrails for context on follow-up questions
+      messages: messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+        role: m.role,
+        content: { type: 'text', text: m.content },
+      })),
     });
 
     // Set headers for SSE

@@ -22,12 +22,12 @@ export function Card({
     <Component
       onClick={onClick}
       className={`
-        bg-white/90 dark:bg-neutral-900/90
+        bg-card/90
         backdrop-blur-sm
-        border border-gray-100 dark:border-neutral-800
+        border border-border
         rounded-xl lg:rounded-2xl
         shadow-sm
-        ${hover ? 'hover:shadow-md hover:bg-white dark:hover:bg-neutral-800/90 transition-all duration-200' : ''}
+        ${hover ? 'hover:shadow-md hover:bg-secondary/80 transition-all duration-200' : ''}
         ${onClick ? 'cursor-pointer text-left w-full' : ''}
         ${paddingStyles[padding]}
         ${className}

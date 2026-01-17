@@ -36,10 +36,10 @@ export function GreetingSection({
       return (
         <>
           <span className="font-normal">{greeting}!</span>
-          <span className="text-gray-400 dark:text-gray-500 font-light ml-1.5">It&apos;s</span>
-          <span className="text-gray-500 dark:text-gray-400 font-light ml-1">{weatherLower}</span>
-          <span className="text-gray-400 dark:text-gray-500 font-light ml-1">in</span>
-          <span className="text-gray-500 dark:text-gray-400 ml-1">{city}</span>
+          <span className="text-muted-foreground font-light ml-1.5">It&apos;s</span>
+          <span className="text-muted-foreground font-light ml-1">{weatherLower}</span>
+          <span className="text-muted-foreground font-light ml-1">in</span>
+          <span className="text-muted-foreground ml-1">{city}</span>
           <span className="ml-1.5">{weather.emoji}</span>
         </>
       );
@@ -50,8 +50,8 @@ export function GreetingSection({
       return (
         <>
           <span className="font-normal">{greeting}</span>
-          <span className="text-gray-400 dark:text-gray-500 font-light ml-1">from</span>
-          <span className="text-gray-500 dark:text-gray-400 ml-1">{city}</span>
+          <span className="text-muted-foreground font-light ml-1">from</span>
+          <span className="text-muted-foreground ml-1">{city}</span>
           <span className="ml-1.5">📍</span>
         </>
       );
@@ -61,7 +61,7 @@ export function GreetingSection({
     return (
       <>
         <span className="font-normal">{greeting},</span>
-        <span className="text-gray-500 dark:text-gray-400 ml-1">{userName}!</span>
+        <span className="text-muted-foreground ml-1">{userName}!</span>
         <span className="ml-1.5">👋</span>
       </>
     );
@@ -69,9 +69,9 @@ export function GreetingSection({
 
   // Build holiday banner if there's an upcoming holiday
   const holidayBanner = holiday ? (
-    <div className="mb-3 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200/50 dark:border-amber-800/30 inline-flex items-center gap-1.5">
+    <div className="mb-3 px-3 py-1.5 rounded-full bg-[linear-gradient(90deg,rgba(var(--color-warning),0.16),rgba(var(--color-tertiary),0.16))] border border-warning/40 inline-flex items-center gap-1.5">
       <span>{holiday.emoji}</span>
-      <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">
+      <span className="text-xs text-warning font-medium">
         {holiday.name} coming up!
       </span>
     </div>
@@ -79,7 +79,7 @@ export function GreetingSection({
 
   // Temperature badge if weather available
   const tempBadge = weather ? (
-    <span className="ml-2 text-sm font-normal text-gray-400 dark:text-gray-500">
+    <span className="ml-2 text-sm font-normal text-muted-foreground">
       {weather.temp}°C
     </span>
   ) : null;
@@ -91,19 +91,19 @@ export function GreetingSection({
 
       {/* Sparkle Icon */}
       <div className="mb-2 sm:mb-3">
-        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gray-50 dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 flex items-center justify-center shadow-sm">
-          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
+        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-secondary border border-border flex items-center justify-center shadow-sm">
+          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-foreground/80" />
         </div>
       </div>
 
       {/* Personalized Greeting */}
-      <h1 className="text-xl sm:text-2xl lg:text-3xl font-light text-gray-900 dark:text-white mb-1 flex items-center flex-wrap justify-center">
+      <h1 className="text-xl sm:text-2xl lg:text-3xl font-light text-foreground mb-1 flex items-center flex-wrap justify-center">
         {buildPersonalizedGreeting()}
         {tempBadge}
       </h1>
 
       {/* Subtitle */}
-      <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm max-w-xs sm:max-w-md mt-1">{subtitle}</p>
+      <p className="text-muted-foreground text-xs sm:text-sm max-w-xs sm:max-w-md mt-1">{subtitle}</p>
     </div>
   );
 }
