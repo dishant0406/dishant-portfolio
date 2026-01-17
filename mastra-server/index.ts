@@ -42,9 +42,9 @@ app.post('/agent/stream', async (req, res) => {
         resource: resourceId,
       } : undefined,
       // Pass previous messages to guardrails for context on follow-up questions
-      messages: messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+      context: messages.slice(0, -1).map((m: { role: 'user' | 'assistant' | 'system'; content: string }) => ({
         role: m.role,
-        content: { type: 'text', text: m.content },
+        content: m.role === 'system' ? m.content : (m.role === 'assistant' ? m.content : m.content),
       })),
     });
 
