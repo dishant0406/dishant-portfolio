@@ -32,11 +32,11 @@ async function fetchGeoLocationData(ip: string, response: NextResponse) {
       const geoData = await geoResponse.json();
       
       // Set custom geo headers based on the API response format
-      response.headers.set('x-geo-timezone', geoData.timezone || 'America/New_York');
-      response.headers.set('x-geo-city', geoData.city || 'New York');
-      response.headers.set('x-geo-latitude', geoData.ll?.[0]?.toString() || '40.7128');
-      response.headers.set('x-geo-longitude', geoData.ll?.[1]?.toString() || '-74.0060');
-      response.headers.set('x-geo-country', geoData.country || 'US');
+      response.headers.set('x-geo-timezone', geoData.timezone || 'Asia/Kolkata');
+      response.headers.set('x-geo-city', geoData.city || 'Bangalore');
+      response.headers.set('x-geo-latitude', geoData.ll?.[0]?.toString() || '12.9716');
+      response.headers.set('x-geo-longitude', geoData.ll?.[1]?.toString() || '77.5946');
+      response.headers.set('x-geo-country', geoData.country || 'IN');
       
       console.log('Geo data fetched:', {
         city: geoData.city,
@@ -55,11 +55,11 @@ async function fetchGeoLocationData(ip: string, response: NextResponse) {
 
 // Fallback to default headers
 function setDefaultHeaders(response: NextResponse) {
-  response.headers.set('x-geo-timezone', 'America/New_York');
-  response.headers.set('x-geo-city', 'New York');
-  response.headers.set('x-geo-latitude', '40.7128');
-  response.headers.set('x-geo-longitude', '-74.0060');
-  response.headers.set('x-geo-country', 'US');
+  response.headers.set('x-geo-timezone', 'Asia/Kolkata');
+  response.headers.set('x-geo-city', 'Bangalore');
+  response.headers.set('x-geo-latitude', '12.9716');
+  response.headers.set('x-geo-longitude', '77.5946');
+  response.headers.set('x-geo-country', 'IN');
 }
 
 // Configure which routes should use this proxy

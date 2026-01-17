@@ -119,7 +119,7 @@ export async function getUpcomingHoliday(countryCode: string): Promise<Holiday |
       await setCachedHolidays(countryCode, holidays);
     }
 
-    // Find next upcoming holiday within 7 days
+    // Find next upcoming holiday within 30 days
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -127,7 +127,7 @@ export async function getUpcomingHoliday(countryCode: string): Promise<Holiday |
       const holidayDate = new Date(holiday.date.iso);
       const diffDays = Math.ceil((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-      if (diffDays >= 0 && diffDays <= 7) {
+      if (diffDays >= 0 && diffDays <= 30) {
         // Prioritize national holidays
         const isNational = holiday.type?.includes('National holiday') || 
                           holiday.primary_type === 'National holiday';
@@ -198,6 +198,7 @@ export async function getPersonalizedGreeting(): Promise<GreetingData> {
 
   // Get location data from custom middleware headers (replacing Vercel headers)
   const timezone = headersList.get('x-geo-timezone');
+  const country = headersList.get('x-geo-country');
   const city = headersList.get('x-geo-city');
   const latitude = headersList.get('x-geo-latitude');
   const longitude = headersList.get('x-geo-longitude');
@@ -214,9 +215,8 @@ export async function getPersonalizedGreeting(): Promise<GreetingData> {
 
   // Get upcoming holiday based on timezone
   let holiday: Holiday | null = null;
-  if (timezone) {
-    const countryCode = getCountryCode(timezone);
-    holiday = await getUpcomingHoliday(countryCode);
+  if (country) {
+    holiday = await getUpcomingHoliday(country);
   }
 
   // Decode city name (it's RFC3986 encoded)

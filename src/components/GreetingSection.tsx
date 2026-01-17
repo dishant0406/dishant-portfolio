@@ -72,7 +72,7 @@ export function GreetingSection({
     <div className="mb-3 px-3 py-1.5 rounded-full bg-[linear-gradient(90deg,rgba(var(--color-warning),0.16),rgba(var(--color-tertiary),0.16))] border border-warning/40 inline-flex items-center gap-1.5">
       <span>{holiday.emoji}</span>
       <span className="text-xs text-warning font-medium">
-        {holiday.name} coming up!
+        {holiday.name} coming up on {new Date(holiday.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
       </span>
     </div>
   ) : null;
