@@ -1,11 +1,36 @@
 import { headers } from 'next/headers';
 import { DEFAULT_HOLIDAY_EMOJI, holidayEmojiMapping, timezoneToCountry, weatherInfo } from './constants';
+import { getCachedHolidays, setCachedHolidays } from './holiday-cache';
 
 // Holiday interface
 export interface Holiday {
   name: string;
   date: string;
   emoji: string;
+}
+
+// Calendarific API response interfaces
+export interface CalendarificHoliday {
+  name: string;
+  description: string;
+  country: {
+    id: string;
+    name: string;
+  };
+  date: {
+    iso: string;
+    datetime: {
+      year: number;
+      month: number;
+      day: number;
+    };
+  };
+  type: string[];
+  primary_type?: string;
+  canonical_url?: string;
+  urlid?: string;
+  locations?: string;
+  states?: string;
 }
 
 // Greeting data interface
@@ -47,28 +72,68 @@ export async function getWeather(
 }
 
 /**
- * Get upcoming holidays using Nager.Date API (free, no API key needed)
+ * Get upcoming holidays using Calendarific API with monthly caching
+ * This implements a proxy pattern to minimize API calls:
+ * - Only calls the API once per month per country
+ * - Caches the response for the entire month
+ * - With 230+ countries, we use ~230 calls/month (well under the 500 limit)
  */
 export async function getUpcomingHoliday(countryCode: string): Promise<Holiday | null> {
   try {
+    const apiKey = process.env.CALENDARIFIC_API_KEY;
+    
+    if (!apiKey) {
+      console.warn('CALENDARIFIC_API_KEY is not set. Holiday feature disabled.');
+      return null;
+    }
+
     const year = new Date().getFullYear();
-    const response = await fetch(
-      `https://date.nager.at/api/v3/PublicHolidays/${year}/${countryCode}`,
-      { next: { revalidate: 86400 } } // Cache for 24 hours
-    );
+    
+    // Try to get from cache first
+    let holidays = await getCachedHolidays(countryCode);
+    
+    // If cache miss or invalid, fetch from API
+    if (!holidays) {
+      const response = await fetch(
+        `https://calendarific.com/api/v2/holidays?api_key=${apiKey}&country=${countryCode}&year=${year}`,
+        { 
+          next: { revalidate: 2592000 } // Cache for 30 days in Next.js
+        }
+      );
 
-    if (!response.ok) return null;
+      if (!response.ok) {
+        console.error(`Calendarific API error: ${response.status} ${response.statusText}`);
+        return null;
+      }
 
-    const holidays = await response.json();
+      const data = await response.json();
+      
+      if (data.meta?.code !== 200 || !data.response?.holidays) {
+        console.error('Invalid response from Calendarific API:', data);
+        return null;
+      }
+
+      holidays = data.response.holidays as CalendarificHoliday[];
+      
+      // Cache the holidays for this country and month
+      await setCachedHolidays(countryCode, holidays);
+    }
+
+    // Find next upcoming holiday within 7 days
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Find next upcoming holiday within 7 days
-    for (const holiday of holidays) {
-      const holidayDate = new Date(holiday.date);
+    for (const holiday of holidays as CalendarificHoliday[]) {
+      const holidayDate = new Date(holiday.date.iso);
       const diffDays = Math.ceil((holidayDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
       if (diffDays >= 0 && diffDays <= 7) {
+        // Prioritize national holidays
+        const isNational = holiday.type?.includes('National holiday') || 
+                          holiday.primary_type === 'National holiday';
+        
+        if (!isNational) continue; // Skip non-national holidays for cleaner results
+
         // Holiday emoji mapping based on common holiday types
         let emoji = DEFAULT_HOLIDAY_EMOJI;
         const nameLower = holiday.name.toLowerCase();
@@ -82,15 +147,16 @@ export async function getUpcomingHoliday(countryCode: string): Promise<Holiday |
         }
 
         return {
-          name: holiday.localName || holiday.name,
-          date: holiday.date,
+          name: holiday.name,
+          date: holiday.date.iso,
           emoji,
         };
       }
     }
 
     return null;
-  } catch {
+  } catch (error) {
+    console.error('Error fetching upcoming holiday:', error);
     return null;
   }
 }
