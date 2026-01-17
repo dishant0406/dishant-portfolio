@@ -19,15 +19,15 @@ declare global {
 
 // Create Azure OpenAI provider
 const azure = createAzure({
-  resourceName: process.env.AZURE_RESOURCE_NAME_PORTFOLIO,
+  resourceName: process.env.AZURE_RESOURCE_NAME,
   apiKey: process.env.AZURE_API_KEY,
   apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
   useDeploymentBasedUrls: true,
 });
 
 const memoryModel = createAzure({
-        resourceName: process.env.AZURE_RESOURCE_NAME_PORTFOLIO || '',
-        apiKey: process.env.AZURE_API_KEY || '',
+        resourceName: process.env.AZURE_RESOURCE_NAME!,
+        apiKey: process.env.AZURE_API_KEY!,
         apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
         useDeploymentBasedUrls: true,
         }).textEmbedding(process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME!)

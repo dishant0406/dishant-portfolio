@@ -29307,13 +29307,13 @@ Feel free to ask me anything about Dishant's work!`);
 
 // ../src/mastra/agents/portfolio-agent.ts
 var azure = (0, import_azure.createAzure)({
-  resourceName: process.env.AZURE_RESOURCE_NAME_PORTFOLIO,
+  resourceName: process.env.AZURE_RESOURCE_NAME,
   apiKey: process.env.AZURE_API_KEY,
   apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
   useDeploymentBasedUrls: true
 });
 var memoryModel = (0, import_azure.createAzure)({
-  resourceName: process.env.AZURE_RESOURCE_NAME_PORTFOLIO || "",
+  resourceName: process.env.AZURE_RESOURCE_NAME || "",
   apiKey: process.env.AZURE_API_KEY || "",
   apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
   useDeploymentBasedUrls: true
