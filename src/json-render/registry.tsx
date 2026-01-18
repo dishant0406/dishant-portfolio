@@ -56,7 +56,6 @@ import {
   useFieldValidation,
 } from "@json-render/react"
 import { AlertCircle } from "lucide-react"
-import Image from "next/image"
 import { useMemo } from "react"
 import {
   Area,
@@ -143,10 +142,9 @@ function CarouselView({ items }: { items: CarouselItem[] }) {
         {items.map((item, index) => (
           <SwiperSlide key={index}>
             <div className="relative w-full" style={{ aspectRatio: '16/9' }}>
-              <Image
+              <img
                 src={item.src}
                 alt={item.alt || "Carousel image"}
-                fill
                 className="object-cover"
               />
             </div>
