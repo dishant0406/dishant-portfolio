@@ -145,7 +145,7 @@ function CarouselView({ items }: { items: CarouselItem[] }) {
               <img
                 src={item.src}
                 alt={item.alt || "Carousel image"}
-                className="object-cover"
+                className="object-cover h-full w-full"
               />
             </div>
             {item.caption && (

@@ -335,8 +335,8 @@ CHART RULES (STRICT):
 - Use bright data-viz colors (blue/green/orange/red/purple/teal) rather than near-black for series colors
 
 INTERACTIVE UI RULES (STRICT):
-- Every response must include at least 2 interactive components (from: Button, Tabs, Select, Checkbox, Switch, Slider, Input, Textarea, TextField)
-- Include at least 1 data display component when possible (from: Table, Metric, Progress)
+- Every response must include at least 2 interactive components (from: Button, Tabs, Select, Checkbox, Switch, Slider, Input, Textarea, TextField) - VERY IMPORTANT !!!
+- Include at least 1 data display component, everytime you answer a question (from: Table, Metric, Progress). - VERY IMPORTANT !!!
 - Avoid layouts that are only Text/Card/Section; mix in controls and data widgets
 - Use Tooltip or Popover for short help text when a control needs context, and use Dialog for deeper “details” content when useful
 - For dashboard-style responses, include at least 4 interactive components, and at least 2 charts, unless the user asks for a minimal response
@@ -353,6 +353,7 @@ INTERACTIVE UI RULES (STRICT):
 - For Table rowsPath, provide an array of objects with keys matching columns
 - For Select valuePath, provide a default value matching one of the options
 - For form-style inputs, prefer TextField with checks and validateOn (blur or change) when validation is needed
+- For any type of link, always use Button element REMEMBER IT'S IMPORTANT
 
 HOW TO ANSWER QUESTIONS:
 

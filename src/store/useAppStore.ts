@@ -526,12 +526,26 @@ export const useAppStore = create<AppState>()(
           const data = await response.json();
           
           // Convert API messages to our format
-          const messages: ChatMessage[] = (data.messages || []).map((msg: { id: string; role: string; content: string; createdAt?: string }) => ({
-            id: msg.id || generateId(),
-            role: msg.role as 'user' | 'assistant',
-            content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-            timestamp: msg.createdAt ? new Date(msg.createdAt) : new Date(),
-          }));
+          const messages: ChatMessage[] = (data.messages || []).map((msg: any) => {
+            // Extract tool invocations if present
+            const toolCalls: ToolCall[] | undefined = msg.toolInvocations?.map((inv: any) => ({
+              id: inv.toolCallId || generateId(),
+              toolName: inv.toolName,
+              args: inv.args,
+              status: inv.state === 'result' ? 'completed' : 
+                      inv.state === 'partial-call' ? 'running' : 
+                      'pending',
+              result: inv.result,
+            }));
+
+            return {
+              id: msg.id || generateId(),
+              role: msg.role as 'user' | 'assistant',
+              content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+              timestamp: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+              toolCalls,
+            };
+          });
           
           const chat: Chat = {
             id: threadId,
