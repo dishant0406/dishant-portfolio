@@ -103,13 +103,6 @@ function ChatItemExpanded({ chat, onSelect, onShare, onDelete, isMenuOpen, onMen
         {chat.title}
       </h3>
       
-      {/* Description */}
-      {chat.description && (
-        <p className="text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-3">
-          {chat.description}
-        </p>
-      )}
-      
       {/* Footer */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-muted-foreground">

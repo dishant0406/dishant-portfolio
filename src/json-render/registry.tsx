@@ -57,7 +57,7 @@ import {
   useFieldValidation,
 } from "@json-render/react"
 import { AlertCircle } from "lucide-react"
-import { useMemo } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import "swiper/css"
 import "swiper/css/navigation"
 import "swiper/css/pagination"
@@ -83,6 +83,22 @@ type CarouselItem = {
   alt?: string
   caption?: string
 }
+
+
+function useTruncation() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    if (!ref.current) return;
+
+    const el = ref.current;
+    setIsTruncated(el.scrollHeight > el.clientHeight);
+  }, []);
+
+  return { ref, isTruncated };
+}
+
 
 function formatMetricValue(value: unknown, format: MetricFormat) {
   if (value === null || value === undefined) return "-"
@@ -182,6 +198,52 @@ function CarouselView({ items }: { items: CarouselItem[] }) {
   )
 }
 
+
+type Props = {
+  className?: string;
+  children: string;
+};
+
+export function ExpandableText({
+  className = "",
+  children,
+}: Props) {
+  const [expanded, setExpanded] = useState(false);
+
+
+  return (
+    <div className="relative">
+      <p
+        className={`${className} ${
+          !expanded ? "line-clamp-2" : ""
+        }`}
+      >
+        {children}
+      </p>
+
+      {(!expanded) && (
+        <span className="absolute bottom-0 right-0 flex items-center bg-card rounded-md px-2">
+          <button
+            onClick={() => setExpanded(true)}
+            className="text-xs text-primary"
+          >
+            ...more
+          </button>
+        </span>
+      )}
+
+      {expanded && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="mt-1 text-xs text-primary"
+        >
+          less
+        </button>
+      )}
+    </div>
+  );
+}
+
 export const jsonRendererRegistry: ComponentRegistry = {
   Carousel: ({ element }) => {
     const items = useMemo(() => {
@@ -210,32 +272,40 @@ export const jsonRendererRegistry: ComponentRegistry = {
           )}
         </div>
       )}
-      <div className="flex flex-col gap-3">{children}</div>
+      <div>{children}</div>
     </section>
   ),
   Card: ({ element, children }) => (
-    <BaseCard className="" padding="md">
-      {(element.props.title || element.props.description) && (
-        <div className="space-y-1 pb-1.5">
-          {element.props.title && (
-            <h4 className="text-base font-semibold text-foreground">
-              {element.props.title}
-            </h4>
-          )}
-          {element.props.description && (
-            <p className="text-sm text-muted-foreground">
-              {element.props.description}
-            </p>
-          )}
-        </div>
+<BaseCard padding="md">
+  {(element.props.title || element.props.description) && (
+    <div className="space-y-1 pb-1.5">
+      {element.props.title && (
+        <p
+          className="text-base font-semibold text-foreground"
+        >
+          {element.props.title}
+        </p>
       )}
-      {children && <div className="flex flex-col gap-3">{children}</div>}
-      {element.props.footer && (
-        <div className="pt-2 text-xs text-muted-foreground">
-          {element.props.footer}
-        </div>
+
+      {element.props.description && (
+        <ExpandableText
+          className="text-sm text-muted-foreground"
+        >
+          {element.props.description}
+        </ExpandableText>
       )}
-    </BaseCard>
+    </div>
+  )}
+
+  {children && <div className="flex flex-col gap-3">{children}</div>}
+
+  {element.props.footer && (
+    <div className="pt-2 text-xs text-muted-foreground">
+      {element.props.footer}
+    </div>
+  )}
+</BaseCard>
+
   ),
   Metric: ({ element }) => {
     const value = useDataValue(element.props.valuePath)
@@ -273,14 +343,41 @@ export const jsonRendererRegistry: ComponentRegistry = {
       </BaseButton>
     )
   },
-  Badge: ({ element }) => (
-    <Badge
-      variant={element.props.variant}
-      className="rounded-full border border-border bg-card text-muted-foreground"
-    >
-      {element.props.label}
-    </Badge>
-  ),
+  Badge: ({ element }) => {
+    const badgeRef = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+      if (badgeRef.current && badgeRef.current.parentElement) {
+        const parentStyle = window.getComputedStyle(badgeRef.current.parentElement)
+        //if grid change to flex
+        if (parentStyle.display === 'grid') {
+          badgeRef.current.parentElement.style.display = 'flex'
+          badgeRef.current.parentElement.style.flexWrap = 'wrap'
+        }
+
+        //check if parent is flex and a flex-col then do it flex-row
+        const updatedParentStyle = window.getComputedStyle(badgeRef.current.parentElement)
+        if (updatedParentStyle.display === 'flex' && updatedParentStyle.flexDirection === 'column') {
+          badgeRef.current.parentElement.style.flexDirection = 'row'
+          badgeRef.current.parentElement.style.flexWrap = 'wrap'
+          //no shrink
+          badgeRef.current.parentElement.style.gap = '8px'
+          
+        }
+      }
+    }, [])
+    return (
+      <div ref={badgeRef} className="flex-1 shrink-0" style={{ display: "contents" }}>
+        <Badge
+          variant={element.props.variant}
+          className="border py-1 border-border bg-card text-muted-foreground"
+        >
+          {element.props.label}
+        </Badge>
+        {/* Optionally, you can use parentIsGrid for conditional rendering or debugging */}
+        {/* <span style={{ display: 'none' }}>{parentIsGrid ? 'Parent is grid' : 'Parent is not grid'}</span> */}
+      </div>
+    )
+  },
   Alert: ({ element }) => (
     <div
       className={cn(
@@ -307,7 +404,7 @@ export const jsonRendererRegistry: ComponentRegistry = {
     const rows = useDataValue<Record<string, unknown>[]>(element.props.rowsPath)
     const safeRows = Array.isArray(rows) ? rows : []
     return (
-      <div className="overflow-hidden rounded-2xl border border-border bg-card/90 shadow-sm">
+      <div className=" max-h-[50vh] overflow-auto rounded-2xl border border-border bg-card/90 shadow-sm">
         <Table>
           <TableHeader >
             <TableRow>

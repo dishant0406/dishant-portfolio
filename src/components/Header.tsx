@@ -2,6 +2,7 @@
 
 import { useTheme } from '@/hooks';
 import { ArrowLeft, Grid3X3, Moon, Plus, Share2, Sun } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { Button, IconButton } from './ui';
 
 interface HeaderProps {
@@ -30,6 +31,8 @@ export function Header({
   className = '',
 }: HeaderProps) {
   const { toggleTheme, isDark, mounted } = useTheme();
+  const searchParams = useSearchParams();
+  const isNewChat = searchParams.get('chat') ? false : true;
 
   return (
     <header
@@ -53,10 +56,7 @@ export function Header({
           />
         )}
 
-
-
-        {/* New Chat Button */}
-        <Button
+       {!isNewChat && <Button
           size="sm"
           onClick={onNewChat}
           className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 flex items-center gap-1"
@@ -64,7 +64,7 @@ export function Header({
           <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span className="hidden xs:inline">New Chat</span>
           <span className="xs:hidden">New</span>
-        </Button>
+        </Button>}
       </div>
 
       {/* Right Section */}

@@ -15,9 +15,9 @@ export const jsonRendererCatalog = createCatalog({
     },
     Card: {
       props: z.object({
-        title: z.string().optional(),
-        description: z.string().optional(),
-        footer: z.string().optional(),
+        title: z.string().optional()?.describe("Title for the card, max 5 words"),
+        description: z.string().optional()?.describe("Short description for the card, max 80 characters, min also 80 characters"),
+        footer: z.string().describe("Footer text for the card, action items like button, links, etc. should be added as children"),
       }),
       hasChildren: true,
     },
@@ -39,7 +39,7 @@ export const jsonRendererCatalog = createCatalog({
     Badge: {
       props: z.object({
         label: z.string(),
-        variant: z.enum(["default", "secondary", "outline", "destructive"]).default("secondary"),
+        variant: z.enum(["default", "secondary", "outline", "destructive"]).default("default"),
       }),
     },
     Alert: {

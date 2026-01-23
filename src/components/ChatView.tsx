@@ -125,9 +125,6 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
   const hasActiveToolCalls = message.toolCalls?.some(t => t.status === 'running');
   const { tree, data, setTreeString } = useUIStream();
 
-  console.log(message.content?.trim())
-  console.log(tree)
-
   useEffect(() => {
     if(message.content?.trim()){
       setTreeString(message.content?.trim());
@@ -240,30 +237,6 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when messages change or streaming
-  useEffect(() => {
-    const scrollToBottom = () => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      }
-    };
-    
-    scrollToBottom();
-  }, [chat?.messages, isLoading]);
-
-  // Also scroll when content changes (for streaming)
-  useEffect(() => {
-    const lastMessage = chat?.messages[chat?.messages.length - 1];
-    if (lastMessage?.isStreaming) {
-      const scrollToBottom = () => {
-        if (messagesEndRef.current) {
-          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      };
-      scrollToBottom();
-    }
-  }, [chat?.messages]);
-
   if (!chat) {
     return (
       <div className={`flex items-center justify-center text-theme-muted ${className}`}>
@@ -281,7 +254,7 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {/* Centered content wrapper - matches input width, minimal padding on mobile */}
-        <div className="md:max-w-[50vw] max-w-full mx-auto px-1 sm:px-4 lg:px-6 space-y-3 sm:space-y-6">
+        <div className="md:max-w-[60vw] max-w-full mx-auto px-1 sm:px-4 lg:px-6 space-y-3 sm:space-y-6">
           {chat.messages.map((message, index) => {
             // Check if this is the last message from the same role
             const nextMessage = chat.messages[index + 1];

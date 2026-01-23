@@ -27,6 +27,8 @@ export function Card({
         border border-border
         rounded-xl lg:rounded-2xl
         shadow-sm
+        flex flex-col justify-between
+        shrink-0
         ${hover ? 'hover:shadow-md hover:bg-secondary/80 transition-all duration-200' : ''}
         ${onClick ? 'cursor-pointer text-left w-full' : ''}
         ${paddingStyles[padding]}
