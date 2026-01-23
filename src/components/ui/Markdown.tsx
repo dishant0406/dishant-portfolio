@@ -47,28 +47,6 @@ const ImageCarousel = ({ urls }: { urls: string[] }) => {
   );
 };
 
-// Single Image Component - centered
-const SingleImage = ({ url }: { url: string }) => {
-  return (
-    <div className="my-3 flex justify-center select-none">
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block rounded-lg overflow-hidden bg-muted select-none"
-        style={{ maxWidth: '280px' }}
-      >
-        <img
-          src={url}
-          alt="Shared image"
-          className="w-full h-auto object-cover select-none"
-          style={{ maxHeight: '200px' }}
-        />
-      </a>
-    </div>
-  );
-};
-
 // Image Gallery Component - always uses carousel for consistent display
 const ImageGallery = ({ urls }: { urls: string[] }) => {
   if (urls.length === 0) return null;

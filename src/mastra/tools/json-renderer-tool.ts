@@ -41,10 +41,54 @@ const componentPropMap: Record<string, string[]> = {
   Tooltip: ["label", "content"],
   Popover: ["triggerLabel", "title", "description"],
   Dialog: ["triggerLabel", "title", "description", "actionLabel", "action", "size"],
-  LineChart: ["dataPath", "xKey", "series", "height"],
-  AreaChart: ["dataPath", "xKey", "series", "height"],
-  BarChart: ["dataPath", "xKey", "series", "height"],
-  PieChart: ["dataPath", "labelKey", "valueKey", "height"],
+  LineChart: [
+    "dataPath",
+    "xKey",
+    "series",
+    "height",
+    "showGrid",
+    "showLegend",
+    "showTooltip",
+    "xAxisLabel",
+    "yAxisLabel",
+  ],
+  AreaChart: [
+    "dataPath",
+    "xKey",
+    "series",
+    "height",
+    "showGrid",
+    "showLegend",
+    "showTooltip",
+    "xAxisLabel",
+    "yAxisLabel",
+    "stacking",
+  ],
+  BarChart: [
+    "dataPath",
+    "xKey",
+    "series",
+    "height",
+    "layout",
+    "showGrid",
+    "showLegend",
+    "showTooltip",
+    "xAxisLabel",
+    "yAxisLabel",
+    "stacking",
+  ],
+  PieChart: [
+    "dataPath",
+    "nameKey",
+    "labelKey",
+    "valueKey",
+    "height",
+    "innerSize",
+    "showLabels",
+    "showLegend",
+    "showTooltip",
+    "colors",
+  ],
   Grid: ["columns", "gap"],
   Stack: ["gap"],
 };
@@ -117,6 +161,61 @@ function normalizeCarouselItems(input: unknown) {
       };
     })
     .filter(Boolean);
+}
+
+function normalizeChartSeries(input: unknown) {
+  if (!Array.isArray(input)) return input;
+  return input.map((item) => {
+    if (!item || typeof item !== "object") return item;
+    const raw = item as Record<string, unknown>;
+    const dataKey =
+      typeof raw.dataKey === "string"
+        ? raw.dataKey
+        : typeof raw.key === "string"
+        ? raw.key
+        : undefined;
+    const name =
+      typeof raw.name === "string"
+        ? raw.name
+        : typeof raw.label === "string"
+        ? raw.label
+        : undefined;
+    const color =
+      typeof raw.color === "string"
+        ? raw.color
+        : typeof raw.stroke === "string"
+        ? raw.stroke
+        : typeof raw.fill === "string"
+        ? raw.fill
+        : undefined;
+    const lineWidth =
+      typeof raw.lineWidth === "number"
+        ? raw.lineWidth
+        : typeof raw.strokeWidth === "number"
+        ? raw.strokeWidth
+        : undefined;
+    const marker =
+      typeof raw.marker === "boolean"
+        ? raw.marker
+        : typeof raw.dot === "boolean"
+        ? raw.dot
+        : undefined;
+    const borderRadius =
+      typeof raw.borderRadius === "number"
+        ? raw.borderRadius
+        : typeof raw.radius === "number"
+        ? raw.radius
+        : undefined;
+    return {
+      ...raw,
+      ...(dataKey ? { dataKey } : null),
+      ...(name ? { name } : null),
+      ...(color ? { color } : null),
+      ...(lineWidth !== undefined ? { lineWidth } : null),
+      ...(marker !== undefined ? { marker } : null),
+      ...(borderRadius !== undefined ? { borderRadius } : null),
+    };
+  });
 }
 
 function normalizeLegacyNode(node: LegacyNode, depth = 0): UITree {
@@ -289,6 +388,19 @@ function normalizeInlineChildren(tree: UITree): UITree {
       merged.items = normalizeCarouselItems(merged.items);
     }
 
+    if (type === "LineChart" || type === "AreaChart" || type === "BarChart") {
+      merged.series = normalizeChartSeries(merged.series);
+    }
+
+    if (type === "PieChart") {
+      if (!merged.nameKey && typeof merged.labelKey === "string") {
+        merged.nameKey = merged.labelKey;
+      }
+      if (!merged.valueKey && typeof merged.dataKey === "string") {
+        merged.valueKey = merged.dataKey;
+      }
+    }
+
     elements[key] = {
       key,
       type,
@@ -371,6 +483,23 @@ function normalizeTreeProps(tree: UITree): UITree {
       if (!merged.title) merged.title = "Details";
       if (!merged.actionLabel) merged.actionLabel = "Confirm";
       if (!merged.action) merged.action = { name: "refresh_data" };
+    }
+
+    if (
+      element.type === "LineChart" ||
+      element.type === "AreaChart" ||
+      element.type === "BarChart"
+    ) {
+      merged.series = normalizeChartSeries(merged.series);
+    }
+
+    if (element.type === "PieChart") {
+      if (!merged.nameKey && typeof merged.labelKey === "string") {
+        merged.nameKey = merged.labelKey;
+      }
+      if (!merged.valueKey && typeof merged.dataKey === "string") {
+        merged.valueKey = merged.dataKey;
+      }
     }
 
     elements[key] = {
@@ -688,13 +817,17 @@ function ensureDataForTree(tree: UITree, data: Record<string, unknown>) {
 
       const xKey =
         element.type === "PieChart"
-          ? (element.props?.labelKey as string | undefined)
+          ? ((element.props?.nameKey as string | undefined) ??
+              (element.props?.labelKey as string | undefined))
           : (element.props?.xKey as string | undefined);
-      const series = element.props?.series as Array<{ key: string }> | undefined;
+      const series =
+        element.props?.series as Array<{ dataKey?: string; key?: string }> | undefined;
       const valueKey =
         element.type === "PieChart"
-          ? (element.props?.valueKey as string | undefined)
-          : series?.[0]?.key;
+          ? ((element.props?.valueKey as string | undefined) ??
+              (element.props?.dataKey as string | undefined))
+          : ((series?.[0] as { dataKey?: string; key?: string } | undefined)?.dataKey ??
+              (series?.[0] as { dataKey?: string; key?: string } | undefined)?.key);
 
       if (!xKey || !valueKey) {
         continue;

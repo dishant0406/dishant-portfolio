@@ -25,10 +25,12 @@ function ActionConfirmationLayer() {
 
 export function JsonRendererEmbed({ result }: JsonRendererEmbedProps) {
   if (!result.tree) return null
+  const dataKey = JSON.stringify(result.data ?? {})
 
   return (
     <div className="mt-2 rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
       <JSONUIProvider
+        key={dataKey}
         registry={jsonRendererRegistry}
         initialData={result.data || {}}
         actionHandlers={jsonRendererActionHandlers}

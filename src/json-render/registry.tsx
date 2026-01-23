@@ -48,6 +48,7 @@ import {
 import { Button as BaseButton } from "@/components/ui/Button"
 import { Card as BaseCard } from "@/components/ui/Card"
 import { cn } from "@/lib/utils"
+import { Chart } from "@highcharts/react"
 import type { ComponentRegistry } from "@json-render/react"
 import {
   useAction,
@@ -57,22 +58,6 @@ import {
 } from "@json-render/react"
 import { AlertCircle } from "lucide-react"
 import { useMemo } from "react"
-import {
-  Area,
-  Bar,
-  CartesianGrid,
-  Cell,
-  Line,
-  Pie,
-  AreaChart as RechartsAreaChart,
-  BarChart as RechartsBarChart,
-  LineChart as RechartsLineChart,
-  PieChart as RechartsPieChart,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-} from "recharts"
 import "swiper/css"
 import "swiper/css/navigation"
 import "swiper/css/pagination"
@@ -91,6 +76,7 @@ const CHART_PALETTE = [
   "#f59e0b",
   "#22c55e",
 ]
+const GRID_LINE_COLOR = "rgba(148,163,184,0.2)"
 
 type CarouselItem = {
   src: string
@@ -123,6 +109,42 @@ function formatMetricValue(value: unknown, format: MetricFormat) {
     }).format(numeric)
   }
   return new Intl.NumberFormat("en-US").format(numeric)
+}
+
+function toNumber(value: unknown) {
+  if (value === null || value === undefined) return null
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().replace(/,/g, "")
+    if (!normalized) return null
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  if (typeof value === "object") {
+    const maybeValue = (value as { value?: unknown; y?: unknown }).value
+    const maybeY = (value as { y?: unknown }).y
+    if (maybeValue !== undefined) return toNumber(maybeValue)
+    if (maybeY !== undefined) return toNumber(maybeY)
+  }
+  return null
+}
+
+function getCategories(data: Record<string, unknown>[], key: string) {
+  return data.map((row) => {
+    const value = row?.[key]
+    if (value === null || value === undefined) return ""
+    return String(value)
+  })
+}
+
+function getSeriesData(data: Record<string, unknown>[], key: string) {
+  const values = data.map((row) => toNumber(row?.[key]))
+  if (values.length > 0 && values.every((value) => value === null)) {
+    return values.map(() => 0)
+  }
+  return values
 }
 
 function CarouselView({ items }: { items: CarouselItem[] }) {
@@ -455,115 +477,330 @@ export const jsonRendererRegistry: ComponentRegistry = {
     )
   },
   LineChart: ({ element }) => {
-    const data = useDataValue<Record<string, unknown>[]>(element.props.dataPath) || []
+    const raw = useDataValue<Record<string, unknown>[]>(element.props.dataPath)
+    const data = Array.isArray(raw) ? raw : []
+    const height = element.props.height ?? 300
+    const options = useMemo(() => {
+      const showGrid = element.props.showGrid !== false
+      const showLegend = element.props.showLegend !== false
+      const showTooltip = element.props.showTooltip !== false
+      const categories = getCategories(data, element.props.xKey)
+      const series = element.props.series.map((series: {
+        dataKey: string
+        name?: string
+        color?: string
+        lineWidth?: number
+        dashStyle?: string
+        marker?: boolean
+        connectNulls?: boolean
+      }, index: number) => ({
+        type: "line",
+        name: series.name ?? series.dataKey,
+        data: getSeriesData(data, series.dataKey),
+        color: series.color ?? CHART_PALETTE[index % CHART_PALETTE.length],
+        lineWidth: series.lineWidth,
+        dashStyle: series.dashStyle,
+        marker: { enabled: Boolean(series.marker) },
+        connectNulls: series.connectNulls,
+      }))
+
+      return {
+        chart: {
+          type: "line",
+          backgroundColor: "transparent",
+          height,
+        },
+        title: { text: undefined },
+        colors: CHART_PALETTE,
+        xAxis: {
+          categories,
+          title: { text: element.props.xAxisLabel },
+          gridLineWidth: 0,
+        },
+        yAxis: {
+          title: { text: element.props.yAxisLabel },
+          gridLineWidth: showGrid ? 1 : 0,
+          gridLineColor: GRID_LINE_COLOR,
+        },
+        legend: { enabled: showLegend },
+        tooltip: { enabled: showTooltip, shared: true },
+        plotOptions: {
+          series: {
+            marker: { enabled: false },
+          },
+        },
+        series,
+        credits: { enabled: false },
+      }
+    }, [
+      data,
+      height,
+      element.props.series,
+      element.props.showGrid,
+      element.props.showLegend,
+      element.props.showTooltip,
+      element.props.xAxisLabel,
+      element.props.xKey,
+      element.props.yAxisLabel,
+    ])
+
     return (
       <div className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm">
-        <ResponsiveContainer width="100%" height={element.props.height}>
-          <RechartsLineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
-            <XAxis dataKey={element.props.xKey} tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <RechartsTooltip />
-            {element.props.series.map((series: unknown, index: number) => {
-              const seriesTyped = series as {key: string; label: string};
-              const color = CHART_PALETTE[index % CHART_PALETTE.length]
-              return (
-                <Line
-                  key={seriesTyped.key}
-                  type="monotone"
-                  dataKey={seriesTyped.key}
-                  name={seriesTyped.label}
-                  stroke={color}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              )
-            })}
-          </RechartsLineChart>
-        </ResponsiveContainer>
+        <Chart
+          options={options}
+          containerProps={{ style: { height } }}
+        />
       </div>
     )
   },
   AreaChart: ({ element }) => {
-    const data = useDataValue<Record<string, unknown>[]>(element.props.dataPath) || []
+    const raw = useDataValue<Record<string, unknown>[]>(element.props.dataPath)
+    const data = Array.isArray(raw) ? raw : []
+    const height = element.props.height ?? 300
+    const options = useMemo(() => {
+      const showGrid = element.props.showGrid !== false
+      const showLegend = element.props.showLegend !== false
+      const showTooltip = element.props.showTooltip !== false
+      const categories = getCategories(data, element.props.xKey)
+      const stacking =
+        element.props.stacking ||
+        (element.props.series.some((series: { stackId?: string }) => series.stackId)
+          ? "normal"
+          : undefined)
+      const series = element.props.series.map((series: {
+        dataKey: string
+        name?: string
+        color?: string
+        fillOpacity?: number
+        stackId?: string
+      }, index: number) => ({
+        type: "area",
+        name: series.name ?? series.dataKey,
+        data: getSeriesData(data, series.dataKey),
+        color: series.color ?? CHART_PALETTE[index % CHART_PALETTE.length],
+        fillOpacity: series.fillOpacity,
+        stack: series.stackId,
+      }))
+
+      return {
+        chart: {
+          type: "area",
+          backgroundColor: "transparent",
+          height,
+        },
+        title: { text: undefined },
+        colors: CHART_PALETTE,
+        xAxis: {
+          categories,
+          title: { text: element.props.xAxisLabel },
+          gridLineWidth: 0,
+        },
+        yAxis: {
+          title: { text: element.props.yAxisLabel },
+          gridLineWidth: showGrid ? 1 : 0,
+          gridLineColor: GRID_LINE_COLOR,
+        },
+        legend: { enabled: showLegend },
+        tooltip: { enabled: showTooltip, shared: true },
+        plotOptions: {
+          area: {
+            stacking,
+          },
+        },
+        series,
+        credits: { enabled: false },
+      }
+    }, [
+      data,
+      height,
+      element.props.series,
+      element.props.showGrid,
+      element.props.showLegend,
+      element.props.showTooltip,
+      element.props.stacking,
+      element.props.xAxisLabel,
+      element.props.xKey,
+      element.props.yAxisLabel,
+    ])
+
     return (
       <div className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm">
-        <ResponsiveContainer width="100%" height={element.props.height}>
-          <RechartsAreaChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
-            <XAxis dataKey={element.props.xKey} tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <RechartsTooltip />
-            {element.props.series.map((series: unknown, index: number) => {
-              const seriesTyped = series as {key: string; label: string};
-              const color = CHART_PALETTE[index % CHART_PALETTE.length]
-              return (
-                <Area
-                  key={seriesTyped.key}
-                  type="monotone"
-                  dataKey={seriesTyped.key}
-                  name={seriesTyped.label}
-                  stroke={color}
-                  fill={color + "22"}
-                />
-              )
-            })}
-          </RechartsAreaChart>
-        </ResponsiveContainer>
+        <Chart
+          options={options}
+          containerProps={{ style: { height } }}
+        />
       </div>
     )
   },
   BarChart: ({ element }) => {
-    const data = useDataValue<Record<string, unknown>[]>(element.props.dataPath) || []
+    const raw = useDataValue<Record<string, unknown>[]>(element.props.dataPath)
+    const data = Array.isArray(raw) ? raw : []
+    const height = element.props.height ?? 300
+    const options = useMemo(() => {
+      const showGrid = element.props.showGrid !== false
+      const showLegend = element.props.showLegend !== false
+      const showTooltip = element.props.showTooltip !== false
+      const categories = getCategories(data, element.props.xKey)
+      const isHorizontal = element.props.layout === "vertical"
+      const chartType = isHorizontal ? "bar" : "column"
+      const stacking =
+        element.props.stacking ||
+        (element.props.series.some((series: { stackId?: string }) => series.stackId)
+          ? "normal"
+          : undefined)
+      const series = element.props.series.map((series: {
+        dataKey: string
+        name?: string
+        color?: string
+        borderRadius?: number
+        stackId?: string
+      }, index: number) => ({
+        type: chartType,
+        name: series.name ?? series.dataKey,
+        data: getSeriesData(data, series.dataKey),
+        color: series.color ?? CHART_PALETTE[index % CHART_PALETTE.length],
+        borderRadius: series.borderRadius,
+        stack: series.stackId,
+      }))
+
+      const xAxis = isHorizontal
+        ? {
+            title: { text: element.props.xAxisLabel },
+            gridLineWidth: showGrid ? 1 : 0,
+            gridLineColor: GRID_LINE_COLOR,
+          }
+        : {
+            categories,
+            title: { text: element.props.xAxisLabel },
+            gridLineWidth: 0,
+          }
+
+      const yAxis = isHorizontal
+        ? {
+            categories,
+            title: { text: element.props.yAxisLabel },
+            gridLineWidth: 0,
+          }
+        : {
+            title: { text: element.props.yAxisLabel },
+            gridLineWidth: showGrid ? 1 : 0,
+            gridLineColor: GRID_LINE_COLOR,
+          }
+
+      return {
+        chart: {
+          type: chartType,
+          backgroundColor: "transparent",
+          height,
+        },
+        title: { text: undefined },
+        colors: CHART_PALETTE,
+        xAxis,
+        yAxis,
+        legend: { enabled: showLegend },
+        tooltip: { enabled: showTooltip, shared: true },
+        plotOptions: {
+          [chartType]: {
+            stacking,
+          },
+        },
+        series,
+        credits: { enabled: false },
+      }
+    }, [
+      data,
+      height,
+      element.props.layout,
+      element.props.series,
+      element.props.showGrid,
+      element.props.showLegend,
+      element.props.showTooltip,
+      element.props.stacking,
+      element.props.xAxisLabel,
+      element.props.xKey,
+      element.props.yAxisLabel,
+    ])
+
     return (
       <div className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm">
-        <ResponsiveContainer width="100%" height={element.props.height}>
-          <RechartsBarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
-            <XAxis dataKey={element.props.xKey} tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 12 }} />
-            <RechartsTooltip />
-            {element.props.series.map((series: unknown, index: number) => {
-              const seriesTyped = series as {key: string; label: string};
-              const color = CHART_PALETTE[index % CHART_PALETTE.length]
-              return (
-                <Bar
-                  key={seriesTyped.key}
-                  dataKey={seriesTyped.key}
-                  name={seriesTyped.label}
-                  fill={color}
-                  radius={[6, 6, 0, 0]}
-                />
-              )
-            })}
-          </RechartsBarChart>
-        </ResponsiveContainer>
+        <Chart
+          options={options}
+          containerProps={{ style: { height } }}
+        />
       </div>
     )
   },
   PieChart: ({ element }) => {
-    const data = useDataValue<Record<string, unknown>[]>(element.props.dataPath) || []
+    const raw = useDataValue<Record<string, unknown>[]>(element.props.dataPath)
+    const data = Array.isArray(raw) ? raw : []
+    const height = element.props.height ?? 300
+    const options = useMemo(() => {
+      const showLegend = element.props.showLegend !== false
+      const showTooltip = element.props.showTooltip !== false
+      const colors =
+        Array.isArray(element.props.colors) && element.props.colors.length > 0
+          ? element.props.colors
+          : CHART_PALETTE
+      const innerSize =
+        typeof element.props.innerSize === "number" && element.props.innerSize > 0
+          ? `${element.props.innerSize}%`
+          : undefined
+      const seriesData = data.map((row, index) => {
+        const nameValue = row?.[element.props.nameKey]
+        const yValue = toNumber(row?.[element.props.valueKey])
+        return {
+          name:
+            nameValue === null || nameValue === undefined
+              ? `Slice ${index + 1}`
+              : String(nameValue),
+          y: yValue ?? 0,
+          color: colors[index % colors.length],
+        }
+      })
+
+      return {
+        chart: {
+          type: "pie",
+          backgroundColor: "transparent",
+          height,
+        },
+        title: { text: undefined },
+        colors,
+        legend: { enabled: showLegend },
+        tooltip: { enabled: showTooltip },
+        plotOptions: {
+          pie: {
+            innerSize,
+            showInLegend: showLegend,
+            dataLabels: { enabled: element.props.showLabels !== false },
+          },
+        },
+        series: [
+          {
+            type: "pie",
+            data: seriesData,
+          },
+        ],
+        credits: { enabled: false },
+      }
+    }, [
+      data,
+      element.props.colors,
+      height,
+      element.props.innerSize,
+      element.props.nameKey,
+      element.props.showLabels,
+      element.props.showLegend,
+      element.props.showTooltip,
+      element.props.valueKey,
+    ])
+
     return (
       <div className="rounded-2xl border border-border bg-card/90 p-3 shadow-sm">
-        <ResponsiveContainer width="100%" height={element.props.height}>
-          <RechartsPieChart>
-            <RechartsTooltip />
-            <Pie
-              data={data}
-              dataKey={element.props.valueKey}
-              nameKey={element.props.labelKey}
-              outerRadius={80}
-              fill="#111827"
-            >
-              {data.map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={CHART_PALETTE[index % CHART_PALETTE.length]}
-                />
-              ))}
-            </Pie>
-          </RechartsPieChart>
-        </ResponsiveContainer>
+        <Chart
+          options={options}
+          containerProps={{ style: { height } }}
+        />
       </div>
     )
   },

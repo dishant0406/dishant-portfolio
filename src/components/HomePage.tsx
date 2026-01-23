@@ -104,7 +104,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
       lastProcessedChatId.current = chatIdFromUrl;
       const localChat = chats.find(c => c.id === chatIdFromUrl);
 
-      console.log({localChat})
       
       if (localChat) {
         setCurrentChatId(chatIdFromUrl);

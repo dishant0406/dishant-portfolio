@@ -1,10 +1,11 @@
 'use client';
 
+import { useUIStream } from '@/hooks';
 import type { JsonRendererResult } from '@/json-render/types';
 import { Chat, ChatMessage, ToolCall } from '@/types';
 import { Check, ChevronDown, Loader2, Sparkles, User, Wrench } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Markdown } from './ui';
+import JsonRendererEmbed from './ui/JsonRendererEmbed';
 
 // Tool name to human-readable display name
 const toolDisplayNames: Record<string, string> = {
@@ -117,11 +118,22 @@ interface MessageBubbleProps {
   isLastInGroup?: boolean;
 }
 
+
 function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
   const hasActiveToolCalls = message.toolCalls?.some(t => t.status === 'running');
-  const jsonRendererLookup = buildJsonRendererLookup(message.toolCalls);
+  const { tree, data, setTreeString } = useUIStream();
+
+  console.log(message.content?.trim())
+  console.log(tree)
+
+  useEffect(() => {
+    if(message.content?.trim()){
+      setTreeString(message.content?.trim());
+    }
+  }, [message.content]);
+
 
   return (
     <div 
@@ -192,7 +204,13 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
                 ) : message.content ? (
                   <div>
                     <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground overflow-hidden wrap-break-word" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                      <Markdown jsonRendererLookup={jsonRendererLookup}>{message.content}</Markdown>
+                      {/* <Markdown jsonRendererLookup={jsonRendererLookup}>{message.content}</Markdown> */}
+                      <JsonRendererEmbed result={{
+                        id: 'key',
+                        tree: tree,
+                        data: data
+                      }}
+                      />
                     </div>
                   </div>
                 ) : null}
