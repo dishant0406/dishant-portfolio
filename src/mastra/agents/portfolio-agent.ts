@@ -890,18 +890,17 @@ ${catalogPrompt}
     
     // 2. Detect and block prompt injection attempts
     new PromptInjectionDetector({ 
-      model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
+      model: azure("gpt-4.1-nano"),
       strategy: 'block',
       structuredOutputOptions: {
         jsonPromptInjection: true // Use prompt injection for older API versions
       }
     }),
     
-
     
     // 4. Detect and redact PII for privacy protection
     new PIIDetector({ 
-      model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
+      model: azure("gpt-4.1-nano"),
       strategy: 'redact',
       detectionTypes: ['address', 'credit_card'],
       structuredOutputOptions: {
