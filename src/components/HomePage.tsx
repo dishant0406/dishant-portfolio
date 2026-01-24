@@ -34,6 +34,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const lastProcessedChatId = useRef<string | null>(null);
   const isUserNavigating = useRef(false);
+  const expectedChatIdInUrl = useRef<string | null>(null);
   
   const {
     user,
@@ -125,15 +126,20 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   // Sync URL when store's currentChatId changes (from internal actions like sendMessage)
   useEffect(() => {
     if (!hasHydrated) return;
-    if (isUserNavigating.current) {
-      // Reset the flag after a short delay to allow URL to settle
-      setTimeout(() => {
-        isUserNavigating.current = false;
-      }, 100);
-      return;
-    }
     
     const chatIdFromUrl = searchParams.get('chat');
+
+    if (isUserNavigating.current) {
+      if (expectedChatIdInUrl.current === null && currentChatId) {
+        isUserNavigating.current = false;
+      } else {
+        const isSettled = chatIdFromUrl === expectedChatIdInUrl.current;
+        if (isSettled) {
+          isUserNavigating.current = false;
+        }
+        return;
+      }
+    }
     
     // If store has a chat but URL doesn't match, update URL
     if (currentChatId && currentChatId !== chatIdFromUrl) {
@@ -145,6 +151,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
 
   const handleNewChat = () => {
     isUserNavigating.current = true;
+    expectedChatIdInUrl.current = null;
     lastProcessedChatId.current = null;
     setCurrentChatId(null);
     setCurrentView('home');
@@ -157,6 +164,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
 
   const handleGrid = () => {
     isUserNavigating.current = true;
+    expectedChatIdInUrl.current = currentChatId;
     setCurrentView('chats');
   };
 
@@ -172,6 +180,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
 
   const handleBack = () => {
     isUserNavigating.current = true;
+    expectedChatIdInUrl.current = null;
     lastProcessedChatId.current = null;
     setCurrentChatId(null);
     setCurrentView('home');
@@ -180,6 +189,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
 
   const handleSelectChat = (chatId: string) => {
     isUserNavigating.current = true;
+    expectedChatIdInUrl.current = chatId;
     lastProcessedChatId.current = chatId;
     setCurrentChatId(chatId);
     setCurrentView('chat');
@@ -192,6 +202,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
 
   const handleHistoryClick = () => {
     isUserNavigating.current = true;
+    expectedChatIdInUrl.current = currentChatId;
     setCurrentView('chats');
   };
 

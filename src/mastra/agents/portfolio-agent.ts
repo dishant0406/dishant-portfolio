@@ -10,6 +10,7 @@ import {
 import { Memory } from "@mastra/memory";
 import { PgVector, PostgresStore } from "@mastra/pg";
 import { portfolioTools } from "../tools/portfolio-tools";
+import { FastGuardrailsProcessor } from "./input-processors/fast-guardrails-processor";
 
 // Cache expensive instances across serverless invocations
 declare global {
@@ -68,7 +69,37 @@ if (!global._memory) {
 }
 const memory = global._memory;
 
+const guardrailsMode = (process.env.GUARDRAILS_MODE || "fast").toLowerCase();
+const guardrailsModel = azure(process.env.AZURE_GUARDRAILS_DEPLOYMENT || "gpt-4.1-nano");
 
+const inputProcessors = (() => {
+  if (guardrailsMode === "off") {
+    return [new UnicodeNormalizer({ stripControlChars: true })];
+  }
+
+  if (guardrailsMode === "fast") {
+    return [new FastGuardrailsProcessor({ model: guardrailsModel })];
+  }
+
+  return [
+    new UnicodeNormalizer({ stripControlChars: true }),
+    new PromptInjectionDetector({
+      model: guardrailsModel,
+      strategy: "block",
+      structuredOutputOptions: {
+        jsonPromptInjection: true,
+      },
+    }),
+    new PIIDetector({
+      model: guardrailsModel,
+      strategy: "redact",
+      detectionTypes: ["address", "credit_card"],
+      structuredOutputOptions: {
+        jsonPromptInjection: true,
+      },
+    }),
+  ];
+})();
 
 const portfolioAgent = new Agent({
   name: "portfolio-agent",
@@ -884,30 +915,7 @@ ${catalogPrompt}
   model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
   tools: portfolioTools,
   memory,
-  inputProcessors: [
-    // 1. Normalize Unicode and strip control characters
-    new UnicodeNormalizer({ stripControlChars: true }),
-    
-    // 2. Detect and block prompt injection attempts
-    new PromptInjectionDetector({ 
-      model: azure("gpt-4.1-nano"),
-      strategy: 'block',
-      structuredOutputOptions: {
-        jsonPromptInjection: true // Use prompt injection for older API versions
-      }
-    }),
-    
-    
-    // 4. Detect and redact PII for privacy protection
-    new PIIDetector({ 
-      model: azure("gpt-4.1-nano"),
-      strategy: 'redact',
-      detectionTypes: ['address', 'credit_card'],
-      structuredOutputOptions: {
-        jsonPromptInjection: true // Use prompt injection for older API versions
-      }
-    }),
-  ],
+  inputProcessors,
 });
 
 export { portfolioAgent };
