@@ -288,11 +288,11 @@ export const jsonRendererRegistry: ComponentRegistry = {
       )}
 
       {element.props.description && (
-        <ExpandableText
-          className="text-sm text-muted-foreground"
+        <p
+          className="text-sm line-clamp-2 text-muted-foreground"
         >
           {element.props.description}
-        </ExpandableText>
+        </p>
       )}
     </div>
   )}
