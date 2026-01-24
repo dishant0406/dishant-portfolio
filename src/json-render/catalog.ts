@@ -115,6 +115,12 @@ export const jsonRendererCatalog = createCatalog({
         content: z.string(),
       }),
     },
+    FollowUp: {
+      props: z.object({
+        title: z.string().optional(),
+        questions: z.array(z.string()).length(2),
+      }),
+    },
     Popover: {
       props: z.object({
         triggerLabel: z.string(),

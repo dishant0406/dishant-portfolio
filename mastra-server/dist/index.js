@@ -28249,7 +28249,7 @@ var jsonRendererCatalog = createCatalog({
 // ../src/mastra/agents/portfolio-agent.ts
 var import_azure = require("@ai-sdk/azure");
 var import_agent = require("@mastra/core/agent");
-var import_processors = require("@mastra/core/processors");
+var import_processors2 = require("@mastra/core/processors");
 var import_memory = require("@mastra/memory");
 var import_pg = require("@mastra/pg");
 
@@ -29383,6 +29383,61 @@ var portfolioTools = {
   generateJsonRenderer: generateJsonRendererTool
 };
 
+// ../src/mastra/agents/input-processors/fast-guardrails-processor.ts
+var import_processors = require("@mastra/core/processors");
+var DEFAULT_PII_TYPES = ["address", "credit_card"];
+var getTextFromMessage = (message) => {
+  if (!message || message.role !== "user") return "";
+  const parts = message.content?.parts || [];
+  return parts.filter((part) => part.type === "text").map((part) => part.text).join(" ").trim();
+};
+var looksLikePromptInjection = (text) => {
+  const normalized = text.toLowerCase();
+  return normalized.includes("ignore previous instructions") || normalized.includes("system prompt") || normalized.includes("developer message") || normalized.includes("jailbreak") || normalized.includes("act as") || normalized.includes("you are now");
+};
+var looksLikePII = (text) => {
+  return /\b\d{3}-\d{2}-\d{4}\b/.test(text) || // SSN-like
+  /\b(?:\d[ -]*?){13,19}\b/.test(text);
+};
+var FastGuardrailsProcessor = class {
+  constructor(config) {
+    this.name = "fast-guardrails-processor";
+    this.unicodeNormalizer = new import_processors.UnicodeNormalizer({ stripControlChars: true });
+    this.promptInjectionDetector = new import_processors.PromptInjectionDetector({
+      model: config.model,
+      strategy: "block",
+      structuredOutputOptions: { jsonPromptInjection: true }
+    });
+    this.piiDetector = new import_processors.PIIDetector({
+      model: config.model,
+      strategy: "redact",
+      detectionTypes: config.piiTypes || DEFAULT_PII_TYPES,
+      structuredOutputOptions: { jsonPromptInjection: true }
+    });
+  }
+  async processInput(args) {
+    const normalizedMessages = await this.unicodeNormalizer.processInput(args);
+    const lastMessage = normalizedMessages[normalizedMessages.length - 1];
+    const content = getTextFromMessage(lastMessage);
+    if (!content) {
+      return normalizedMessages;
+    }
+    if (looksLikePromptInjection(content)) {
+      return this.promptInjectionDetector.processInput({
+        ...args,
+        messages: normalizedMessages
+      });
+    }
+    if (looksLikePII(content)) {
+      return this.piiDetector.processInput({
+        ...args,
+        messages: normalizedMessages
+      });
+    }
+    return normalizedMessages;
+  }
+};
+
 // ../src/mastra/agents/portfolio-agent.ts
 var catalogPrompt = generateCatalogPrompt(jsonRendererCatalog);
 var azure = (0, import_azure.createAzure)({
@@ -29426,6 +29481,34 @@ if (!global._memory) {
   });
 }
 var memory = global._memory;
+var guardrailsMode = (process.env.GUARDRAILS_MODE || "fast").toLowerCase();
+var guardrailsModel = azure(process.env.AZURE_GUARDRAILS_DEPLOYMENT || "gpt-4.1-nano");
+var inputProcessors = (() => {
+  if (guardrailsMode === "off") {
+    return [new import_processors2.UnicodeNormalizer({ stripControlChars: true })];
+  }
+  if (guardrailsMode === "fast") {
+    return [new FastGuardrailsProcessor({ model: guardrailsModel })];
+  }
+  return [
+    new import_processors2.UnicodeNormalizer({ stripControlChars: true }),
+    new import_processors2.PromptInjectionDetector({
+      model: guardrailsModel,
+      strategy: "block",
+      structuredOutputOptions: {
+        jsonPromptInjection: true
+      }
+    }),
+    new import_processors2.PIIDetector({
+      model: guardrailsModel,
+      strategy: "redact",
+      detectionTypes: ["address", "credit_card"],
+      structuredOutputOptions: {
+        jsonPromptInjection: true
+      }
+    })
+  ];
+})();
 var portfolioAgent = new import_agent.Agent({
   name: "portfolio-agent",
   instructions: `
@@ -30240,29 +30323,7 @@ ${catalogPrompt}
   model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
   tools: portfolioTools,
   memory,
-  inputProcessors: [
-    // 1. Normalize Unicode and strip control characters
-    new import_processors.UnicodeNormalizer({ stripControlChars: true }),
-    // 2. Detect and block prompt injection attempts
-    new import_processors.PromptInjectionDetector({
-      model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
-      strategy: "block",
-      structuredOutputOptions: {
-        jsonPromptInjection: true
-        // Use prompt injection for older API versions
-      }
-    }),
-    // 4. Detect and redact PII for privacy protection
-    new import_processors.PIIDetector({
-      model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
-      strategy: "redact",
-      detectionTypes: ["address", "credit_card"],
-      structuredOutputOptions: {
-        jsonPromptInjection: true
-        // Use prompt injection for older API versions
-      }
-    })
-  ]
+  inputProcessors
 });
 
 // ../src/mastra/index.ts

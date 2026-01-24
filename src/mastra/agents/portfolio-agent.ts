@@ -139,6 +139,7 @@ OUTPUT FORMAT (JSONL PATCH OPS):
 - {"op":"set","path":"/root","value":"root-key"}
 - {"op":"add","path":"/elements/root-key","value":{...}}
 - {"op":"set","path":"/data","value":{...}} (data model for all valuePath/dataPath bindings)
+- Always add a FollowUp element as a direct child of the root and place it last in the root's children array.
 
 ELEMENT STRUCTURE:
 {
@@ -156,6 +157,7 @@ PATCH RULES:
 5. Each element must include: key, type, props.
 6. children contains string keys, not nested objects.
 7. Provide a single /data object that satisfies every valuePath/dataPath used.
+8. Always include FollowUp as the last child of the root.
 
 UI CATALOG (allowed components + props):
 - Section { title?, description? } children
@@ -182,6 +184,7 @@ UI CATALOG (allowed components + props):
 - Image { src, alt?, caption? }
 - Carousel { items[{ src, alt?, caption? }] }
 - Tooltip { label, content }
+- FollowUp { title?, questions[2] }
 - Popover { triggerLabel, title?, description? } children
 - Dialog { triggerLabel, title, description?, actionLabel, action, size? } children
 - LineChart { dataPath, xKey, series[{ dataKey, name?, color?, lineWidth?, dashStyle?, marker?, connectNulls? }], height?, showGrid?, showLegend?, showTooltip?, xAxisLabel?, yAxisLabel? }
@@ -218,6 +221,8 @@ CATALOG DETAILS (STRICT):
 - Do not invent placeholder metrics/charts/tables. Fetch data via tools first.
 - Use charts for trends or comparisons when data supports it.
 - Avoid generic "Insights" sections unless the user asks.
+- FollowUp questions must be specific, phrased as questions, and designed to unlock richer UI (charts, tables, comparisons, filters).
+- FollowUp questions must be grounded in the current response and point to data the UI can visualize.
 
 DATA MODEL CONVENTIONS:
 - Use /filters for UI filters, /metrics or /analytics for KPI values, /projects or /rows for tables.
@@ -782,7 +787,8 @@ Every Card showing data should include at least one action:
 ### Example 1: Project Overview (Rich Dashboard)
 "jsonl
 {"op":"set","path":"/root","value":"projects-root"}
-{"op":"add","path":"/elements/projects-root","value":{"key":"projects-root","type":"Stack","props":{"gap":4},"children":["heading-main","kpi-grid","filters-card","chart-grid","projects-tabs"]}}
+{"op":"add","path":"/elements/projects-root","value":{"key":"projects-root","type":"Stack","props":{"gap":4},"children":["heading-main","kpi-grid","filters-card","chart-grid","projects-tabs","followup-main"]}}
+{"op":"add","path":"/elements/followup-main","value":{"key":"followup-main","type":"FollowUp","props":{"title":"Follow up","questions":["Can you break down stars by language and show the trend over time?","Which projects improved most recently and how do their KPIs compare?"]},"children":[]}}
 {"op":"add","path":"/elements/heading-main","value":{"key":"heading-main","type":"Heading","props":{"text":"Project Portfolio","level":"1"},"children":[]}}
 {"op":"add","path":"/elements/kpi-grid","value":{"key":"kpi-grid","type":"Grid","props":{"columns":3,"gap":4},"children":["kpi-total","kpi-stars","kpi-active","kpi-languages"]}}
 {"op":"add","path":"/elements/kpi-total","value":{"key":"kpi-total","type":"Card","props":{},"children":["kpi-total-stack"]}}
@@ -908,6 +914,7 @@ This example demonstrates:
 8. **Provide complete data** for all valuePath/dataPath bindings
 9. **Follow spacing rules**: gap 4 default, gap 3 compact, gap 2 dense
 10. **Make it actionable**: Every data card should have buttons/dialogs
+11. **Always include FollowUp last** with exactly 2 curiosity-driven questions that lead to richer UI/data exploration. (VERY IMPORTANT) (ALWAYS INCLUDE THIS)
 
 ONLY RETURN JSONL PATCH OPERATIONS
 ${catalogPrompt}

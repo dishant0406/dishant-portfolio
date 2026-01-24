@@ -116,10 +116,11 @@ function ToolCallsList({ toolCalls }: ToolCallsListProps) {
 interface MessageBubbleProps {
   message: ChatMessage;
   isLastInGroup?: boolean;
+  isLatestAssistant?: boolean;
 }
 
 
-function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
+function MessageBubble({ message, isLastInGroup = true, isLatestAssistant = false }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
   const hasActiveToolCalls = message.toolCalls?.some(t => t.status === 'running');
@@ -130,7 +131,6 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
       setTreeString(message.content?.trim());
     }
   }, [message.content]);
-
 
   return (
     <div 
@@ -202,12 +202,15 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
                   <div>
                     <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground overflow-hidden wrap-break-word" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                       {/* <Markdown jsonRendererLookup={jsonRendererLookup}>{message.content}</Markdown> */}
-                      <JsonRendererEmbed result={{
-                        id: 'key',
-                        tree: tree,
-                        data: data
-                      }}
+                      <JsonRendererEmbed
+                        isLatestMessage={isLatestAssistant}
+                        result={{
+                          id: 'key',
+                          tree: tree,
+                          data: data
+                        }}
                       />
+                      
                     </div>
                   </div>
                 ) : null}
@@ -255,19 +258,30 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
       >
         {/* Centered content wrapper - matches input width, minimal padding on mobile */}
         <div className="md:max-w-[60vw] max-w-full mx-auto px-1 sm:px-4 lg:px-6 space-y-3 sm:space-y-6">
-          {chat.messages.map((message, index) => {
-            // Check if this is the last message from the same role
-            const nextMessage = chat.messages[index + 1];
-            const isLastInGroup = !nextMessage || nextMessage.role !== message.role;
-            
-            return (
-              <MessageBubble 
-                key={message.id} 
-                message={message} 
-                isLastInGroup={isLastInGroup}
-              />
-            );
-          })}
+          {(() => {
+            let lastAssistantIndex = -1;
+            for (let i = chat.messages.length - 1; i >= 0; i -= 1) {
+              if (chat.messages[i].role === 'assistant') {
+                lastAssistantIndex = i;
+                break;
+              }
+            }
+
+            return chat.messages.map((message, index) => {
+              const nextMessage = chat.messages[index + 1];
+              const isLastInGroup = !nextMessage || nextMessage.role !== message.role;
+              const isLatestAssistant = message.role === 'assistant' && index === lastAssistantIndex;
+              
+              return (
+                <MessageBubble 
+                  key={message.id} 
+                  message={message} 
+                  isLastInGroup={isLastInGroup}
+                  isLatestAssistant={isLatestAssistant}
+                />
+              );
+            });
+          })()}
           
           {/* Loading indicator */}
           {isLoading && chat.messages.length > 0 && !chat.messages[chat.messages.length - 1]?.isStreaming && (

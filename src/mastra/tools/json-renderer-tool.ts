@@ -39,6 +39,7 @@ const componentPropMap: Record<string, string[]> = {
   Image: ["src", "alt", "caption"],
   Carousel: ["items"],
   Tooltip: ["label", "content"],
+  FollowUp: ["title", "questions"],
   Popover: ["triggerLabel", "title", "description"],
   Dialog: ["triggerLabel", "title", "description", "actionLabel", "action", "size"],
   LineChart: [
@@ -473,6 +474,21 @@ function normalizeTreeProps(tree: UITree): UITree {
       if (!merged.content) merged.content = "More details";
     }
 
+    if (element.type === "FollowUp") {
+      const raw = Array.isArray(merged.questions) ? merged.questions : [];
+      const normalized = raw
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter(Boolean)
+        .slice(0, 2);
+      while (normalized.length < 2) {
+        normalized.push("What should we explore next to add richer visuals?");
+      }
+      merged.questions = normalized;
+      if (merged.title && typeof merged.title !== "string") {
+        delete merged.title;
+      }
+    }
+
     if (element.type === "Popover") {
       if (!merged.triggerLabel) merged.triggerLabel = "Details";
       if (!merged.title) merged.title = "Details";
@@ -508,6 +524,37 @@ function normalizeTreeProps(tree: UITree): UITree {
       props: merged,
     };
   }
+
+  return { root: tree.root, elements };
+}
+
+function ensureFollowUp(tree: UITree): UITree {
+  const elements = { ...tree.elements };
+  const rootKey = tree.root;
+  const root = elements[rootKey];
+
+  if (!root) return tree;
+
+  const hasFollowUp = Object.values(elements).some((element) => element.type === "FollowUp");
+  if (hasFollowUp) return tree;
+
+  const followUpKey = randomUUID();
+  elements[followUpKey] = {
+    key: followUpKey,
+    type: "FollowUp",
+    props: {
+      title: "Follow up",
+      questions: [
+        "Can you compare the key sections side by side in a table or chart?",
+        "Show a time-based or category breakdown to deepen the analysis.",
+      ],
+    },
+    children: [],
+  };
+
+  const children = Array.isArray(root.children) ? [...root.children] : [];
+  children.push(followUpKey);
+  elements[rootKey] = { ...root, children };
 
   return { root: tree.root, elements };
 }
@@ -871,7 +918,9 @@ export const generateJsonRendererTool = createTool({
         normalizeChartGrids(
           mergeImageGroups(
             groupButtonRows(
-              normalizeInlineChildren(normalizeTreeProps(normalizeTree(context?.tree)))
+              normalizeInlineChildren(
+                ensureFollowUp(normalizeTreeProps(normalizeTree(context?.tree)))
+              )
             )
           )
         )

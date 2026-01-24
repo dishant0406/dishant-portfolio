@@ -45,9 +45,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/shadcn/tooltip"
+import { FollowUp } from "@/components/FollowUp"
 import { Button as BaseButton } from "@/components/ui/Button"
 import { Card as BaseCard } from "@/components/ui/Card"
 import { cn } from "@/lib/utils"
+import { useFollowUpContext } from "@/json-render/followup-context"
+import { useAppStore } from "@/store/useAppStore"
 import { Chart } from "@highcharts/react"
 import type { ComponentRegistry } from "@json-render/react"
 import {
@@ -84,20 +87,6 @@ type CarouselItem = {
   caption?: string
 }
 
-
-function useTruncation() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [isTruncated, setIsTruncated] = useState(false);
-
-  useEffect(() => {
-    if (!ref.current) return;
-
-    const el = ref.current;
-    setIsTruncated(el.scrollHeight > el.clientHeight);
-  }, []);
-
-  return { ref, isTruncated };
-}
 
 
 function formatMetricValue(value: unknown, format: MetricFormat) {
@@ -525,6 +514,30 @@ export const jsonRendererRegistry: ComponentRegistry = {
       <TooltipContent>{element.props.content}</TooltipContent>
     </Tooltip>
   ),
+  FollowUp: ({ element }) => {
+    const setMessage = useAppStore((state) => state.setMessage)
+    const sendMessage = useAppStore((state) => state.sendMessage)
+    const followUpContext = useFollowUpContext()
+    const questions = Array.isArray(element.props.questions)
+      ? element.props.questions
+      : []
+
+    if (followUpContext && (!followUpContext.isLatest || followUpContext.isDismissed)) {
+      return null
+    }
+
+    return (
+      <FollowUp
+        title={element.props.title}
+        questions={questions}
+        onSelect={(question) => {
+          followUpContext?.dismiss()
+          setMessage(question)
+          sendMessage()
+        }}
+      />
+    )
+  },
   Popover: ({ element, children }) => (
     <Popover>
       <PopoverTrigger asChild>

@@ -265,66 +265,162 @@ export const getGitHubActivityTool = createTool({
       repo: z.string(),
       created_at: z.string(),
       description: z.string(),
+      details: z.any().optional(),
     })),
   }),
   execute: async ({ context }) => {
     const limit = context?.limit || 10;
-
+    
     try {
       const events = await fetchGitHub(`/users/${GITHUB_USERNAME}/events/public?per_page=${limit}`);
       
-      const activities = events.map((event: {
+      const activities = await Promise.all(events.map(async (event: {
         type: string;
         repo: { name: string };
         created_at: string;
         payload: {
-          commits?: Array<{ message: string }>;
+          size?: number;
+          head?: string;
           action?: string;
-          pull_request?: { title: string };
-          issue?: { title: string };
-          ref?: string;
+          pull_request?: {
+            title?: string;
+            number?: number;
+            state?: string;
+          };
+          issue?: {
+            title?: string;
+            number?: number;
+          };
           ref_type?: string;
+          ref?: string;
+          forkee?: {
+            full_name?: string;
+          };
+          comment?: {
+            body?: string;
+          };
+          review?: {
+            state?: string;
+          };
+          release?: {
+            tag_name?: string;
+            name?: string; 
+          }
         };
       }) => {
         let description = "";
+        let details = null;
+        
         
         switch (event.type) {
           case "PushEvent":
-            const commits = event.payload.commits || [];
-            description = commits.length > 0 
-              ? `Pushed ${commits.length} commit(s): "${commits[0].message}"`
-              : "Pushed commits";
+            // For PushEvent, we need to fetch commits separately
+            const size = event.payload.size || 0;
+            const commitSha = event.payload.head;
+            
+            if (commitSha) {
+              try {
+                // Fetch the commit details
+                const commit = await fetchGitHub(`/repos/${event.repo.name}/commits/${commitSha}`);
+                description = `Pushed ${size} commit(s): "${commit.commit.message.split('\n')[0]}"`;
+                details = {
+                  commits: size,
+                  message: commit.commit.message,
+                  sha: commitSha.substring(0, 7),
+                  author: commit.commit.author.name,
+                };
+              } catch {
+                description = `Pushed ${size} commit(s)`;
+                details = { commits: size };
+              }
+            } else {
+              description = `Pushed ${size} commit(s)`;
+              details = { commits: size };
+            }
             break;
+            
           case "PullRequestEvent":
             description = `${event.payload.action} pull request: ${event.payload.pull_request?.title}`;
+            details = {
+              action: event.payload.action,
+              title: event.payload.pull_request?.title,
+              number: event.payload.pull_request?.number,
+              state: event.payload.pull_request?.state,
+            };
             break;
+            
           case "IssuesEvent":
             description = `${event.payload.action} issue: ${event.payload.issue?.title}`;
+            details = {
+              action: event.payload.action,
+              title: event.payload.issue?.title,
+              number: event.payload.issue?.number,
+            };
             break;
+            
           case "CreateEvent":
-            description = `Created ${event.payload.ref_type}: ${event.payload.ref || 'repository'}`;
+            description = `Created ${event.payload.ref_type}${event.payload.ref ? `: ${event.payload.ref}` : ''}`;
+            details = {
+              ref_type: event.payload.ref_type,
+              ref: event.payload.ref,
+            };
             break;
+            
           case "WatchEvent":
             description = "Starred repository";
             break;
+            
           case "ForkEvent":
             description = "Forked repository";
+            details = {
+              forkee: event.payload.forkee?.full_name,
+            };
             break;
+            
           case "IssueCommentEvent":
-            description = "Commented on an issue";
+            description = `Commented on issue #${event.payload.issue?.number}`;
+            details = {
+              issue_title: event.payload.issue?.title,
+              comment: event.payload.comment?.body?.substring(0, 100),
+            };
             break;
+            
+          case "PullRequestReviewEvent":
+            description = `Reviewed pull request: ${event.payload.pull_request?.title}`;
+            details = {
+              state: event.payload.review?.state,
+              title: event.payload.pull_request?.title,
+            };
+            break;
+            
+          case "PullRequestReviewCommentEvent":
+            description = `Commented on pull request: ${event.payload.pull_request?.title}`;
+            details = {
+              title: event.payload.pull_request?.title,
+            };
+            break;
+            
+          case "ReleaseEvent":
+            description = `${event.payload.action} release: ${event.payload.release?.tag_name}`;
+            details = {
+              tag: event.payload.release?.tag_name,
+              name: event.payload.release?.name,
+            };
+            break;
+            
           default:
             description = event.type.replace("Event", "");
         }
-
+        
         return {
           type: event.type,
           repo: event.repo.name,
           created_at: event.created_at,
           description,
+          details,
         };
-      });
-
+      }));
+      
       return { activities };
     } catch (error) {
       console.error('Error fetching GitHub activity:', error);
