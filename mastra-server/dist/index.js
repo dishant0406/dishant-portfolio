@@ -28034,6 +28034,12 @@ var jsonRendererCatalog = createCatalog({
         content: external_exports.string()
       })
     },
+    FollowUp: {
+      props: external_exports.object({
+        title: external_exports.string().optional(),
+        questions: external_exports.array(external_exports.string()).length(2)
+      })
+    },
     Popover: {
       props: external_exports.object({
         triggerLabel: external_exports.string(),
@@ -28468,37 +28474,99 @@ var getGitHubActivityTool = (0, import_tools.createTool)({
       type: external_exports.string(),
       repo: external_exports.string(),
       created_at: external_exports.string(),
-      description: external_exports.string()
+      description: external_exports.string(),
+      details: external_exports.any().optional()
     }))
   }),
   execute: async ({ context }) => {
     const limit = context?.limit || 10;
     try {
       const events = await fetchGitHub(`/users/${GITHUB_USERNAME}/events/public?per_page=${limit}`);
-      const activities = events.map((event) => {
+      const activities = await Promise.all(events.map(async (event) => {
         let description = "";
+        let details = null;
         switch (event.type) {
           case "PushEvent":
-            const commits = event.payload.commits || [];
-            description = commits.length > 0 ? `Pushed ${commits.length} commit(s): "${commits[0].message}"` : "Pushed commits";
+            const size = event.payload.size || 0;
+            const commitSha = event.payload.head;
+            if (commitSha) {
+              try {
+                const commit = await fetchGitHub(`/repos/${event.repo.name}/commits/${commitSha}`);
+                description = `Pushed ${size} commit(s): "${commit.commit.message.split("\n")[0]}"`;
+                details = {
+                  commits: size,
+                  message: commit.commit.message,
+                  sha: commitSha.substring(0, 7),
+                  author: commit.commit.author.name
+                };
+              } catch {
+                description = `Pushed ${size} commit(s)`;
+                details = { commits: size };
+              }
+            } else {
+              description = `Pushed ${size} commit(s)`;
+              details = { commits: size };
+            }
             break;
           case "PullRequestEvent":
             description = `${event.payload.action} pull request: ${event.payload.pull_request?.title}`;
+            details = {
+              action: event.payload.action,
+              title: event.payload.pull_request?.title,
+              number: event.payload.pull_request?.number,
+              state: event.payload.pull_request?.state
+            };
             break;
           case "IssuesEvent":
             description = `${event.payload.action} issue: ${event.payload.issue?.title}`;
+            details = {
+              action: event.payload.action,
+              title: event.payload.issue?.title,
+              number: event.payload.issue?.number
+            };
             break;
           case "CreateEvent":
-            description = `Created ${event.payload.ref_type}: ${event.payload.ref || "repository"}`;
+            description = `Created ${event.payload.ref_type}${event.payload.ref ? `: ${event.payload.ref}` : ""}`;
+            details = {
+              ref_type: event.payload.ref_type,
+              ref: event.payload.ref
+            };
             break;
           case "WatchEvent":
             description = "Starred repository";
             break;
           case "ForkEvent":
             description = "Forked repository";
+            details = {
+              forkee: event.payload.forkee?.full_name
+            };
             break;
           case "IssueCommentEvent":
-            description = "Commented on an issue";
+            description = `Commented on issue #${event.payload.issue?.number}`;
+            details = {
+              issue_title: event.payload.issue?.title,
+              comment: event.payload.comment?.body?.substring(0, 100)
+            };
+            break;
+          case "PullRequestReviewEvent":
+            description = `Reviewed pull request: ${event.payload.pull_request?.title}`;
+            details = {
+              state: event.payload.review?.state,
+              title: event.payload.pull_request?.title
+            };
+            break;
+          case "PullRequestReviewCommentEvent":
+            description = `Commented on pull request: ${event.payload.pull_request?.title}`;
+            details = {
+              title: event.payload.pull_request?.title
+            };
+            break;
+          case "ReleaseEvent":
+            description = `${event.payload.action} release: ${event.payload.release?.tag_name}`;
+            details = {
+              tag: event.payload.release?.tag_name,
+              name: event.payload.release?.name
+            };
             break;
           default:
             description = event.type.replace("Event", "");
@@ -28507,9 +28575,10 @@ var getGitHubActivityTool = (0, import_tools.createTool)({
           type: event.type,
           repo: event.repo.name,
           created_at: event.created_at,
-          description
+          description,
+          details
         };
-      });
+      }));
       return { activities };
     } catch (error) {
       console.error("Error fetching GitHub activity:", error);
@@ -28722,6 +28791,7 @@ var componentPropMap = {
   Image: ["src", "alt", "caption"],
   Carousel: ["items"],
   Tooltip: ["label", "content"],
+  FollowUp: ["title", "questions"],
   Popover: ["triggerLabel", "title", "description"],
   Dialog: ["triggerLabel", "title", "description", "actionLabel", "action", "size"],
   LineChart: [
@@ -29038,6 +29108,17 @@ function normalizeTreeProps(tree) {
       if (!merged.label) merged.label = "Info";
       if (!merged.content) merged.content = "More details";
     }
+    if (element.type === "FollowUp") {
+      const raw = Array.isArray(merged.questions) ? merged.questions : [];
+      const normalized = raw.map((value) => typeof value === "string" ? value.trim() : "").filter(Boolean).slice(0, 2);
+      while (normalized.length < 2) {
+        normalized.push("What should we explore next to add richer visuals?");
+      }
+      merged.questions = normalized;
+      if (merged.title && typeof merged.title !== "string") {
+        delete merged.title;
+      }
+    }
     if (element.type === "Popover") {
       if (!merged.triggerLabel) merged.triggerLabel = "Details";
       if (!merged.title) merged.title = "Details";
@@ -29065,6 +29146,31 @@ function normalizeTreeProps(tree) {
       props: merged
     };
   }
+  return { root: tree.root, elements };
+}
+function ensureFollowUp(tree) {
+  const elements = { ...tree.elements };
+  const rootKey = tree.root;
+  const root = elements[rootKey];
+  if (!root) return tree;
+  const hasFollowUp = Object.values(elements).some((element) => element.type === "FollowUp");
+  if (hasFollowUp) return tree;
+  const followUpKey = (0, import_crypto.randomUUID)();
+  elements[followUpKey] = {
+    key: followUpKey,
+    type: "FollowUp",
+    props: {
+      title: "Follow up",
+      questions: [
+        "Can you compare the key sections side by side in a table or chart?",
+        "Show a time-based or category breakdown to deepen the analysis."
+      ]
+    },
+    children: []
+  };
+  const children = Array.isArray(root.children) ? [...root.children] : [];
+  children.push(followUpKey);
+  elements[rootKey] = { ...root, children };
   return { root: tree.root, elements };
 }
 function ensureTabsCoverage(tree) {
@@ -29352,7 +29458,9 @@ var generateJsonRendererTool = (0, import_tools2.createTool)({
         normalizeChartGrids(
           mergeImageGroups(
             groupButtonRows(
-              normalizeInlineChildren(normalizeTreeProps(normalizeTree(context?.tree)))
+              normalizeInlineChildren(
+                ensureFollowUp(normalizeTreeProps(normalizeTree(context?.tree)))
+              )
             )
           )
         )
@@ -29547,6 +29655,7 @@ OUTPUT FORMAT (JSONL PATCH OPS):
 - {"op":"set","path":"/root","value":"root-key"}
 - {"op":"add","path":"/elements/root-key","value":{...}}
 - {"op":"set","path":"/data","value":{...}} (data model for all valuePath/dataPath bindings)
+- Always add a FollowUp element as a direct child of the root and place it last in the root's children array.
 
 ELEMENT STRUCTURE:
 {
@@ -29564,6 +29673,7 @@ PATCH RULES:
 5. Each element must include: key, type, props.
 6. children contains string keys, not nested objects.
 7. Provide a single /data object that satisfies every valuePath/dataPath used.
+8. Always include FollowUp as the last child of the root.
 
 UI CATALOG (allowed components + props):
 - Section { title?, description? } children
@@ -29590,6 +29700,7 @@ UI CATALOG (allowed components + props):
 - Image { src, alt?, caption? }
 - Carousel { items[{ src, alt?, caption? }] }
 - Tooltip { label, content }
+- FollowUp { title?, questions[2] }
 - Popover { triggerLabel, title?, description? } children
 - Dialog { triggerLabel, title, description?, actionLabel, action, size? } children
 - LineChart { dataPath, xKey, series[{ dataKey, name?, color?, lineWidth?, dashStyle?, marker?, connectNulls? }], height?, showGrid?, showLegend?, showTooltip?, xAxisLabel?, yAxisLabel? }
@@ -29626,6 +29737,8 @@ CATALOG DETAILS (STRICT):
 - Do not invent placeholder metrics/charts/tables. Fetch data via tools first.
 - Use charts for trends or comparisons when data supports it.
 - Avoid generic "Insights" sections unless the user asks.
+- FollowUp questions must be specific, phrased as questions, and designed to unlock richer UI (charts, tables, comparisons, filters).
+- FollowUp questions must be grounded in the current response and point to data the UI can visualize.
 
 DATA MODEL CONVENTIONS:
 - Use /filters for UI filters, /metrics or /analytics for KPI values, /projects or /rows for tables.
@@ -30190,7 +30303,8 @@ Every Card showing data should include at least one action:
 ### Example 1: Project Overview (Rich Dashboard)
 "jsonl
 {"op":"set","path":"/root","value":"projects-root"}
-{"op":"add","path":"/elements/projects-root","value":{"key":"projects-root","type":"Stack","props":{"gap":4},"children":["heading-main","kpi-grid","filters-card","chart-grid","projects-tabs"]}}
+{"op":"add","path":"/elements/projects-root","value":{"key":"projects-root","type":"Stack","props":{"gap":4},"children":["heading-main","kpi-grid","filters-card","chart-grid","projects-tabs","followup-main"]}}
+{"op":"add","path":"/elements/followup-main","value":{"key":"followup-main","type":"FollowUp","props":{"title":"Follow up","questions":["Can you break down stars by language and show the trend over time?","Which projects improved most recently and how do their KPIs compare?"]},"children":[]}}
 {"op":"add","path":"/elements/heading-main","value":{"key":"heading-main","type":"Heading","props":{"text":"Project Portfolio","level":"1"},"children":[]}}
 {"op":"add","path":"/elements/kpi-grid","value":{"key":"kpi-grid","type":"Grid","props":{"columns":3,"gap":4},"children":["kpi-total","kpi-stars","kpi-active","kpi-languages"]}}
 {"op":"add","path":"/elements/kpi-total","value":{"key":"kpi-total","type":"Card","props":{},"children":["kpi-total-stack"]}}
@@ -30316,6 +30430,7 @@ This example demonstrates:
 8. **Provide complete data** for all valuePath/dataPath bindings
 9. **Follow spacing rules**: gap 4 default, gap 3 compact, gap 2 dense
 10. **Make it actionable**: Every data card should have buttons/dialogs
+11. **Always include FollowUp last** with exactly 2 curiosity-driven questions that lead to richer UI/data exploration. (VERY IMPORTANT) (ALWAYS INCLUDE THIS)
 
 ONLY RETURN JSONL PATCH OPERATIONS
 ${catalogPrompt}

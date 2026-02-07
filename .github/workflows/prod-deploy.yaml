@@ -42,6 +42,8 @@ jobs:
             PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }}
             CALENDARIFIC_API_KEY=${{ secrets.CALENDARIFIC_API_KEY }}
             ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}
+            NEXT_PUBLIC_HASHNODE_HOST=${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }}
+            HASHNODE_PAT=${{ secrets.HASHNODE_PAT }}
 
       - name: Azure Login
         uses: azure/login@v1
@@ -65,7 +67,20 @@ jobs:
               --target-port 3000 \
               --ingress external \
               --cpu 2.5 \
-              --memory 5Gi
+              --memory 5Gi \
+              --env-vars \
+                AZURE_RESOURCE_NAME=${{ secrets.AZURE_RESOURCE_NAME }} \
+                AZURE_API_KEY=${{ secrets.AZURE_API_KEY }} \
+                AZURE_API_VERSION=${{ secrets.AZURE_API_VERSION }} \
+                AZURE_DEPLOYMENT_NAME=${{ secrets.AZURE_DEPLOYMENT_NAME }} \
+                AZURE_DEPLOYMENT_NAME_MINI=${{ secrets.AZURE_DEPLOYMENT_NAME_MINI }} \
+                AZURE_EMBEDDING_DEPLOYMENT_NAME=${{ secrets.AZURE_EMBEDDING_DEPLOYMENT_NAME }} \
+                MEMORY_DATABASE_URL=${{ secrets.MEMORY_DATABASE_URL }} \
+                PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }} \
+                CALENDARIFIC_API_KEY=${{ secrets.CALENDARIFIC_API_KEY }} \
+                ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }} \
+                NEXT_PUBLIC_HASHNODE_HOST=${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }} \
+                HASHNODE_PAT=${{ secrets.HASHNODE_PAT }}
           fi
 
       - name: Update Container App Registry Credentials
@@ -82,4 +97,17 @@ jobs:
           az containerapp update \
             --name ${{ env.IMAGE_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
-            --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --set-env-vars \
+              AZURE_RESOURCE_NAME=${{ secrets.AZURE_RESOURCE_NAME }} \
+              AZURE_API_KEY=${{ secrets.AZURE_API_KEY }} \
+              AZURE_API_VERSION=${{ secrets.AZURE_API_VERSION }} \
+              AZURE_DEPLOYMENT_NAME=${{ secrets.AZURE_DEPLOYMENT_NAME }} \
+              AZURE_DEPLOYMENT_NAME_MINI=${{ secrets.AZURE_DEPLOYMENT_NAME_MINI }} \
+              AZURE_EMBEDDING_DEPLOYMENT_NAME=${{ secrets.AZURE_EMBEDDING_DEPLOYMENT_NAME }} \
+              MEMORY_DATABASE_URL=${{ secrets.MEMORY_DATABASE_URL }} \
+              PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }} \
+              CALENDARIFIC_API_KEY=${{ secrets.CALENDARIFIC_API_KEY }} \
+              ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }} \
+              NEXT_PUBLIC_HASHNODE_HOST=${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }} \
+              HASHNODE_PAT=${{ secrets.HASHNODE_PAT }}
