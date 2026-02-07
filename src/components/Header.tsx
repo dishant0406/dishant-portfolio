@@ -1,8 +1,9 @@
 'use client';
 
 import { useTheme } from '@/hooks';
-import { ArrowLeft, Grid3X3, Moon, Plus, Share2, Sun } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { ArrowLeft, BookOpen, Grid3X3, Home, Map, Moon, Plus, Share2, Sun } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Button, IconButton } from './ui';
 
 interface HeaderProps {
@@ -19,6 +20,7 @@ interface HeaderProps {
   onSearchClose?: () => void;
   onSearchOpen?: () => void;
   className?: string;
+  showGridButton?: boolean;
 }
 
 export function Header({
@@ -28,11 +30,17 @@ export function Header({
   onBack,
   showBackButton = false,
   showShareButton = false,
+  showGridButton = true,
   className = '',
 }: HeaderProps) {
   const { toggleTheme, isDark, mounted } = useTheme();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const isNewChat = searchParams.get('chat') ? false : true;
+  const showHomeLink = pathname !== '/';
+  const canShowGrid = showGridButton && !!onGrid;
+  const iconLinkClassName =
+    'w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center rounded-full bg-card/80 border border-border text-muted-foreground hover:text-foreground hover:bg-card transition-colors duration-150 ease-in-out';
 
   return (
     <header
@@ -80,14 +88,30 @@ export function Header({
           />
         )}
 
+        {showHomeLink && (
+          <Link aria-label="Go to home" className={iconLinkClassName} href="/">
+            <Home className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Link>
+        )}
+
+        <Link aria-label="Go to blog" className={iconLinkClassName} href="/blog">
+          <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
+        </Link>
+
+        <Link aria-label="View sitemap" className={iconLinkClassName} href="/sitemap.xml">
+          <Map className="w-4 h-4 sm:w-5 sm:h-5" />
+        </Link>
+
         {/* Grid Button */}
-        <IconButton
-          icon={<Grid3X3 className="w-4 h-4 sm:w-5 sm:h-5" />}
-          onClick={onGrid}
-          size="sm"
-          ariaLabel="View all chats"
-          className="w-8 h-8 sm:w-9 sm:h-9 bg-card/80 border border-border text-muted-foreground hover:text-foreground hover:bg-card"
-        />
+        {canShowGrid && (
+          <IconButton
+            icon={<Grid3X3 className="w-4 h-4 sm:w-5 sm:h-5" />}
+            onClick={onGrid}
+            size="sm"
+            ariaLabel="View all chats"
+            className="w-8 h-8 sm:w-9 sm:h-9 bg-card/80 border border-border text-muted-foreground hover:text-foreground hover:bg-card"
+          />
+        )}
 
         {/* Share Button - Only shown when there's an active chat */}
         {showShareButton && (
