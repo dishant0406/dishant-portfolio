@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'hashnode.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'cloudmate-test.s3.us-east-1.amazonaws.com',
+      }
     ],
   },
 };
