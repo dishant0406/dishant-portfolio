@@ -2,13 +2,11 @@ import { ApolloClient, HttpLink, InMemoryCache, NormalizedCacheObject } from '@a
 
 import { env } from '@/lib/env';
 
-const HASHNODE_API_URL = 'https://gql.hashnode.com';
-
 export function getClient(): ApolloClient<NormalizedCacheObject> {
   return new ApolloClient({
     cache: new InMemoryCache(),
     link: new HttpLink({
-      uri: HASHNODE_API_URL,
+      uri: env.HASHNODE_API_URL,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',   // 👈 tells Hashnode CDN to not serve cached
