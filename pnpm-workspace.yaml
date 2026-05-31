@@ -1,6 +1,5 @@
 allowBuilds:
   "@ffmpeg-installer/linux-x64": true
-  "@mastra/node-speaker": true
   esbuild: true
   node-mic: true
   protobufjs: true
