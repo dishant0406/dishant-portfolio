@@ -1,0 +1,8 @@
+onlyBuiltDependencies:
+  - "@ffmpeg-installer/linux-x64"
+  - "@mastra/node-speaker"
+  - esbuild
+  - node-mic
+  - protobufjs
+  - sharp
+  - unrs-resolver
