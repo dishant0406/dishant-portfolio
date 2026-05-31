@@ -6,13 +6,9 @@ import MarkdownToJSX from 'markdown-to-jsx';
 import React, { ReactNode } from 'react';
 import 'swiper/css';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { JsonRendererEmbed } from './JsonRendererEmbed';
-import type { JsonRendererResult } from '@/json-render/types';
-
 interface MarkdownProps {
   children: string;
   className?: string;
-  jsonRendererLookup?: Record<string, JsonRendererResult>;
 }
 
 // Image Carousel Component using Swiper - shows 1.3 images, swipeable, no arrows
@@ -110,11 +106,10 @@ const ResumeEmbed = ({ url }: { url: string }) => {
 };
 
 // Types for parsed content parts
-type ContentPart = 
+type ContentPart =
   | { type: 'text'; value: string }
   | { type: 'resume'; value: string }
-  | { type: 'images'; value: string[] }
-  | { type: 'json-renderer'; value: string };
+  | { type: 'images'; value: string[] };
 
 // Function to parse and extract embeds from content
 // Supports: [RESUME:url], {{resume:url}}, <RESUME>url</RESUME>, and <IMG>url</IMG> formats
@@ -123,7 +118,7 @@ function parseContent(content: string): ContentPart[] {
   let lastIndex = 0;
   
   // Combined pattern for resume and image tags
-  const combinedPattern = /(?:\[RESUME:([^\]]+)\]|\{\{resume:([^}]+)\}\}|<RESUME>([^<]+)<\/RESUME>|(<IMG>(?:[^<]+)<\/IMG>)+|<JSONRenderer>([^<]+)<\/JSONRenderer>)/gi;
+  const combinedPattern = /(?:\[RESUME:([^\]]+)\]|\{\{resume:([^}]+)\}\}|<RESUME>([^<]+)<\/RESUME>|(<IMG>(?:[^<]+)<\/IMG>)+)/gi;
   
   const matches = Array.from(content.matchAll(combinedPattern));
   
@@ -151,11 +146,6 @@ function parseContent(content: string): ContentPart[] {
       
       if (imageUrls.length > 0) {
         parts.push({ type: 'images', value: imageUrls });
-      }
-    } else if (match[0].includes('<JSONRenderer>')) {
-      const jsonRendererId = (match[5] || '').trim();
-      if (jsonRendererId) {
-        parts.push({ type: 'json-renderer', value: jsonRendererId });
       }
     } else {
       // It's a resume match
@@ -375,7 +365,7 @@ const markdownOptions = {
   },
 };
 
-export function Markdown({ children, className = '', jsonRendererLookup }: MarkdownProps) {
+export function Markdown({ children, className = '' }: MarkdownProps) {
   // Parse content to extract embeds
   const parts = parseContent(children);
   
@@ -400,18 +390,6 @@ export function Markdown({ children, className = '', jsonRendererLookup }: Markd
           return <ImageGallery key={`images-${index}`} urls={part.value} />;
         }
 
-        if (part.type === 'json-renderer') {
-          const result = jsonRendererLookup?.[part.value];
-          if (!result) {
-            return (
-              <div key={`json-renderer-${index}`} className="my-4 rounded-xl border border-dashed border-border/70 px-4 py-3 text-xs text-muted-foreground">
-                JSON renderer output pending: {part.value}
-              </div>
-            );
-          }
-          return <JsonRendererEmbed key={`json-renderer-${index}`} result={result} />;
-        }
-        
         return (
           <MarkdownToJSX key={`text-${index}`} options={markdownOptions}>
             {part.value}

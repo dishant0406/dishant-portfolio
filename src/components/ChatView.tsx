@@ -1,11 +1,12 @@
 'use client';
 
-import { useUIStream } from '@/hooks';
-import type { JsonRendererResult } from '@/json-render/types';
+import { portfolioLibrary } from '@/openui/library';
+import { useAppStore } from '@/store/useAppStore';
 import { Chat, ChatMessage, ToolCall } from '@/types';
+import { Renderer } from '@openuidev/react-lang';
 import { Check, ChevronDown, Loader2, Sparkles, User, Wrench } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import JsonRendererEmbed from './ui/JsonRendererEmbed';
+import { useRef, useState } from 'react';
+import { OpenUIThemeScope } from './OpenUIThemeScope';
 
 // Tool name to human-readable display name
 const toolDisplayNames: Record<string, string> = {
@@ -16,21 +17,7 @@ const toolDisplayNames: Record<string, string> = {
   'getGitHubStats': 'Analyzing GitHub stats',
   'searchRepos': 'Searching repositories',
   'getPersonalInfo': 'Loading personal info',
-  'generateJsonRenderer': 'Building UI layout',
 };
-
-function buildJsonRendererLookup(toolCalls?: ToolCall[]): Record<string, JsonRendererResult> {
-  if (!toolCalls) return {};
-
-  return toolCalls.reduce((acc, toolCall) => {
-    if (toolCall.toolName !== 'generateJsonRenderer') return acc;
-    const result = toolCall.result as JsonRendererResult | undefined;
-    if (result?.id && result.tree) {
-      acc[result.id] = result;
-    }
-    return acc;
-  }, {} as Record<string, JsonRendererResult>);
-}
 
 interface ToolCallDisplayProps {
   toolCall: ToolCall;
@@ -40,18 +27,18 @@ function ToolCallDisplay({ toolCall }: ToolCallDisplayProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isRunning = toolCall.status === 'running';
   const isCompleted = toolCall.status === 'completed';
-  
+
   const displayName = toolDisplayNames[toolCall.toolName] || toolCall.toolName;
-  
+
   // Compute result preview string
   const getResultPreview = (): string => {
     if (!toolCall.result) return '';
-    const resultStr = typeof toolCall.result === 'string' 
-      ? toolCall.result 
+    const resultStr = typeof toolCall.result === 'string'
+      ? toolCall.result
       : JSON.stringify(toolCall.result, null, 2);
     return resultStr
   };
-  
+
   return (
     <div>
       <button
@@ -59,8 +46,8 @@ function ToolCallDisplay({ toolCall }: ToolCallDisplayProps) {
         className={`
           flex items-center gap-2 px-3 w-full py-3 text-xs
           transition-all duration-200
-          ${isRunning 
-            ? 'bg-warning/10 text-warning' 
+          ${isRunning
+            ? 'bg-warning/10 text-warning'
             : 'bg-secondary/60 text-muted-foreground '
           }
         `}
@@ -79,7 +66,7 @@ function ToolCallDisplay({ toolCall }: ToolCallDisplayProps) {
           </div>
         )}
       </button>
-      
+
       {/* Expanded view showing result preview */}
       {isCompleted && toolCall.result !== undefined && (
         <div
@@ -103,7 +90,7 @@ interface ToolCallsListProps {
 
 function ToolCallsList({ toolCalls }: ToolCallsListProps) {
   if (!toolCalls || toolCalls.length === 0) return null;
-  
+
   return (
     <div className='mb-1 rounded-lg border border-border overflow-hidden'>
       {toolCalls.map((toolCall) => (
@@ -120,20 +107,15 @@ interface MessageBubbleProps {
 }
 
 
-function MessageBubble({ message, isLastInGroup = true, isLatestAssistant = false }: MessageBubbleProps) {
+function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
   const hasActiveToolCalls = message.toolCalls?.some(t => t.status === 'running');
-  const { tree, data, setTreeString } = useUIStream();
-
-  useEffect(() => {
-    if(message.content?.trim()){
-      setTreeString(message.content?.trim());
-    }
-  }, [message.content]);
+  const setMessage = useAppStore((state) => state.setMessage);
+  const sendMessage = useAppStore((state) => state.sendMessage);
 
   return (
-    <div 
+    <div
       className={`
         flex items-start justify-center gap-3 sm:gap-4
         ${isUser ? 'flex-row-reverse' : 'flex-row'}
@@ -146,8 +128,8 @@ function MessageBubble({ message, isLastInGroup = true, isLatestAssistant = fals
           className={`
             w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center
             transition-all duration-200
-            ${isUser 
-              ? 'bg-secondary mt-2' 
+            ${isUser
+              ? 'bg-secondary mt-2'
               : 'bg-primary'
             }
           `}
@@ -163,13 +145,13 @@ function MessageBubble({ message, isLastInGroup = true, isLatestAssistant = fals
       {/* Message Content */}
       <div className={`flex-1 min-w-0 max-w-[90%] md:max-w-[85%] sm:max-w-[80%] ${isUser ? 'flex justify-end' : ''}`}>
         {isUser ? (
-          <div 
+          <div
             className={`
-              inline-block px-3 sm:px-4 py-2 sm:py-2.5 
+              inline-block px-3 sm:px-4 py-2 sm:py-2.5
               rounded-2xl rounded-tr-md
-              bg-primary 
+              bg-primary
               mt-2
-              text-primary-foreground 
+              text-primary-foreground
               text-[14px] sm:text-[15px] leading-relaxed
               shadow-sm
               wrap-break-word
@@ -183,10 +165,10 @@ function MessageBubble({ message, isLastInGroup = true, isLatestAssistant = fals
             {hasToolCalls && (
               <ToolCallsList toolCalls={message.toolCalls!} />
             )}
-            
+
             {/* Message content */}
             {(message.content || (!hasActiveToolCalls && !message.isStreaming)) && (
-              <div 
+              <div
                 className={`
                  rounded-tl-md
                   overflow-hidden
@@ -199,19 +181,20 @@ function MessageBubble({ message, isLastInGroup = true, isLatestAssistant = fals
                     <div className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 ) : message.content ? (
-                  <div>
-                    <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground overflow-hidden wrap-break-word" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                      {/* <Markdown jsonRendererLookup={jsonRendererLookup}>{message.content}</Markdown> */}
-                      <JsonRendererEmbed
-                        isLatestMessage={isLatestAssistant}
-                        result={{
-                          id: 'key',
-                          tree: tree,
-                          data: data
-                        }}
-                      />
-                      
-                    </div>
+                  <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground overflow-hidden wrap-break-word" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    <Renderer
+                      library={portfolioLibrary}
+                      response={message.content}
+                      isStreaming={!!message.isStreaming}
+                      onAction={(event) => {
+                        if (event.type === 'continue_conversation') {
+                          setMessage(event.humanFriendlyMessage);
+                          sendMessage();
+                        } else if (event.type === 'open_url' && event.params?.url) {
+                          window.open(event.params.url as string, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                    />
                   </div>
                 ) : null}
               </div>
@@ -249,9 +232,10 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
   }
 
   return (
-    <div className={`flex flex-col h-full ${className}`}>
+    <OpenUIThemeScope>
+      <div className={`flex flex-col h-full ${className}`}>
       {/* Messages container - full width for scroll, content centered and constrained */}
-      <div 
+      <div
         ref={containerRef}
         className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain py-4 sm:py-6 pb-24 sm:pb-28"
         style={{ WebkitOverflowScrolling: 'touch' }}
@@ -271,18 +255,18 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
               const nextMessage = chat.messages[index + 1];
               const isLastInGroup = !nextMessage || nextMessage.role !== message.role;
               const isLatestAssistant = message.role === 'assistant' && index === lastAssistantIndex;
-              
+
               return (
-                <MessageBubble 
-                  key={message.id} 
-                  message={message} 
+                <MessageBubble
+                  key={message.id}
+                  message={message}
                   isLastInGroup={isLastInGroup}
                   isLatestAssistant={isLatestAssistant}
                 />
               );
             });
           })()}
-          
+
           {/* Loading indicator */}
           {isLoading && chat.messages.length > 0 && !chat.messages[chat.messages.length - 1]?.isStreaming && (
             <div className="flex items-start gap-3 sm:gap-4">
@@ -291,7 +275,7 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
                   <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary-foreground" />
                 </div>
               </div>
-              <div 
+              <div
                 className="px-4 py-3 rounded-2xl md:rounded-tl-md bg-card/90 border border-border/60 shadow-sm "
               >
                 <div className="flex items-center gap-1.5 py-1">
@@ -302,12 +286,13 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
               </div>
             </div>
           )}
-          
+
           {/* Scroll anchor */}
           <div ref={messagesEndRef} />
         </div>
       </div>
-    </div>
+      </div>
+    </OpenUIThemeScope>
   );
 }
 

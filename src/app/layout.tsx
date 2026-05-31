@@ -1,6 +1,7 @@
 import { ThemeProvider } from '@/components';
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import '@openuidev/react-ui/components.css';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });

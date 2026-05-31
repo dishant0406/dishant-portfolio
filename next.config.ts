@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   serverExternalPackages: ["@mastra/*"],
+  turbopack: {
+    root: process.cwd(),
+  },
   experimental: {
     turbopackUseSystemTlsCerts: true,
   },
