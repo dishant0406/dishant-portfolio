@@ -1,9 +1,9 @@
-FROM node:lts as dependencies
+FROM node:lts AS dependencies
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
 
-FROM node:lts as builder
+FROM node:lts AS builder
 WORKDIR /app
 
 # Declare build arguments for Azure and other service configurations
@@ -45,7 +45,7 @@ COPY --from=dependencies /app/node_modules ./node_modules
 # Build both Next.js and Mastra server
 RUN npm run build
 
-FROM node:lts as runner
+FROM node:lts AS runner
 WORKDIR /app
 
 # Declare runtime arguments
