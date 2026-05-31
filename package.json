@@ -73,16 +73,5 @@
     "tailwindcss": "^4",
     "tsx": "^4.7.0",
     "typescript": "^5.9.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@ffmpeg-installer/linux-x64",
-      "@mastra/node-speaker",
-      "esbuild",
-      "node-mic",
-      "protobufjs",
-      "sharp",
-      "unrs-resolver"
-    ]
   }
 }
