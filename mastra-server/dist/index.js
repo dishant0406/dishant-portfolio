@@ -172,9 +172,9 @@ var require_vary = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/cors@2.8.5/node_modules/cors/lib/index.js
+// ../node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js
 var require_lib = __commonJS({
-  "../node_modules/.pnpm/cors@2.8.5/node_modules/cors/lib/index.js"(exports2, module2) {
+  "../node_modules/.pnpm/cors@2.8.6/node_modules/cors/lib/index.js"(exports2, module2) {
     (function() {
       "use strict";
       var assign = require_object_assign();
@@ -315,11 +315,11 @@ var require_lib = __commonJS({
         var headers = [], method = req.method && req.method.toUpperCase && req.method.toUpperCase();
         if (method === "OPTIONS") {
           headers.push(configureOrigin(options, req));
-          headers.push(configureCredentials(options, req));
-          headers.push(configureMethods(options, req));
+          headers.push(configureCredentials(options));
+          headers.push(configureMethods(options));
           headers.push(configureAllowedHeaders(options, req));
-          headers.push(configureMaxAge(options, req));
-          headers.push(configureExposedHeaders(options, req));
+          headers.push(configureMaxAge(options));
+          headers.push(configureExposedHeaders(options));
           applyHeaders(headers, res);
           if (options.preflightContinue) {
             next();
@@ -330,8 +330,8 @@ var require_lib = __commonJS({
           }
         } else {
           headers.push(configureOrigin(options, req));
-          headers.push(configureCredentials(options, req));
-          headers.push(configureExposedHeaders(options, req));
+          headers.push(configureCredentials(options));
+          headers.push(configureExposedHeaders(options));
           applyHeaders(headers, res);
           next();
         }
@@ -16450,9 +16450,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/formats.js
+// ../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/formats.js"(exports2, module2) {
+  "../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/formats.js"(exports2, module2) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -16476,17 +16476,32 @@ var require_formats = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/utils.js
+// ../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/utils.js
 var require_utils = __commonJS({
-  "../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/utils.js"(exports2, module2) {
+  "../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/utils.js"(exports2, module2) {
     "use strict";
     var formats = require_formats();
+    var getSideChannel = require_side_channel();
     var has = Object.prototype.hasOwnProperty;
     var isArray = Array.isArray;
+    var overflowChannel = getSideChannel();
+    var markOverflow = function markOverflow2(obj, maxIndex) {
+      overflowChannel.set(obj, maxIndex);
+      return obj;
+    };
+    var isOverflow = function isOverflow2(obj) {
+      return overflowChannel.has(obj);
+    };
+    var getMaxIndex = function getMaxIndex2(obj) {
+      return overflowChannel.get(obj);
+    };
+    var setMaxIndex = function setMaxIndex2(obj, maxIndex) {
+      overflowChannel.set(obj, maxIndex);
+    };
     var hexTable = function() {
       var array = [];
       for (var i = 0; i < 256; ++i) {
-        array.push("%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase());
+        array[array.length] = "%" + ((i < 16 ? "0" : "") + i.toString(16)).toUpperCase();
       }
       return array;
     }();
@@ -16498,7 +16513,7 @@ var require_utils = __commonJS({
           var compacted = [];
           for (var j = 0; j < obj.length; ++j) {
             if (typeof obj[j] !== "undefined") {
-              compacted.push(obj[j]);
+              compacted[compacted.length] = obj[j];
             }
           }
           item.obj[item.prop] = compacted;
@@ -16520,9 +16535,17 @@ var require_utils = __commonJS({
       }
       if (typeof source !== "object" && typeof source !== "function") {
         if (isArray(target)) {
-          target.push(source);
+          var nextIndex = target.length;
+          if (options && typeof options.arrayLimit === "number" && nextIndex > options.arrayLimit) {
+            return markOverflow(arrayToObject(target.concat(source), options), nextIndex);
+          }
+          target[nextIndex] = source;
         } else if (target && typeof target === "object") {
-          if (options && (options.plainObjects || options.allowPrototypes) || !has.call(Object.prototype, source)) {
+          if (isOverflow(target)) {
+            var newIndex = getMaxIndex(target) + 1;
+            target[newIndex] = source;
+            setMaxIndex(target, newIndex);
+          } else if (options && (options.plainObjects || options.allowPrototypes) || !has.call(Object.prototype, source)) {
             target[source] = true;
           }
         } else {
@@ -16531,7 +16554,20 @@ var require_utils = __commonJS({
         return target;
       }
       if (!target || typeof target !== "object") {
-        return [target].concat(source);
+        if (isOverflow(source)) {
+          var sourceKeys = Object.keys(source);
+          var result = options && options.plainObjects ? { __proto__: null, 0: target } : { 0: target };
+          for (var m = 0; m < sourceKeys.length; m++) {
+            var oldKey = parseInt(sourceKeys[m], 10);
+            result[oldKey + 1] = source[sourceKeys[m]];
+          }
+          return markOverflow(result, getMaxIndex(source) + 1);
+        }
+        var combined = [target].concat(source);
+        if (options && typeof options.arrayLimit === "number" && combined.length > options.arrayLimit) {
+          return markOverflow(arrayToObject(combined, options), combined.length - 1);
+        }
+        return combined;
       }
       var mergeTarget = target;
       if (isArray(target) && !isArray(source)) {
@@ -16544,7 +16580,7 @@ var require_utils = __commonJS({
             if (targetItem && typeof targetItem === "object" && item && typeof item === "object") {
               target[i] = merge2(targetItem, item, options);
             } else {
-              target.push(item);
+              target[target.length] = item;
             }
           } else {
             target[i] = item;
@@ -16558,6 +16594,15 @@ var require_utils = __commonJS({
           acc[key] = merge2(acc[key], value, options);
         } else {
           acc[key] = value;
+        }
+        if (isOverflow(source) && !isOverflow(acc)) {
+          markOverflow(acc, getMaxIndex(source));
+        }
+        if (isOverflow(acc)) {
+          var keyNum = parseInt(key, 10);
+          if (String(keyNum) === key && keyNum >= 0 && keyNum > getMaxIndex(acc)) {
+            setMaxIndex(acc, keyNum);
+          }
         }
         return acc;
       }, mergeTarget);
@@ -16636,8 +16681,8 @@ var require_utils = __commonJS({
           var key = keys[j];
           var val = obj[key];
           if (typeof val === "object" && val !== null && refs.indexOf(val) === -1) {
-            queue.push({ obj, prop: key });
-            refs.push(val);
+            queue[queue.length] = { obj, prop: key };
+            refs[refs.length] = val;
           }
         }
       }
@@ -16653,14 +16698,24 @@ var require_utils = __commonJS({
       }
       return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
     };
-    var combine = function combine2(a, b) {
-      return [].concat(a, b);
+    var combine = function combine2(a, b, arrayLimit, plainObjects) {
+      if (isOverflow(a)) {
+        var newIndex = getMaxIndex(a) + 1;
+        a[newIndex] = b;
+        setMaxIndex(a, newIndex);
+        return a;
+      }
+      var result = [].concat(a, b);
+      if (result.length > arrayLimit) {
+        return markOverflow(arrayToObject(result, { plainObjects }), result.length - 1);
+      }
+      return result;
     };
     var maybeMap = function maybeMap2(val, fn) {
       if (isArray(val)) {
         var mapped = [];
         for (var i = 0; i < val.length; i += 1) {
-          mapped.push(fn(val[i]));
+          mapped[mapped.length] = fn(val[i]);
         }
         return mapped;
       }
@@ -16674,16 +16729,18 @@ var require_utils = __commonJS({
       decode,
       encode,
       isBuffer,
+      isOverflow,
       isRegExp,
+      markOverflow,
       maybeMap,
       merge
     };
   }
 });
 
-// ../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/stringify.js
+// ../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/stringify.js"(exports2, module2) {
+  "../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/stringify.js"(exports2, module2) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils();
@@ -16964,9 +17021,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/parse.js
+// ../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/parse.js"(exports2, module2) {
+  "../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/parse.js"(exports2, module2) {
     "use strict";
     var utils = require_utils();
     var has = Object.prototype.hasOwnProperty;
@@ -17052,16 +17109,18 @@ var require_parse = __commonJS({
           val = options.strictNullHandling ? null : "";
         } else {
           key = options.decoder(part.slice(0, pos), defaults.decoder, charset, "key");
-          val = utils.maybeMap(
-            parseArrayValue(
-              part.slice(pos + 1),
-              options,
-              isArray(obj[key]) ? obj[key].length : 0
-            ),
-            function(encodedVal) {
-              return options.decoder(encodedVal, defaults.decoder, charset, "value");
-            }
-          );
+          if (key !== null) {
+            val = utils.maybeMap(
+              parseArrayValue(
+                part.slice(pos + 1),
+                options,
+                isArray(obj[key]) ? obj[key].length : 0
+              ),
+              function(encodedVal) {
+                return options.decoder(encodedVal, defaults.decoder, charset, "value");
+              }
+            );
+          }
         }
         if (val && options.interpretNumericEntities && charset === "iso-8859-1") {
           val = interpretNumericEntities(String(val));
@@ -17069,11 +17128,24 @@ var require_parse = __commonJS({
         if (part.indexOf("[]=") > -1) {
           val = isArray(val) ? [val] : val;
         }
-        var existing = has.call(obj, key);
-        if (existing && options.duplicates === "combine") {
-          obj[key] = utils.combine(obj[key], val);
-        } else if (!existing || options.duplicates === "last") {
-          obj[key] = val;
+        if (options.comma && isArray(val) && val.length > options.arrayLimit) {
+          if (options.throwOnLimitExceeded) {
+            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+          }
+          val = utils.combine([], val, options.arrayLimit, options.plainObjects);
+        }
+        if (key !== null) {
+          var existing = has.call(obj, key);
+          if (existing && options.duplicates === "combine") {
+            obj[key] = utils.combine(
+              obj[key],
+              val,
+              options.arrayLimit,
+              options.plainObjects
+            );
+          } else if (!existing || options.duplicates === "last") {
+            obj[key] = val;
+          }
         }
       }
       return obj;
@@ -17089,17 +17161,32 @@ var require_parse = __commonJS({
         var obj;
         var root = chain[i];
         if (root === "[]" && options.parseArrays) {
-          obj = options.allowEmptyArrays && (leaf === "" || options.strictNullHandling && leaf === null) ? [] : utils.combine([], leaf);
+          if (utils.isOverflow(leaf)) {
+            obj = leaf;
+          } else {
+            obj = options.allowEmptyArrays && (leaf === "" || options.strictNullHandling && leaf === null) ? [] : utils.combine(
+              [],
+              leaf,
+              options.arrayLimit,
+              options.plainObjects
+            );
+          }
         } else {
           obj = options.plainObjects ? { __proto__: null } : {};
           var cleanRoot = root.charAt(0) === "[" && root.charAt(root.length - 1) === "]" ? root.slice(1, -1) : root;
           var decodedRoot = options.decodeDotInKeys ? cleanRoot.replace(/%2E/g, ".") : cleanRoot;
           var index = parseInt(decodedRoot, 10);
+          var isValidArrayIndex = !isNaN(index) && root !== decodedRoot && String(index) === decodedRoot && index >= 0 && options.parseArrays;
           if (!options.parseArrays && decodedRoot === "") {
             obj = { 0: leaf };
-          } else if (!isNaN(index) && root !== decodedRoot && String(index) === decodedRoot && index >= 0 && (options.parseArrays && index <= options.arrayLimit)) {
+          } else if (isValidArrayIndex && index < options.arrayLimit) {
             obj = [];
             obj[index] = leaf;
+          } else if (isValidArrayIndex && options.throwOnLimitExceeded) {
+            throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+          } else if (isValidArrayIndex) {
+            obj[index] = leaf;
+            utils.markOverflow(obj, index);
           } else if (decodedRoot !== "__proto__") {
             obj[decodedRoot] = leaf;
           }
@@ -17108,14 +17195,19 @@ var require_parse = __commonJS({
       }
       return leaf;
     };
-    var parseKeys = function parseQueryStringKeys(givenKey, val, options, valuesParsed) {
-      if (!givenKey) {
-        return;
-      }
+    var splitKeyIntoSegments = function splitKeyIntoSegments2(givenKey, options) {
       var key = options.allowDots ? givenKey.replace(/\.([^.[]+)/g, "[$1]") : givenKey;
+      if (options.depth <= 0) {
+        if (!options.plainObjects && has.call(Object.prototype, key)) {
+          if (!options.allowPrototypes) {
+            return;
+          }
+        }
+        return [key];
+      }
       var brackets = /(\[[^[\]]*])/;
       var child = /(\[[^[\]]*])/g;
-      var segment = options.depth > 0 && brackets.exec(key);
+      var segment = brackets.exec(key);
       var parent = segment ? key.slice(0, segment.index) : key;
       var keys = [];
       if (parent) {
@@ -17124,23 +17216,34 @@ var require_parse = __commonJS({
             return;
           }
         }
-        keys.push(parent);
+        keys[keys.length] = parent;
       }
       var i = 0;
-      while (options.depth > 0 && (segment = child.exec(key)) !== null && i < options.depth) {
+      while ((segment = child.exec(key)) !== null && i < options.depth) {
         i += 1;
-        if (!options.plainObjects && has.call(Object.prototype, segment[1].slice(1, -1))) {
+        var segmentContent = segment[1].slice(1, -1);
+        if (!options.plainObjects && has.call(Object.prototype, segmentContent)) {
           if (!options.allowPrototypes) {
             return;
           }
         }
-        keys.push(segment[1]);
+        keys[keys.length] = segment[1];
       }
       if (segment) {
         if (options.strictDepth === true) {
           throw new RangeError("Input depth exceeded depth option of " + options.depth + " and strictDepth is true");
         }
-        keys.push("[" + key.slice(segment.index) + "]");
+        keys[keys.length] = "[" + key.slice(segment.index) + "]";
+      }
+      return keys;
+    };
+    var parseKeys = function parseQueryStringKeys(givenKey, val, options, valuesParsed) {
+      if (!givenKey) {
+        return;
+      }
+      var keys = splitKeyIntoSegments(givenKey, options);
+      if (!keys) {
+        return;
       }
       return parseObject(keys, val, options, valuesParsed);
     };
@@ -17215,9 +17318,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/index.js
+// ../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/index.js
 var require_lib3 = __commonJS({
-  "../node_modules/.pnpm/qs@6.14.0/node_modules/qs/lib/index.js"(exports2, module2) {
+  "../node_modules/.pnpm/qs@6.14.2/node_modules/qs/lib/index.js"(exports2, module2) {
     "use strict";
     var stringify = require_stringify();
     var parse = require_parse();
@@ -18943,312 +19046,6 @@ var require_content_disposition = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/statuses@2.0.1/node_modules/statuses/codes.json
-var require_codes2 = __commonJS({
-  "../node_modules/.pnpm/statuses@2.0.1/node_modules/statuses/codes.json"(exports2, module2) {
-    module2.exports = {
-      "100": "Continue",
-      "101": "Switching Protocols",
-      "102": "Processing",
-      "103": "Early Hints",
-      "200": "OK",
-      "201": "Created",
-      "202": "Accepted",
-      "203": "Non-Authoritative Information",
-      "204": "No Content",
-      "205": "Reset Content",
-      "206": "Partial Content",
-      "207": "Multi-Status",
-      "208": "Already Reported",
-      "226": "IM Used",
-      "300": "Multiple Choices",
-      "301": "Moved Permanently",
-      "302": "Found",
-      "303": "See Other",
-      "304": "Not Modified",
-      "305": "Use Proxy",
-      "307": "Temporary Redirect",
-      "308": "Permanent Redirect",
-      "400": "Bad Request",
-      "401": "Unauthorized",
-      "402": "Payment Required",
-      "403": "Forbidden",
-      "404": "Not Found",
-      "405": "Method Not Allowed",
-      "406": "Not Acceptable",
-      "407": "Proxy Authentication Required",
-      "408": "Request Timeout",
-      "409": "Conflict",
-      "410": "Gone",
-      "411": "Length Required",
-      "412": "Precondition Failed",
-      "413": "Payload Too Large",
-      "414": "URI Too Long",
-      "415": "Unsupported Media Type",
-      "416": "Range Not Satisfiable",
-      "417": "Expectation Failed",
-      "418": "I'm a Teapot",
-      "421": "Misdirected Request",
-      "422": "Unprocessable Entity",
-      "423": "Locked",
-      "424": "Failed Dependency",
-      "425": "Too Early",
-      "426": "Upgrade Required",
-      "428": "Precondition Required",
-      "429": "Too Many Requests",
-      "431": "Request Header Fields Too Large",
-      "451": "Unavailable For Legal Reasons",
-      "500": "Internal Server Error",
-      "501": "Not Implemented",
-      "502": "Bad Gateway",
-      "503": "Service Unavailable",
-      "504": "Gateway Timeout",
-      "505": "HTTP Version Not Supported",
-      "506": "Variant Also Negotiates",
-      "507": "Insufficient Storage",
-      "508": "Loop Detected",
-      "509": "Bandwidth Limit Exceeded",
-      "510": "Not Extended",
-      "511": "Network Authentication Required"
-    };
-  }
-});
-
-// ../node_modules/.pnpm/statuses@2.0.1/node_modules/statuses/index.js
-var require_statuses2 = __commonJS({
-  "../node_modules/.pnpm/statuses@2.0.1/node_modules/statuses/index.js"(exports2, module2) {
-    "use strict";
-    var codes = require_codes2();
-    module2.exports = status;
-    status.message = codes;
-    status.code = createMessageToStatusCodeMap(codes);
-    status.codes = createStatusCodeList(codes);
-    status.redirect = {
-      300: true,
-      301: true,
-      302: true,
-      303: true,
-      305: true,
-      307: true,
-      308: true
-    };
-    status.empty = {
-      204: true,
-      205: true,
-      304: true
-    };
-    status.retry = {
-      502: true,
-      503: true,
-      504: true
-    };
-    function createMessageToStatusCodeMap(codes2) {
-      var map = {};
-      Object.keys(codes2).forEach(function forEachCode(code) {
-        var message = codes2[code];
-        var status2 = Number(code);
-        map[message.toLowerCase()] = status2;
-      });
-      return map;
-    }
-    function createStatusCodeList(codes2) {
-      return Object.keys(codes2).map(function mapCode(code) {
-        return Number(code);
-      });
-    }
-    function getStatusCode(message) {
-      var msg = message.toLowerCase();
-      if (!Object.prototype.hasOwnProperty.call(status.code, msg)) {
-        throw new Error('invalid status message: "' + message + '"');
-      }
-      return status.code[msg];
-    }
-    function getStatusMessage(code) {
-      if (!Object.prototype.hasOwnProperty.call(status.message, code)) {
-        throw new Error("invalid status code: " + code);
-      }
-      return status.message[code];
-    }
-    function status(code) {
-      if (typeof code === "number") {
-        return getStatusMessage(code);
-      }
-      if (typeof code !== "string") {
-        throw new TypeError("code must be a number or string");
-      }
-      var n = parseInt(code, 10);
-      if (!isNaN(n)) {
-        return getStatusMessage(n);
-      }
-      return getStatusCode(code);
-    }
-  }
-});
-
-// ../node_modules/.pnpm/http-errors@2.0.0/node_modules/http-errors/index.js
-var require_http_errors2 = __commonJS({
-  "../node_modules/.pnpm/http-errors@2.0.0/node_modules/http-errors/index.js"(exports2, module2) {
-    "use strict";
-    var deprecate = require_depd()("http-errors");
-    var setPrototypeOf = require_setprototypeof();
-    var statuses = require_statuses2();
-    var inherits = require_inherits();
-    var toIdentifier = require_toidentifier();
-    module2.exports = createError;
-    module2.exports.HttpError = createHttpErrorConstructor();
-    module2.exports.isHttpError = createIsHttpErrorFunction(module2.exports.HttpError);
-    populateConstructorExports(module2.exports, statuses.codes, module2.exports.HttpError);
-    function codeClass(status) {
-      return Number(String(status).charAt(0) + "00");
-    }
-    function createError() {
-      var err;
-      var msg;
-      var status = 500;
-      var props = {};
-      for (var i = 0; i < arguments.length; i++) {
-        var arg = arguments[i];
-        var type = typeof arg;
-        if (type === "object" && arg instanceof Error) {
-          err = arg;
-          status = err.status || err.statusCode || status;
-        } else if (type === "number" && i === 0) {
-          status = arg;
-        } else if (type === "string") {
-          msg = arg;
-        } else if (type === "object") {
-          props = arg;
-        } else {
-          throw new TypeError("argument #" + (i + 1) + " unsupported type " + type);
-        }
-      }
-      if (typeof status === "number" && (status < 400 || status >= 600)) {
-        deprecate("non-error status code; use only 4xx or 5xx status codes");
-      }
-      if (typeof status !== "number" || !statuses.message[status] && (status < 400 || status >= 600)) {
-        status = 500;
-      }
-      var HttpError = createError[status] || createError[codeClass(status)];
-      if (!err) {
-        err = HttpError ? new HttpError(msg) : new Error(msg || statuses.message[status]);
-        Error.captureStackTrace(err, createError);
-      }
-      if (!HttpError || !(err instanceof HttpError) || err.status !== status) {
-        err.expose = status < 500;
-        err.status = err.statusCode = status;
-      }
-      for (var key in props) {
-        if (key !== "status" && key !== "statusCode") {
-          err[key] = props[key];
-        }
-      }
-      return err;
-    }
-    function createHttpErrorConstructor() {
-      function HttpError() {
-        throw new TypeError("cannot construct abstract class");
-      }
-      inherits(HttpError, Error);
-      return HttpError;
-    }
-    function createClientErrorConstructor(HttpError, name, code) {
-      var className = toClassName(name);
-      function ClientError(message) {
-        var msg = message != null ? message : statuses.message[code];
-        var err = new Error(msg);
-        Error.captureStackTrace(err, ClientError);
-        setPrototypeOf(err, ClientError.prototype);
-        Object.defineProperty(err, "message", {
-          enumerable: true,
-          configurable: true,
-          value: msg,
-          writable: true
-        });
-        Object.defineProperty(err, "name", {
-          enumerable: false,
-          configurable: true,
-          value: className,
-          writable: true
-        });
-        return err;
-      }
-      inherits(ClientError, HttpError);
-      nameFunc(ClientError, className);
-      ClientError.prototype.status = code;
-      ClientError.prototype.statusCode = code;
-      ClientError.prototype.expose = true;
-      return ClientError;
-    }
-    function createIsHttpErrorFunction(HttpError) {
-      return function isHttpError(val) {
-        if (!val || typeof val !== "object") {
-          return false;
-        }
-        if (val instanceof HttpError) {
-          return true;
-        }
-        return val instanceof Error && typeof val.expose === "boolean" && typeof val.statusCode === "number" && val.status === val.statusCode;
-      };
-    }
-    function createServerErrorConstructor(HttpError, name, code) {
-      var className = toClassName(name);
-      function ServerError(message) {
-        var msg = message != null ? message : statuses.message[code];
-        var err = new Error(msg);
-        Error.captureStackTrace(err, ServerError);
-        setPrototypeOf(err, ServerError.prototype);
-        Object.defineProperty(err, "message", {
-          enumerable: true,
-          configurable: true,
-          value: msg,
-          writable: true
-        });
-        Object.defineProperty(err, "name", {
-          enumerable: false,
-          configurable: true,
-          value: className,
-          writable: true
-        });
-        return err;
-      }
-      inherits(ServerError, HttpError);
-      nameFunc(ServerError, className);
-      ServerError.prototype.status = code;
-      ServerError.prototype.statusCode = code;
-      ServerError.prototype.expose = false;
-      return ServerError;
-    }
-    function nameFunc(func, name) {
-      var desc = Object.getOwnPropertyDescriptor(func, "name");
-      if (desc && desc.configurable) {
-        desc.value = name;
-        Object.defineProperty(func, "name", desc);
-      }
-    }
-    function populateConstructorExports(exports3, codes, HttpError) {
-      codes.forEach(function forEachCode(code) {
-        var CodeError;
-        var name = toIdentifier(statuses.message[code]);
-        switch (codeClass(code)) {
-          case 400:
-            CodeError = createClientErrorConstructor(HttpError, name, code);
-            break;
-          case 500:
-            CodeError = createServerErrorConstructor(HttpError, name, code);
-            break;
-        }
-        if (CodeError) {
-          exports3[code] = CodeError;
-          exports3[name] = CodeError;
-        }
-      });
-    }
-    function toClassName(name) {
-      return name.substr(-5) !== "Error" ? name + "Error" : name;
-    }
-  }
-});
-
 // ../node_modules/.pnpm/etag@1.8.1/node_modules/etag/index.js
 var require_etag = __commonJS({
   "../node_modules/.pnpm/etag@1.8.1/node_modules/etag/index.js"(exports2, module2) {
@@ -19622,11 +19419,11 @@ var require_range_parser = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/send@0.19.1/node_modules/send/index.js
+// ../node_modules/.pnpm/send@0.19.2/node_modules/send/index.js
 var require_send = __commonJS({
-  "../node_modules/.pnpm/send@0.19.1/node_modules/send/index.js"(exports2, module2) {
+  "../node_modules/.pnpm/send@0.19.2/node_modules/send/index.js"(exports2, module2) {
     "use strict";
-    var createError = require_http_errors2();
+    var createError = require_http_errors();
     var debug = require_src()("send");
     var deprecate = require_depd()("send");
     var destroy = require_destroy();
@@ -19640,7 +19437,7 @@ var require_send = __commonJS({
     var onFinished = require_on_finished();
     var parseRange = require_range_parser();
     var path = require("path");
-    var statuses = require_statuses2();
+    var statuses = require_statuses();
     var Stream = require("stream");
     var util2 = require("util");
     var extname = path.extname;
@@ -22879,574 +22676,15 @@ var require_response = __commonJS({
   }
 });
 
-// ../node_modules/.pnpm/encodeurl@1.0.2/node_modules/encodeurl/index.js
-var require_encodeurl2 = __commonJS({
-  "../node_modules/.pnpm/encodeurl@1.0.2/node_modules/encodeurl/index.js"(exports2, module2) {
-    "use strict";
-    module2.exports = encodeUrl;
-    var ENCODE_CHARS_REGEXP = /(?:[^\x21\x25\x26-\x3B\x3D\x3F-\x5B\x5D\x5F\x61-\x7A\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
-    var UNMATCHED_SURROGATE_PAIR_REGEXP = /(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]|[\uD800-\uDBFF]([^\uDC00-\uDFFF]|$)/g;
-    var UNMATCHED_SURROGATE_PAIR_REPLACE = "$1\uFFFD$2";
-    function encodeUrl(url) {
-      return String(url).replace(UNMATCHED_SURROGATE_PAIR_REGEXP, UNMATCHED_SURROGATE_PAIR_REPLACE).replace(ENCODE_CHARS_REGEXP, encodeURI);
-    }
-  }
-});
-
-// ../node_modules/.pnpm/send@0.19.0/node_modules/send/index.js
-var require_send2 = __commonJS({
-  "../node_modules/.pnpm/send@0.19.0/node_modules/send/index.js"(exports2, module2) {
-    "use strict";
-    var createError = require_http_errors2();
-    var debug = require_src()("send");
-    var deprecate = require_depd()("send");
-    var destroy = require_destroy();
-    var encodeUrl = require_encodeurl2();
-    var escapeHtml = require_escape_html();
-    var etag = require_etag();
-    var fresh = require_fresh();
-    var fs = require("fs");
-    var mime = require_mime();
-    var ms = require_ms2();
-    var onFinished = require_on_finished();
-    var parseRange = require_range_parser();
-    var path = require("path");
-    var statuses = require_statuses2();
-    var Stream = require("stream");
-    var util2 = require("util");
-    var extname = path.extname;
-    var join = path.join;
-    var normalize = path.normalize;
-    var resolve = path.resolve;
-    var sep = path.sep;
-    var BYTES_RANGE_REGEXP = /^ *bytes=/;
-    var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
-    var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
-    module2.exports = send;
-    module2.exports.mime = mime;
-    function send(req, path2, options) {
-      return new SendStream(req, path2, options);
-    }
-    function SendStream(req, path2, options) {
-      Stream.call(this);
-      var opts = options || {};
-      this.options = opts;
-      this.path = path2;
-      this.req = req;
-      this._acceptRanges = opts.acceptRanges !== void 0 ? Boolean(opts.acceptRanges) : true;
-      this._cacheControl = opts.cacheControl !== void 0 ? Boolean(opts.cacheControl) : true;
-      this._etag = opts.etag !== void 0 ? Boolean(opts.etag) : true;
-      this._dotfiles = opts.dotfiles !== void 0 ? opts.dotfiles : "ignore";
-      if (this._dotfiles !== "ignore" && this._dotfiles !== "allow" && this._dotfiles !== "deny") {
-        throw new TypeError('dotfiles option must be "allow", "deny", or "ignore"');
-      }
-      this._hidden = Boolean(opts.hidden);
-      if (opts.hidden !== void 0) {
-        deprecate("hidden: use dotfiles: '" + (this._hidden ? "allow" : "ignore") + "' instead");
-      }
-      if (opts.dotfiles === void 0) {
-        this._dotfiles = void 0;
-      }
-      this._extensions = opts.extensions !== void 0 ? normalizeList(opts.extensions, "extensions option") : [];
-      this._immutable = opts.immutable !== void 0 ? Boolean(opts.immutable) : false;
-      this._index = opts.index !== void 0 ? normalizeList(opts.index, "index option") : ["index.html"];
-      this._lastModified = opts.lastModified !== void 0 ? Boolean(opts.lastModified) : true;
-      this._maxage = opts.maxAge || opts.maxage;
-      this._maxage = typeof this._maxage === "string" ? ms(this._maxage) : Number(this._maxage);
-      this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
-      this._root = opts.root ? resolve(opts.root) : null;
-      if (!this._root && opts.from) {
-        this.from(opts.from);
-      }
-    }
-    util2.inherits(SendStream, Stream);
-    SendStream.prototype.etag = deprecate.function(function etag2(val) {
-      this._etag = Boolean(val);
-      debug("etag %s", this._etag);
-      return this;
-    }, "send.etag: pass etag as option");
-    SendStream.prototype.hidden = deprecate.function(function hidden(val) {
-      this._hidden = Boolean(val);
-      this._dotfiles = void 0;
-      debug("hidden %s", this._hidden);
-      return this;
-    }, "send.hidden: use dotfiles option");
-    SendStream.prototype.index = deprecate.function(function index(paths) {
-      var index2 = !paths ? [] : normalizeList(paths, "paths argument");
-      debug("index %o", paths);
-      this._index = index2;
-      return this;
-    }, "send.index: pass index as option");
-    SendStream.prototype.root = function root(path2) {
-      this._root = resolve(String(path2));
-      debug("root %s", this._root);
-      return this;
-    };
-    SendStream.prototype.from = deprecate.function(
-      SendStream.prototype.root,
-      "send.from: pass root as option"
-    );
-    SendStream.prototype.root = deprecate.function(
-      SendStream.prototype.root,
-      "send.root: pass root as option"
-    );
-    SendStream.prototype.maxage = deprecate.function(function maxage(maxAge) {
-      this._maxage = typeof maxAge === "string" ? ms(maxAge) : Number(maxAge);
-      this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0;
-      debug("max-age %d", this._maxage);
-      return this;
-    }, "send.maxage: pass maxAge as option");
-    SendStream.prototype.error = function error(status, err) {
-      if (hasListeners(this, "error")) {
-        return this.emit("error", createHttpError(status, err));
-      }
-      var res = this.res;
-      var msg = statuses.message[status] || String(status);
-      var doc = createHtmlDocument("Error", escapeHtml(msg));
-      clearHeaders(res);
-      if (err && err.headers) {
-        setHeaders(res, err.headers);
-      }
-      res.statusCode = status;
-      res.setHeader("Content-Type", "text/html; charset=UTF-8");
-      res.setHeader("Content-Length", Buffer.byteLength(doc));
-      res.setHeader("Content-Security-Policy", "default-src 'none'");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.end(doc);
-    };
-    SendStream.prototype.hasTrailingSlash = function hasTrailingSlash() {
-      return this.path[this.path.length - 1] === "/";
-    };
-    SendStream.prototype.isConditionalGET = function isConditionalGET() {
-      return this.req.headers["if-match"] || this.req.headers["if-unmodified-since"] || this.req.headers["if-none-match"] || this.req.headers["if-modified-since"];
-    };
-    SendStream.prototype.isPreconditionFailure = function isPreconditionFailure() {
-      var req = this.req;
-      var res = this.res;
-      var match = req.headers["if-match"];
-      if (match) {
-        var etag2 = res.getHeader("ETag");
-        return !etag2 || match !== "*" && parseTokenList(match).every(function(match2) {
-          return match2 !== etag2 && match2 !== "W/" + etag2 && "W/" + match2 !== etag2;
-        });
-      }
-      var unmodifiedSince = parseHttpDate(req.headers["if-unmodified-since"]);
-      if (!isNaN(unmodifiedSince)) {
-        var lastModified = parseHttpDate(res.getHeader("Last-Modified"));
-        return isNaN(lastModified) || lastModified > unmodifiedSince;
-      }
-      return false;
-    };
-    SendStream.prototype.removeContentHeaderFields = function removeContentHeaderFields() {
-      var res = this.res;
-      res.removeHeader("Content-Encoding");
-      res.removeHeader("Content-Language");
-      res.removeHeader("Content-Length");
-      res.removeHeader("Content-Range");
-      res.removeHeader("Content-Type");
-    };
-    SendStream.prototype.notModified = function notModified() {
-      var res = this.res;
-      debug("not modified");
-      this.removeContentHeaderFields();
-      res.statusCode = 304;
-      res.end();
-    };
-    SendStream.prototype.headersAlreadySent = function headersAlreadySent() {
-      var err = new Error("Can't set headers after they are sent.");
-      debug("headers already sent");
-      this.error(500, err);
-    };
-    SendStream.prototype.isCachable = function isCachable() {
-      var statusCode = this.res.statusCode;
-      return statusCode >= 200 && statusCode < 300 || statusCode === 304;
-    };
-    SendStream.prototype.onStatError = function onStatError(error) {
-      switch (error.code) {
-        case "ENAMETOOLONG":
-        case "ENOENT":
-        case "ENOTDIR":
-          this.error(404, error);
-          break;
-        default:
-          this.error(500, error);
-          break;
-      }
-    };
-    SendStream.prototype.isFresh = function isFresh() {
-      return fresh(this.req.headers, {
-        etag: this.res.getHeader("ETag"),
-        "last-modified": this.res.getHeader("Last-Modified")
-      });
-    };
-    SendStream.prototype.isRangeFresh = function isRangeFresh() {
-      var ifRange = this.req.headers["if-range"];
-      if (!ifRange) {
-        return true;
-      }
-      if (ifRange.indexOf('"') !== -1) {
-        var etag2 = this.res.getHeader("ETag");
-        return Boolean(etag2 && ifRange.indexOf(etag2) !== -1);
-      }
-      var lastModified = this.res.getHeader("Last-Modified");
-      return parseHttpDate(lastModified) <= parseHttpDate(ifRange);
-    };
-    SendStream.prototype.redirect = function redirect(path2) {
-      var res = this.res;
-      if (hasListeners(this, "directory")) {
-        this.emit("directory", res, path2);
-        return;
-      }
-      if (this.hasTrailingSlash()) {
-        this.error(403);
-        return;
-      }
-      var loc = encodeUrl(collapseLeadingSlashes(this.path + "/"));
-      var doc = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml(loc));
-      res.statusCode = 301;
-      res.setHeader("Content-Type", "text/html; charset=UTF-8");
-      res.setHeader("Content-Length", Buffer.byteLength(doc));
-      res.setHeader("Content-Security-Policy", "default-src 'none'");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      res.setHeader("Location", loc);
-      res.end(doc);
-    };
-    SendStream.prototype.pipe = function pipe(res) {
-      var root = this._root;
-      this.res = res;
-      var path2 = decode(this.path);
-      if (path2 === -1) {
-        this.error(400);
-        return res;
-      }
-      if (~path2.indexOf("\0")) {
-        this.error(400);
-        return res;
-      }
-      var parts;
-      if (root !== null) {
-        if (path2) {
-          path2 = normalize("." + sep + path2);
-        }
-        if (UP_PATH_REGEXP.test(path2)) {
-          debug('malicious path "%s"', path2);
-          this.error(403);
-          return res;
-        }
-        parts = path2.split(sep);
-        path2 = normalize(join(root, path2));
-      } else {
-        if (UP_PATH_REGEXP.test(path2)) {
-          debug('malicious path "%s"', path2);
-          this.error(403);
-          return res;
-        }
-        parts = normalize(path2).split(sep);
-        path2 = resolve(path2);
-      }
-      if (containsDotFile(parts)) {
-        var access = this._dotfiles;
-        if (access === void 0) {
-          access = parts[parts.length - 1][0] === "." ? this._hidden ? "allow" : "ignore" : "allow";
-        }
-        debug('%s dotfile "%s"', access, path2);
-        switch (access) {
-          case "allow":
-            break;
-          case "deny":
-            this.error(403);
-            return res;
-          case "ignore":
-          default:
-            this.error(404);
-            return res;
-        }
-      }
-      if (this._index.length && this.hasTrailingSlash()) {
-        this.sendIndex(path2);
-        return res;
-      }
-      this.sendFile(path2);
-      return res;
-    };
-    SendStream.prototype.send = function send2(path2, stat) {
-      var len = stat.size;
-      var options = this.options;
-      var opts = {};
-      var res = this.res;
-      var req = this.req;
-      var ranges = req.headers.range;
-      var offset = options.start || 0;
-      if (headersSent(res)) {
-        this.headersAlreadySent();
-        return;
-      }
-      debug('pipe "%s"', path2);
-      this.setHeader(path2, stat);
-      this.type(path2);
-      if (this.isConditionalGET()) {
-        if (this.isPreconditionFailure()) {
-          this.error(412);
-          return;
-        }
-        if (this.isCachable() && this.isFresh()) {
-          this.notModified();
-          return;
-        }
-      }
-      len = Math.max(0, len - offset);
-      if (options.end !== void 0) {
-        var bytes = options.end - offset + 1;
-        if (len > bytes) len = bytes;
-      }
-      if (this._acceptRanges && BYTES_RANGE_REGEXP.test(ranges)) {
-        ranges = parseRange(len, ranges, {
-          combine: true
-        });
-        if (!this.isRangeFresh()) {
-          debug("range stale");
-          ranges = -2;
-        }
-        if (ranges === -1) {
-          debug("range unsatisfiable");
-          res.setHeader("Content-Range", contentRange("bytes", len));
-          return this.error(416, {
-            headers: { "Content-Range": res.getHeader("Content-Range") }
-          });
-        }
-        if (ranges !== -2 && ranges.length === 1) {
-          debug("range %j", ranges);
-          res.statusCode = 206;
-          res.setHeader("Content-Range", contentRange("bytes", len, ranges[0]));
-          offset += ranges[0].start;
-          len = ranges[0].end - ranges[0].start + 1;
-        }
-      }
-      for (var prop in options) {
-        opts[prop] = options[prop];
-      }
-      opts.start = offset;
-      opts.end = Math.max(offset, offset + len - 1);
-      res.setHeader("Content-Length", len);
-      if (req.method === "HEAD") {
-        res.end();
-        return;
-      }
-      this.stream(path2, opts);
-    };
-    SendStream.prototype.sendFile = function sendFile(path2) {
-      var i = 0;
-      var self = this;
-      debug('stat "%s"', path2);
-      fs.stat(path2, function onstat(err, stat) {
-        if (err && err.code === "ENOENT" && !extname(path2) && path2[path2.length - 1] !== sep) {
-          return next(err);
-        }
-        if (err) return self.onStatError(err);
-        if (stat.isDirectory()) return self.redirect(path2);
-        self.emit("file", path2, stat);
-        self.send(path2, stat);
-      });
-      function next(err) {
-        if (self._extensions.length <= i) {
-          return err ? self.onStatError(err) : self.error(404);
-        }
-        var p = path2 + "." + self._extensions[i++];
-        debug('stat "%s"', p);
-        fs.stat(p, function(err2, stat) {
-          if (err2) return next(err2);
-          if (stat.isDirectory()) return next();
-          self.emit("file", p, stat);
-          self.send(p, stat);
-        });
-      }
-    };
-    SendStream.prototype.sendIndex = function sendIndex(path2) {
-      var i = -1;
-      var self = this;
-      function next(err) {
-        if (++i >= self._index.length) {
-          if (err) return self.onStatError(err);
-          return self.error(404);
-        }
-        var p = join(path2, self._index[i]);
-        debug('stat "%s"', p);
-        fs.stat(p, function(err2, stat) {
-          if (err2) return next(err2);
-          if (stat.isDirectory()) return next();
-          self.emit("file", p, stat);
-          self.send(p, stat);
-        });
-      }
-      next();
-    };
-    SendStream.prototype.stream = function stream(path2, options) {
-      var self = this;
-      var res = this.res;
-      var stream2 = fs.createReadStream(path2, options);
-      this.emit("stream", stream2);
-      stream2.pipe(res);
-      function cleanup() {
-        destroy(stream2, true);
-      }
-      onFinished(res, cleanup);
-      stream2.on("error", function onerror(err) {
-        cleanup();
-        self.onStatError(err);
-      });
-      stream2.on("end", function onend() {
-        self.emit("end");
-      });
-    };
-    SendStream.prototype.type = function type(path2) {
-      var res = this.res;
-      if (res.getHeader("Content-Type")) return;
-      var type2 = mime.lookup(path2);
-      if (!type2) {
-        debug("no content-type");
-        return;
-      }
-      var charset = mime.charsets.lookup(type2);
-      debug("content-type %s", type2);
-      res.setHeader("Content-Type", type2 + (charset ? "; charset=" + charset : ""));
-    };
-    SendStream.prototype.setHeader = function setHeader(path2, stat) {
-      var res = this.res;
-      this.emit("headers", res, path2, stat);
-      if (this._acceptRanges && !res.getHeader("Accept-Ranges")) {
-        debug("accept ranges");
-        res.setHeader("Accept-Ranges", "bytes");
-      }
-      if (this._cacheControl && !res.getHeader("Cache-Control")) {
-        var cacheControl = "public, max-age=" + Math.floor(this._maxage / 1e3);
-        if (this._immutable) {
-          cacheControl += ", immutable";
-        }
-        debug("cache-control %s", cacheControl);
-        res.setHeader("Cache-Control", cacheControl);
-      }
-      if (this._lastModified && !res.getHeader("Last-Modified")) {
-        var modified = stat.mtime.toUTCString();
-        debug("modified %s", modified);
-        res.setHeader("Last-Modified", modified);
-      }
-      if (this._etag && !res.getHeader("ETag")) {
-        var val = etag(stat);
-        debug("etag %s", val);
-        res.setHeader("ETag", val);
-      }
-    };
-    function clearHeaders(res) {
-      var headers = getHeaderNames(res);
-      for (var i = 0; i < headers.length; i++) {
-        res.removeHeader(headers[i]);
-      }
-    }
-    function collapseLeadingSlashes(str) {
-      for (var i = 0; i < str.length; i++) {
-        if (str[i] !== "/") {
-          break;
-        }
-      }
-      return i > 1 ? "/" + str.substr(i) : str;
-    }
-    function containsDotFile(parts) {
-      for (var i = 0; i < parts.length; i++) {
-        var part = parts[i];
-        if (part.length > 1 && part[0] === ".") {
-          return true;
-        }
-      }
-      return false;
-    }
-    function contentRange(type, size, range) {
-      return type + " " + (range ? range.start + "-" + range.end : "*") + "/" + size;
-    }
-    function createHtmlDocument(title, body) {
-      return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>' + title + "</title>\n</head>\n<body>\n<pre>" + body + "</pre>\n</body>\n</html>\n";
-    }
-    function createHttpError(status, err) {
-      if (!err) {
-        return createError(status);
-      }
-      return err instanceof Error ? createError(status, err, { expose: false }) : createError(status, err);
-    }
-    function decode(path2) {
-      try {
-        return decodeURIComponent(path2);
-      } catch (err) {
-        return -1;
-      }
-    }
-    function getHeaderNames(res) {
-      return typeof res.getHeaderNames !== "function" ? Object.keys(res._headers || {}) : res.getHeaderNames();
-    }
-    function hasListeners(emitter, type) {
-      var count = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
-      return count > 0;
-    }
-    function headersSent(res) {
-      return typeof res.headersSent !== "boolean" ? Boolean(res._header) : res.headersSent;
-    }
-    function normalizeList(val, name) {
-      var list = [].concat(val || []);
-      for (var i = 0; i < list.length; i++) {
-        if (typeof list[i] !== "string") {
-          throw new TypeError(name + " must be array of strings or false");
-        }
-      }
-      return list;
-    }
-    function parseHttpDate(date) {
-      var timestamp = date && Date.parse(date);
-      return typeof timestamp === "number" ? timestamp : NaN;
-    }
-    function parseTokenList(str) {
-      var end = 0;
-      var list = [];
-      var start = 0;
-      for (var i = 0, len = str.length; i < len; i++) {
-        switch (str.charCodeAt(i)) {
-          case 32:
-            if (start === end) {
-              start = end = i + 1;
-            }
-            break;
-          case 44:
-            if (start !== end) {
-              list.push(str.substring(start, end));
-            }
-            start = end = i + 1;
-            break;
-          default:
-            end = i + 1;
-            break;
-        }
-      }
-      if (start !== end) {
-        list.push(str.substring(start, end));
-      }
-      return list;
-    }
-    function setHeaders(res, headers) {
-      var keys = Object.keys(headers);
-      for (var i = 0; i < keys.length; i++) {
-        var key = keys[i];
-        res.setHeader(key, headers[key]);
-      }
-    }
-  }
-});
-
-// ../node_modules/.pnpm/serve-static@1.16.2/node_modules/serve-static/index.js
+// ../node_modules/.pnpm/serve-static@1.16.3/node_modules/serve-static/index.js
 var require_serve_static = __commonJS({
-  "../node_modules/.pnpm/serve-static@1.16.2/node_modules/serve-static/index.js"(exports2, module2) {
+  "../node_modules/.pnpm/serve-static@1.16.3/node_modules/serve-static/index.js"(exports2, module2) {
     "use strict";
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
     var parseUrl = require_parseurl();
     var resolve = require("path").resolve;
-    var send = require_send2();
+    var send = require_send();
     var url = require("url");
     module2.exports = serveStatic;
     module2.exports.mime = send.mime;
@@ -23631,6 +22869,19 @@ var import_express = __toESM(require_express2());
 
 // ../src/mastra/index.ts
 var import_mastra = require("@mastra/core/mastra");
+
+// ../src/openui/generated-system-prompt.ts
+var generatedOpenUISystemPrompt = 'You are Dishant Sharma\'s AI portfolio assistant. You answer questions about Dishant\'s work, projects, skills, and experience using rich UI components. Your entire response must be valid OpenUI Lang code only. Do not return markdown, prose, JSON, or explanations.\n\n## Syntax Rules\n\n1. Each statement is on its own line: `identifier = Expression`\n2. `root` is the entry point \u2014 every program must define `root = Card(...)`\n3. Expressions are: strings ("..."), numbers, booleans (true/false), null, arrays ([...]), objects ({...}), or component calls TypeName(arg1, arg2, ...)\n4. Use references for readability: define `name = ...` on one line, then use `name` later\n5. EVERY variable (except root) MUST be referenced by at least one other variable. Unreferenced variables are silently dropped and will NOT render. Always include defined variables in their parent\'s children/items array.\n6. Arguments are POSITIONAL (order matters, not names). Write `Stack([children], "row", "l")` NOT `Stack([children], direction: "row", gap: "l")` \u2014 colon syntax is NOT supported and silently breaks\n7. Optional arguments can be omitted from the end\n- Strings use double quotes with backslash escaping\n\n## Component Signatures\n\nArguments marked with ? are optional. Sub-components can be inline or referenced; prefer references for better streaming.\nProps typed `ActionExpression` accept an Action([@steps...]) expression. See the Action section for available steps (@ToAssistant, @OpenUrl).\nProps marked `$binding<type>` accept a `$variable` reference for two-way binding.\n\n### Content\nCardHeader(title?: string, subtitle?: string) \u2014 Header with optional title and subtitle\nTextContent(text: string, size?: "small" | "default" | "large" | "small-heavy" | "large-heavy") \u2014 Text block. Supports markdown. Optional size: "small" | "default" | "large" | "small-heavy" | "large-heavy".\nMarkDownRenderer(textMarkdown: string, variant?: "clear" | "card" | "sunk") \u2014 Renders markdown text with optional container variant\nCallout(variant: "info" | "warning" | "error" | "success" | "neutral", title: string, description: string, visible?: $binding<boolean>) \u2014 Callout banner. Optional visible is a reactive $boolean \u2014 auto-dismisses after 3s by setting $visible to false.\nTextCallout(variant?: "neutral" | "info" | "warning" | "success" | "danger", title?: string, description?: string) \u2014 Text callout with variant, title, and description\nImage(alt: string, src?: string) \u2014 Image with alt text and optional URL\nImageBlock(src: string, alt?: string) \u2014 Image block with loading state\nImageGallery(images: {src: string, alt?: string, details?: string}[]) \u2014 Gallery grid of images with modal preview\nCodeBlock(language: string, codeString: string) \u2014 Syntax-highlighted code block\nSeparator(orientation?: "horizontal" | "vertical", decorative?: boolean) \u2014 Visual divider between content sections\n\n### Tables\nTable(columns: Col[]) \u2014 Data table \u2014 column-oriented. Each Col holds its own data array.\nCol(label: string, data: any, type?: "string" | "number" | "action") \u2014 Column definition \u2014 holds label + data array\n\n### Charts (2D)\nBarChart(labels: string[], series: Series[], variant?: "grouped" | "stacked", xLabel?: string, yLabel?: string) \u2014 Vertical bars; use for comparing values across categories with one or more series\nLineChart(labels: string[], series: Series[], variant?: "linear" | "natural" | "step", xLabel?: string, yLabel?: string) \u2014 Lines over categories; use for trends and continuous data over time\nAreaChart(labels: string[], series: Series[], variant?: "linear" | "natural" | "step", xLabel?: string, yLabel?: string) \u2014 Filled area under lines; use for cumulative totals or volume trends over time\nRadarChart(labels: string[], series: Series[]) \u2014 Spider/web chart; use for comparing multiple variables across one or more entities\nHorizontalBarChart(labels: string[], series: Series[], variant?: "grouped" | "stacked", xLabel?: string, yLabel?: string) \u2014 Horizontal bars; prefer when category labels are long or for ranked lists\nSeries(category: string, values: number[]) \u2014 One data series\n\n### Charts (1D)\nPieChart(labels: string[], values: number[], variant?: "pie" | "donut", appearance?: "circular" | "semiCircular") \u2014 Circular slices; use plucked arrays: PieChart(data.categories, data.values)\nRadialChart(labels: string[], values: number[]) \u2014 Radial bars; use plucked arrays: RadialChart(data.categories, data.values)\nSingleStackedBarChart(labels: string[], values: number[]) \u2014 Single horizontal stacked bar; use plucked arrays: SingleStackedBarChart(data.categories, data.values)\nSlice(category: string, value: number) \u2014 One slice with label and numeric value\n\n### Charts (Scatter)\nScatterChart(datasets: ScatterSeries[], xLabel?: string, yLabel?: string) \u2014 X/Y scatter plot; use for correlations, distributions, and clustering\nScatterSeries(name: string, points: Point[]) \u2014 Named dataset\nPoint(x: number, y: number, z?: number) \u2014 Data point with numeric coordinates\n\n### Forms\nForm(name: string, buttons: Buttons, fields?: FormControl[]) \u2014 Form container with fields and explicit action buttons\nFormControl(label: string, input: Input | TextArea | Select | DatePicker | Slider | CheckBoxGroup | RadioGroup, hint?: string) \u2014 Field with label, input component, and optional hint text\nLabel(text: string) \u2014 Text label\nInput(name: string, placeholder?: string, type?: "text" | "email" | "password" | "number" | "url", rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>)\nTextArea(name: string, placeholder?: string, rows?: number, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>)\nSelect(name: string, items: SelectItem[], placeholder?: string, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>, size?: "small" | "medium" | "large")\nSelectItem(value: string, label: string) \u2014 Option for Select\nDatePicker(name: string, mode?: "single" | "range", rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<any>)\nSlider(name: string, variant: "continuous" | "discrete", min: number, max: number, step?: number, defaultValue?: number[], label?: string, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<number[]>) \u2014 Numeric slider input; supports continuous and discrete (stepped) variants\nCheckBoxGroup(name: string, items: CheckBoxItem[], rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<Record<string, boolean>>)\nCheckBoxItem(label: string, description: string, name: string, defaultChecked?: boolean)\nRadioGroup(name: string, items: RadioItem[], defaultValue?: string, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>)\nRadioItem(label: string, description: string, value: string)\nSwitchGroup(name: string, items: SwitchItem[], variant?: "clear" | "card" | "sunk", value?: $binding<Record<string, boolean>>) \u2014 Group of switch toggles\nSwitchItem(label?: string, description?: string, name: string, defaultChecked?: boolean) \u2014 Individual switch toggle\n- Define EACH FormControl as its own reference \u2014 do NOT inline all controls in one array.\n- NEVER nest Form inside Form.\n- Form requires explicit buttons. Always pass a Buttons(...) reference as the third Form argument.\n- rules is an optional object: { required: true, email: true, min: 8, maxLength: 100 }\n- The renderer shows error messages automatically \u2014 do NOT generate error text in the UI\n\n### Buttons\nButton(label: string, action?: ActionExpression, variant?: "primary" | "secondary" | "tertiary", type?: "normal" | "destructive", size?: "extra-small" | "small" | "medium" | "large") \u2014 Clickable button\nButtons(buttons: Button[], direction?: "row" | "column") \u2014 Group of Button components. direction: "row" (default) | "column".\n\n### Lists & Follow-ups\nListBlock(items: ListItem[], variant?: "number" | "image") \u2014 A list of items with number or image indicators. Each item can optionally have an action.\nListItem(title: string, subtitle?: string, image?: {src: string, alt: string}, actionLabel?: string, action?: ActionExpression) \u2014 Item in a ListBlock \u2014 displays a title with an optional subtitle and image. When action is provided, the item becomes clickable.\nFollowUpBlock(items: FollowUpItem[]) \u2014 List of clickable follow-up suggestions placed at the end of a response\nFollowUpItem(text: string) \u2014 Clickable follow-up suggestion \u2014 when clicked, sends text as user message\n- Use ListBlock with ListItem references for numbered, clickable lists.\n- Use FollowUpBlock with FollowUpItem references at the end of a response to suggest next actions.\n- Clicking a ListItem or FollowUpItem sends its text to the LLM as a user message.\n- Example: list = ListBlock([item1, item2])  item1 = ListItem("Option A", "Details about A")\n\n### Sections\nSectionBlock(sections: SectionItem[], isFoldable?: boolean) \u2014 Collapsible accordion sections. Auto-opens sections as they stream in. Use SectionItem for each section.\nSectionItem(value: string, trigger: string, content: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps | ListBlock | FollowUpBlock)[]) \u2014 Section with a label and collapsible content \u2014 used inside SectionBlock\n- SectionBlock renders collapsible accordion sections that auto-open as they stream.\n- Each section needs a unique `value` id, a `trigger` label, and a `content` array.\n- Example: sections = SectionBlock([s1, s2])  s1 = SectionItem("intro", "Introduction", [content1])\n- Set isFoldable=false to render sections as flat headers instead of accordion.\n\n### Layout\nTabs(items: TabItem[]) \u2014 Tabbed container\nTabItem(value: string, trigger: string, content: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps)[]) \u2014 value is unique id, trigger is tab label, content is array of components\nAccordion(items: AccordionItem[]) \u2014 Collapsible sections\nAccordionItem(value: string, trigger: string, content: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps)[]) \u2014 value is unique id, trigger is section title\nSteps(items: StepsItem[]) \u2014 Step-by-step guide\nStepsItem(title: string, details: string) \u2014 title and details text for one step\nCarousel(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps)[][], variant?: "card" | "sunk") \u2014 Horizontal scrollable carousel\n- Use Tabs to present alternative views \u2014 each TabItem has a value id, trigger label, and content array.\n- Carousel takes an array of slides, where each slide is an array of content: carousel = Carousel([[t1, img1], [t2, img2]])\n- IMPORTANT: Every slide in a Carousel must have the same structure \u2014 same component types in the same order.\n- For image carousels use: [[title, image, description, tags], ...] \u2014 every slide must follow this exact pattern.\n- Use real, publicly accessible image URLs (e.g. https://picsum.photos/seed/KEYWORD/800/500). Never hallucinate image URLs.\n\n### Data Display\nTagBlock(tags: string[]) \u2014 tags is an array of strings\nTag(text: string, icon?: string, size?: "sm" | "md" | "lg", variant?: "neutral" | "info" | "success" | "warning" | "danger") \u2014 Styled tag/badge with optional icon and variant\n\n### Other\nCard(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps | ListBlock | FollowUpBlock | SectionBlock | Tabs | Carousel)[]) \u2014 Vertical container for all content in a chat response. Children stack top to bottom automatically.\n\n## Action \u2014 Button Behavior\n\nAction([@steps...]) wires button clicks to operations. Steps are @-prefixed built-in actions. Steps execute in order.\nButtons without an explicit Action prop automatically send their label to the assistant (equivalent to Action([@ToAssistant(label)])).\n\nAvailable steps:\n- @ToAssistant("message") \u2014 Send a message to the assistant (for conversational buttons like "Tell me more", "Explain this")\n- @OpenUrl("https://...") \u2014 Navigate to a URL\n\nExample \u2014 simple nav:\n```\nviewBtn = Button("View", Action([@OpenUrl("https://example.com")]))\n```\n\n- Action can be assigned to a variable or inlined: Button("Go", onSubmit) and Button("Go", Action([...])) both work\n\n## Hoisting & Streaming (CRITICAL)\n\nopenui-lang supports hoisting: a reference can be used BEFORE it is defined. The parser resolves all references after the full input is parsed.\n\nDuring streaming, the output is re-parsed on every chunk. Undefined references are temporarily unresolved and appear once their definitions stream in. This creates a progressive top-down reveal \u2014 structure first, then data fills in.\n\n**Recommended statement order for optimal streaming:**\n1. `root = Card(...)` \u2014 UI shell appears immediately\n2. Component definitions \u2014 fill in as they stream\n3. Data values \u2014 leaf content last\n\nAlways write the root = Card(...) statement first so the UI shell appears immediately, even before child data has streamed in.\n\n## Examples\n\nExample 1 \u2014 Table with follow-ups:\n\nroot = Card([title, tbl, followUps])\ntitle = TextContent("Top Languages", "large-heavy")\ntbl = Table([Col("Language", langs), Col("Users (M)", users), Col("Year", years)])\nlangs = ["Python", "JavaScript", "Java"]\nusers = [15.7, 14.2, 12.1]\nyears = [1991, 1995, 1995]\nfollowUps = FollowUpBlock([fu1, fu2])\nfu1 = FollowUpItem("Tell me more about Python")\nfu2 = FollowUpItem("Show me a JavaScript comparison")\n\nExample 2 \u2014 Clickable list:\n\nroot = Card([title, list])\ntitle = TextContent("Choose a topic", "large-heavy")\nlist = ListBlock([item1, item2, item3])\nitem1 = ListItem("Getting started", "New to the platform? Start here.")\nitem2 = ListItem("Advanced features", "Deep dives into powerful capabilities.")\nitem3 = ListItem("Troubleshooting", "Common issues and how to fix them.")\n\nExample 3 \u2014 Image carousel with consistent slides + follow-ups:\n\nroot = Card([header, carousel, followups])\nheader = CardHeader("Featured Destinations", "Discover highlights and best time to visit")\ncarousel = Carousel([[t1, img1, d1, tags1], [t2, img2, d2, tags2], [t3, img3, d3, tags3]], "card")\nt1 = TextContent("Paris, France", "large-heavy")\nimg1 = ImageBlock("https://picsum.photos/seed/paris/800/500", "Eiffel Tower at night")\nd1 = TextContent("City of light \u2014 best Apr\u2013Jun and Sep\u2013Oct.", "default")\ntags1 = TagBlock(["Landmark", "City Break", "Culture"])\nt2 = TextContent("Kyoto, Japan", "large-heavy")\nimg2 = ImageBlock("https://picsum.photos/seed/kyoto/800/500", "Bamboo grove in Arashiyama")\nd2 = TextContent("Temples and bamboo groves \u2014 best Mar\u2013Apr and Nov.", "default")\ntags2 = TagBlock(["Temples", "Autumn", "Culture"])\nt3 = TextContent("Machu Picchu, Peru", "large-heavy")\nimg3 = ImageBlock("https://picsum.photos/seed/machupicchu/800/500", "Inca citadel in the clouds")\nd3 = TextContent("High-altitude Inca citadel \u2014 best May\u2013Sep.", "default")\ntags3 = TagBlock(["Andes", "Hike", "UNESCO"])\nfollowups = FollowUpBlock([fu1, fu2])\nfu1 = FollowUpItem("Show me only beach destinations")\nfu2 = FollowUpItem("Turn this into a comparison table")\n\nExample 4 \u2014 Form with validation:\n\nroot = Card([title, form])\ntitle = TextContent("Contact Us", "large-heavy")\nform = Form("contact", btns, [nameField, emailField, msgField])\nnameField = FormControl("Name", Input("name", "Your name", "text", { required: true, minLength: 2 }))\nemailField = FormControl("Email", Input("email", "you@example.com", "email", { required: true, email: true }))\nmsgField = FormControl("Message", TextArea("message", "Tell us more...", 4, { required: true, minLength: 10 }))\nbtns = Buttons([Button("Submit", Action([@ToAssistant("Submit")]), "primary")])\n\n## Important Rules\n- When asked about data, generate realistic/plausible data\n- Choose components that best represent the content (tables for comparisons, charts for trends, forms for input, etc.)\n\n## Final Verification\nBefore finishing, walk your output and verify:\n1. root = Card(...) is the FIRST line (for optimal streaming).\n2. Every referenced name is defined. Every defined name (other than root) is reachable from root.\n\n- Every response is a single Card(children) \u2014 children stack vertically automatically. No layout params are needed on Card.\n- Card is the only layout container. Do NOT use Stack. Use Tabs to switch between sections, Carousel for horizontal scroll.\n- Use FollowUpBlock at the END of a Card to suggest what the user can do or ask next.\n- Use ListBlock when presenting a set of options or steps the user can click to select.\n- Use SectionBlock to group long responses into collapsible sections \u2014 good for reports, FAQs, and structured content.\n- Use SectionItem inside SectionBlock: each item needs a unique value id, a trigger (header label), and a content array.\n- Carousel takes an array of slides, where each slide is an array of content: carousel = Carousel([[t1, img1], [t2, img2]])\n- IMPORTANT: Every slide in a Carousel must use the same component structure in the same order \u2014 e.g. all slides: [title, image, description, tags].\n- For image carousels, always use real accessible URLs like https://picsum.photos/seed/KEYWORD/800/500. Never hallucinate or invent image URLs.\n- For forms, define one FormControl reference per field so controls can stream progressively.\n- For forms, always provide the second Form argument with Buttons(...) actions: Form(name, buttons, fields).\n- Never nest Form inside Form.\n- Always fetch data via tools before generating UI - never invent placeholder data.\n- Use charts for trends or comparisons when data supports it.\n- Avoid generic \'Insights\' sections unless the user asks.\n- Always end with FollowUpBlock containing 2 specific follow-up questions grounded in the current response.\n- FollowUp questions should point to data the UI can visualize (charts, tables, comparisons).\n- Use TagBlock for technology badges, languages, and skills.\n- Use SectionBlock for long detailed responses like project breakdowns or experience summaries.';
+
+// ../src/mastra/agents/portfolio-agent.ts
+var import_azure = require("@ai-sdk/azure");
+var import_agent = require("@mastra/core/agent");
+var import_processors2 = require("@mastra/core/processors");
+var import_memory = require("@mastra/memory");
+var import_pg = require("@mastra/pg");
+
+// ../src/mastra/tools/github-tools.ts
+var import_tools = require("@mastra/core/tools");
 
 // ../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
@@ -27673,594 +26924,7 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// ../node_modules/.pnpm/@json-render+core@0.2.0_zod@3.25.76/node_modules/@json-render/core/dist/index.mjs
-var DynamicValueSchema = external_exports.union([
-  external_exports.string(),
-  external_exports.number(),
-  external_exports.boolean(),
-  external_exports.null(),
-  external_exports.object({ path: external_exports.string() })
-]);
-var DynamicStringSchema = external_exports.union([
-  external_exports.string(),
-  external_exports.object({ path: external_exports.string() })
-]);
-var DynamicNumberSchema = external_exports.union([
-  external_exports.number(),
-  external_exports.object({ path: external_exports.string() })
-]);
-var DynamicBooleanSchema = external_exports.union([
-  external_exports.boolean(),
-  external_exports.object({ path: external_exports.string() })
-]);
-function getByPath(obj, path) {
-  if (!path || path === "/") {
-    return obj;
-  }
-  const segments = path.startsWith("/") ? path.slice(1).split("/") : path.split("/");
-  let current = obj;
-  for (const segment of segments) {
-    if (current === null || current === void 0) {
-      return void 0;
-    }
-    if (typeof current === "object") {
-      current = current[segment];
-    } else {
-      return void 0;
-    }
-  }
-  return current;
-}
-function setByPath(obj, path, value) {
-  const segments = path.startsWith("/") ? path.slice(1).split("/") : path.split("/");
-  if (segments.length === 0) return;
-  let current = obj;
-  for (let i = 0; i < segments.length - 1; i++) {
-    const segment = segments[i];
-    if (!(segment in current) || typeof current[segment] !== "object") {
-      current[segment] = {};
-    }
-    current = current[segment];
-  }
-  const lastSegment = segments[segments.length - 1];
-  current[lastSegment] = value;
-}
-var DynamicNumberValueSchema = external_exports.union([
-  external_exports.number(),
-  external_exports.object({ path: external_exports.string() })
-]);
-var LogicExpressionSchema = external_exports.lazy(
-  () => external_exports.union([
-    external_exports.object({ and: external_exports.array(LogicExpressionSchema) }),
-    external_exports.object({ or: external_exports.array(LogicExpressionSchema) }),
-    external_exports.object({ not: LogicExpressionSchema }),
-    external_exports.object({ path: external_exports.string() }),
-    external_exports.object({ eq: external_exports.tuple([DynamicValueSchema, DynamicValueSchema]) }),
-    external_exports.object({ neq: external_exports.tuple([DynamicValueSchema, DynamicValueSchema]) }),
-    external_exports.object({
-      gt: external_exports.tuple([DynamicNumberValueSchema, DynamicNumberValueSchema])
-    }),
-    external_exports.object({
-      gte: external_exports.tuple([DynamicNumberValueSchema, DynamicNumberValueSchema])
-    }),
-    external_exports.object({
-      lt: external_exports.tuple([DynamicNumberValueSchema, DynamicNumberValueSchema])
-    }),
-    external_exports.object({
-      lte: external_exports.tuple([DynamicNumberValueSchema, DynamicNumberValueSchema])
-    })
-  ])
-);
-var VisibilityConditionSchema = external_exports.union([
-  external_exports.boolean(),
-  external_exports.object({ path: external_exports.string() }),
-  external_exports.object({ auth: external_exports.enum(["signedIn", "signedOut"]) }),
-  LogicExpressionSchema
-]);
-var ActionConfirmSchema = external_exports.object({
-  title: external_exports.string(),
-  message: external_exports.string(),
-  confirmLabel: external_exports.string().optional(),
-  cancelLabel: external_exports.string().optional(),
-  variant: external_exports.enum(["default", "danger"]).optional()
-});
-var ActionOnSuccessSchema = external_exports.union([
-  external_exports.object({ navigate: external_exports.string() }),
-  external_exports.object({ set: external_exports.record(external_exports.string(), external_exports.unknown()) }),
-  external_exports.object({ action: external_exports.string() })
-]);
-var ActionOnErrorSchema = external_exports.union([
-  external_exports.object({ set: external_exports.record(external_exports.string(), external_exports.unknown()) }),
-  external_exports.object({ action: external_exports.string() })
-]);
-var ActionSchema = external_exports.object({
-  name: external_exports.string(),
-  params: external_exports.record(external_exports.string(), DynamicValueSchema).optional(),
-  confirm: ActionConfirmSchema.optional(),
-  onSuccess: ActionOnSuccessSchema.optional(),
-  onError: ActionOnErrorSchema.optional()
-});
-var ValidationCheckSchema = external_exports.object({
-  fn: external_exports.string(),
-  args: external_exports.record(external_exports.string(), DynamicValueSchema).optional(),
-  message: external_exports.string()
-});
-var ValidationConfigSchema = external_exports.object({
-  checks: external_exports.array(ValidationCheckSchema).optional(),
-  validateOn: external_exports.enum(["change", "blur", "submit"]).optional(),
-  enabled: LogicExpressionSchema.optional()
-});
-function createCatalog(config) {
-  const {
-    name = "unnamed",
-    components,
-    actions = {},
-    functions = {},
-    validation = "strict"
-  } = config;
-  const componentNames = Object.keys(components);
-  const actionNames = Object.keys(actions);
-  const functionNames = Object.keys(functions);
-  const componentSchemas = componentNames.map((componentName) => {
-    const def = components[componentName];
-    return external_exports.object({
-      key: external_exports.string(),
-      type: external_exports.literal(componentName),
-      props: def.props,
-      children: external_exports.array(external_exports.string()).optional(),
-      parentKey: external_exports.string().nullable().optional(),
-      visible: VisibilityConditionSchema.optional()
-    });
-  });
-  let elementSchema;
-  if (componentSchemas.length === 0) {
-    elementSchema = external_exports.object({
-      key: external_exports.string(),
-      type: external_exports.string(),
-      props: external_exports.record(external_exports.string(), external_exports.unknown()),
-      children: external_exports.array(external_exports.string()).optional(),
-      parentKey: external_exports.string().nullable().optional(),
-      visible: VisibilityConditionSchema.optional()
-    });
-  } else if (componentSchemas.length === 1) {
-    elementSchema = componentSchemas[0];
-  } else {
-    elementSchema = external_exports.discriminatedUnion("type", [
-      componentSchemas[0],
-      componentSchemas[1],
-      ...componentSchemas.slice(2)
-    ]);
-  }
-  const treeSchema = external_exports.object({
-    root: external_exports.string(),
-    elements: external_exports.record(external_exports.string(), elementSchema)
-  });
-  return {
-    name,
-    componentNames,
-    actionNames,
-    functionNames,
-    validation,
-    components,
-    actions,
-    functions,
-    elementSchema,
-    treeSchema,
-    hasComponent(type) {
-      return type in components;
-    },
-    hasAction(name2) {
-      return name2 in actions;
-    },
-    hasFunction(name2) {
-      return name2 in functions;
-    },
-    validateElement(element) {
-      const result = elementSchema.safeParse(element);
-      if (result.success) {
-        return { success: true, data: result.data };
-      }
-      return { success: false, error: result.error };
-    },
-    validateTree(tree) {
-      const result = treeSchema.safeParse(tree);
-      if (result.success) {
-        return { success: true, data: result.data };
-      }
-      return { success: false, error: result.error };
-    }
-  };
-}
-function generateCatalogPrompt(catalog) {
-  const lines = [
-    `# ${catalog.name} Component Catalog`,
-    "",
-    "## Available Components",
-    ""
-  ];
-  for (const name of catalog.componentNames) {
-    const def = catalog.components[name];
-    lines.push(`### ${String(name)}`);
-    if (def.description) {
-      lines.push(def.description);
-    }
-    lines.push("");
-  }
-  if (catalog.actionNames.length > 0) {
-    lines.push("## Available Actions");
-    lines.push("");
-    for (const name of catalog.actionNames) {
-      const def = catalog.actions[name];
-      lines.push(
-        `- \`${String(name)}\`${def.description ? `: ${def.description}` : ""}`
-      );
-    }
-    lines.push("");
-  }
-  lines.push("## Visibility Conditions");
-  lines.push("");
-  lines.push("Components can have a `visible` property:");
-  lines.push("- `true` / `false` - Always visible/hidden");
-  lines.push('- `{ "path": "/data/path" }` - Visible when path is truthy');
-  lines.push('- `{ "auth": "signedIn" }` - Visible when user is signed in');
-  lines.push('- `{ "and": [...] }` - All conditions must be true');
-  lines.push('- `{ "or": [...] }` - Any condition must be true');
-  lines.push('- `{ "not": {...} }` - Negates a condition');
-  lines.push('- `{ "eq": [a, b] }` - Equality check');
-  lines.push("");
-  lines.push("## Validation Functions");
-  lines.push("");
-  lines.push(
-    "Built-in: `required`, `email`, `minLength`, `maxLength`, `pattern`, `min`, `max`, `url`"
-  );
-  if (catalog.functionNames.length > 0) {
-    lines.push(`Custom: ${catalog.functionNames.map(String).join(", ")}`);
-  }
-  lines.push("");
-  return lines.join("\n");
-}
-
-// ../src/json-render/catalog.ts
-var AlignmentSchema = external_exports.enum(["left", "center", "right"]);
-var jsonRendererCatalog = createCatalog({
-  name: "portfolio-ui-catalog",
-  components: {
-    Section: {
-      props: external_exports.object({
-        title: external_exports.string().optional(),
-        description: external_exports.string().optional()
-      }),
-      hasChildren: true
-    },
-    Card: {
-      props: external_exports.object({
-        title: external_exports.string().optional()?.describe("Title for the card, max 5 words"),
-        description: external_exports.string().optional()?.describe("Short description for the card, max 80 characters, min also 80 characters"),
-        footer: external_exports.string().describe("Footer text for the card, action items like button, links, etc. should be added as children")
-      }),
-      hasChildren: true
-    },
-    Metric: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        valuePath: external_exports.string(),
-        format: external_exports.enum(["currency", "percent", "number", "compact"]).default("number")
-      })
-    },
-    Button: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        action: ActionSchema,
-        variant: external_exports.enum(["default", "secondary", "outline", "ghost", "destructive"]).default("default"),
-        size: external_exports.enum(["sm", "md", "lg"]).default("md")
-      })
-    },
-    Badge: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        variant: external_exports.enum(["default", "secondary", "outline", "destructive"]).default("default")
-      })
-    },
-    Alert: {
-      props: external_exports.object({
-        title: external_exports.string(),
-        description: external_exports.string().optional(),
-        variant: external_exports.enum(["default", "destructive"]).default("default")
-      })
-    },
-    Table: {
-      props: external_exports.object({
-        rowsPath: external_exports.string(),
-        columns: external_exports.array(
-          external_exports.object({
-            key: external_exports.string(),
-            label: external_exports.string(),
-            align: AlignmentSchema.optional()
-          })
-        ).min(1)
-      })
-    },
-    Tabs: {
-      props: external_exports.object({
-        items: external_exports.array(
-          external_exports.object({
-            value: external_exports.string(),
-            label: external_exports.string()
-          })
-        ).min(1),
-        defaultValue: external_exports.string().optional()
-      }),
-      hasChildren: true
-    },
-    TabPanel: {
-      props: external_exports.object({
-        value: external_exports.string()
-      }),
-      hasChildren: true
-    },
-    Heading: {
-      props: external_exports.object({
-        text: external_exports.string(),
-        level: external_exports.enum(["1", "2", "3", "4"]).default("2")
-      })
-    },
-    Text: {
-      props: external_exports.object({
-        text: external_exports.string(),
-        tone: external_exports.enum(["default", "muted", "lead"]).default("default")
-      })
-    },
-    Image: {
-      props: external_exports.object({
-        src: external_exports.string(),
-        alt: external_exports.string().optional(),
-        caption: external_exports.string().optional()
-      })
-    },
-    Carousel: {
-      props: external_exports.object({
-        items: external_exports.array(
-          external_exports.object({
-            src: external_exports.string(),
-            alt: external_exports.string().optional(),
-            caption: external_exports.string().optional()
-          })
-        ).min(1)
-      })
-    },
-    Tooltip: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        content: external_exports.string()
-      })
-    },
-    FollowUp: {
-      props: external_exports.object({
-        title: external_exports.string().optional(),
-        questions: external_exports.array(external_exports.string()).length(2)
-      })
-    },
-    Popover: {
-      props: external_exports.object({
-        triggerLabel: external_exports.string(),
-        title: external_exports.string().optional(),
-        description: external_exports.string().optional()
-      }),
-      hasChildren: true
-    },
-    Dialog: {
-      props: external_exports.object({
-        triggerLabel: external_exports.string(),
-        title: external_exports.string(),
-        description: external_exports.string().optional(),
-        actionLabel: external_exports.string(),
-        action: ActionSchema,
-        size: external_exports.enum(["sm", "md", "lg"]).default("md")
-      }),
-      hasChildren: true
-    },
-    LineChart: {
-      props: external_exports.object({
-        dataPath: external_exports.string().describe("Path to data array in context"),
-        xKey: external_exports.string().describe("Key for X-axis values"),
-        series: external_exports.array(
-          external_exports.object({
-            dataKey: external_exports.string().describe("Key for Y-axis values"),
-            name: external_exports.string().optional().describe("Display name for legend"),
-            color: external_exports.string().optional().describe("Line color (hex or named)"),
-            lineWidth: external_exports.number().int().min(1).max(6).optional().default(2),
-            dashStyle: external_exports.enum([
-              "Solid",
-              "ShortDash",
-              "ShortDot",
-              "ShortDashDot",
-              "ShortDashDotDot",
-              "Dot",
-              "Dash",
-              "LongDash",
-              "DashDot",
-              "LongDashDot",
-              "LongDashDotDot"
-            ]).optional(),
-            marker: external_exports.boolean().optional().default(false),
-            connectNulls: external_exports.boolean().optional().default(false)
-          })
-        ).min(1),
-        height: external_exports.number().int().min(180).max(600).default(300),
-        showGrid: external_exports.boolean().optional().default(true),
-        showLegend: external_exports.boolean().optional().default(true),
-        showTooltip: external_exports.boolean().optional().default(true),
-        xAxisLabel: external_exports.string().optional(),
-        yAxisLabel: external_exports.string().optional()
-      })
-    },
-    AreaChart: {
-      props: external_exports.object({
-        dataPath: external_exports.string().describe("Path to data array in context"),
-        xKey: external_exports.string().describe("Key for X-axis values"),
-        series: external_exports.array(
-          external_exports.object({
-            dataKey: external_exports.string().describe("Key for Y-axis values"),
-            name: external_exports.string().optional().describe("Display name for legend"),
-            color: external_exports.string().optional().describe("Area color (hex or named)"),
-            fillOpacity: external_exports.number().min(0).max(1).optional().default(0.6),
-            stackId: external_exports.string().optional().describe("Stack areas with same stackId")
-          })
-        ).min(1),
-        height: external_exports.number().int().min(180).max(600).default(300),
-        showGrid: external_exports.boolean().optional().default(true),
-        showLegend: external_exports.boolean().optional().default(true),
-        showTooltip: external_exports.boolean().optional().default(true),
-        xAxisLabel: external_exports.string().optional(),
-        yAxisLabel: external_exports.string().optional(),
-        stacking: external_exports.enum(["normal", "percent"]).optional().describe("Enable stacking")
-      })
-    },
-    BarChart: {
-      props: external_exports.object({
-        dataPath: external_exports.string().describe("Path to data array in context"),
-        xKey: external_exports.string().describe("Key for X-axis values"),
-        series: external_exports.array(
-          external_exports.object({
-            dataKey: external_exports.string().describe("Key for Y-axis values"),
-            name: external_exports.string().optional().describe("Display name for legend"),
-            color: external_exports.string().optional().describe("Bar color (hex or named)"),
-            borderRadius: external_exports.number().optional().describe("Border radius for bars"),
-            stackId: external_exports.string().optional().describe("Stack bars with same stackId")
-          })
-        ).min(1),
-        height: external_exports.number().int().min(180).max(600).default(300),
-        layout: external_exports.enum(["horizontal", "vertical"]).optional().default("horizontal"),
-        showGrid: external_exports.boolean().optional().default(true),
-        showLegend: external_exports.boolean().optional().default(true),
-        showTooltip: external_exports.boolean().optional().default(true),
-        xAxisLabel: external_exports.string().optional(),
-        yAxisLabel: external_exports.string().optional(),
-        stacking: external_exports.enum(["normal", "percent"]).optional().describe("Enable stacking")
-      })
-    },
-    PieChart: {
-      props: external_exports.object({
-        dataPath: external_exports.string().describe("Path to data array in context"),
-        nameKey: external_exports.string().describe("Key for slice labels"),
-        valueKey: external_exports.string().describe("Key for slice values"),
-        height: external_exports.number().int().min(180).max(600).default(300),
-        innerSize: external_exports.number().min(0).max(90).optional().default(0).describe("Inner size % for donut chart"),
-        showLabels: external_exports.boolean().optional().default(true),
-        showLegend: external_exports.boolean().optional().default(true),
-        showTooltip: external_exports.boolean().optional().default(true),
-        colors: external_exports.array(external_exports.string()).optional().describe("Array of colors for slices")
-      })
-    },
-    Input: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        valuePath: external_exports.string(),
-        placeholder: external_exports.string().optional(),
-        type: external_exports.enum(["text", "email", "number", "password"]).default("text")
-      })
-    },
-    Textarea: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        valuePath: external_exports.string(),
-        placeholder: external_exports.string().optional(),
-        rows: external_exports.number().int().min(2).max(8).default(3)
-      })
-    },
-    TextField: {
-      props: ValidationConfigSchema.merge(
-        external_exports.object({
-          label: external_exports.string(),
-          valuePath: external_exports.string(),
-          placeholder: external_exports.string().optional(),
-          type: external_exports.enum(["text", "email", "number", "password"]).default("text")
-        })
-      )
-    },
-    Select: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        valuePath: external_exports.string(),
-        placeholder: external_exports.string().optional(),
-        options: external_exports.array(
-          external_exports.object({
-            label: external_exports.string(),
-            value: external_exports.string()
-          })
-        ).min(2)
-      })
-    },
-    Checkbox: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        valuePath: external_exports.string()
-      })
-    },
-    Switch: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        valuePath: external_exports.string()
-      })
-    },
-    Slider: {
-      props: external_exports.object({
-        label: external_exports.string(),
-        valuePath: external_exports.string(),
-        min: external_exports.number().default(0),
-        max: external_exports.number().default(100),
-        step: external_exports.number().default(1)
-      })
-    },
-    Progress: {
-      props: external_exports.object({
-        valuePath: external_exports.string()
-      })
-    },
-    Avatar: {
-      props: external_exports.object({
-        name: external_exports.string(),
-        imageUrl: external_exports.string().optional(),
-        fallback: external_exports.string().optional()
-      })
-    },
-    Separator: {
-      props: external_exports.object({
-        orientation: external_exports.enum(["horizontal", "vertical"]).default("horizontal")
-      })
-    },
-    Grid: {
-      props: external_exports.object({
-        columns: external_exports.number().int().min(1).max(4).default(2),
-        gap: external_exports.number().int().min(2).max(6).default(4)
-      }),
-      hasChildren: true
-    },
-    Stack: {
-      props: external_exports.object({
-        gap: external_exports.number().int().min(2).max(6).default(4)
-      }),
-      hasChildren: true
-    }
-  },
-  actions: {
-    refresh_data: { description: "Refresh bound data sources" },
-    export_report: { description: "Export the current view as a report" },
-    open_link: { description: "Open a URL in a new tab" },
-    run_query: { description: "Run a data query" },
-    apply_filter: { description: "Apply a filter to the data set" }
-  }
-});
-
-// ../src/mastra/agents/portfolio-agent.ts
-var import_azure = require("@ai-sdk/azure");
-var import_agent = require("@mastra/core/agent");
-var import_processors2 = require("@mastra/core/processors");
-var import_memory = require("@mastra/memory");
-var import_pg = require("@mastra/pg");
-
 // ../src/mastra/tools/github-tools.ts
-var import_tools = require("@mastra/core/tools");
 var GITHUB_USERNAME = "dishant0406";
 var GITHUB_API_BASE = "https://api.github.com";
 var PERSONAL_INFO_GIST_ID = "3bddbc95bab218eae656576eb3665328";
@@ -28761,734 +27425,9 @@ var githubTools = {
   getPersonalInfo: getPersonalInfoTool
 };
 
-// ../src/mastra/tools/json-renderer-tool.ts
-var import_tools2 = require("@mastra/core/tools");
-var import_crypto = require("crypto");
-var MAX_TREE_BYTES = 6e4;
-var MAX_DEPTH = 10;
-var componentPropMap = {
-  Section: ["title", "description"],
-  Card: ["title", "description", "footer"],
-  Metric: ["label", "valuePath", "format", "value_path"],
-  Button: ["label", "action", "variant", "size", "value", "url", "params"],
-  Badge: ["label", "variant"],
-  Alert: ["title", "description", "variant"],
-  Table: ["rowsPath", "columns", "rows_path"],
-  Tabs: ["items", "defaultValue"],
-  TabPanel: ["value"],
-  Heading: ["text", "level"],
-  Text: ["text", "tone"],
-  Input: ["label", "valuePath", "placeholder", "type"],
-  Textarea: ["label", "valuePath", "placeholder", "rows"],
-  TextField: ["label", "valuePath", "placeholder", "type", "checks", "validateOn", "enabled"],
-  Select: ["label", "valuePath", "placeholder", "options"],
-  Checkbox: ["label", "valuePath"],
-  Switch: ["label", "valuePath"],
-  Slider: ["label", "valuePath", "min", "max", "step"],
-  Progress: ["valuePath"],
-  Avatar: ["name", "imageUrl", "fallback"],
-  Separator: ["orientation"],
-  Image: ["src", "alt", "caption"],
-  Carousel: ["items"],
-  Tooltip: ["label", "content"],
-  FollowUp: ["title", "questions"],
-  Popover: ["triggerLabel", "title", "description"],
-  Dialog: ["triggerLabel", "title", "description", "actionLabel", "action", "size"],
-  LineChart: [
-    "dataPath",
-    "xKey",
-    "series",
-    "height",
-    "showGrid",
-    "showLegend",
-    "showTooltip",
-    "xAxisLabel",
-    "yAxisLabel"
-  ],
-  AreaChart: [
-    "dataPath",
-    "xKey",
-    "series",
-    "height",
-    "showGrid",
-    "showLegend",
-    "showTooltip",
-    "xAxisLabel",
-    "yAxisLabel",
-    "stacking"
-  ],
-  BarChart: [
-    "dataPath",
-    "xKey",
-    "series",
-    "height",
-    "layout",
-    "showGrid",
-    "showLegend",
-    "showTooltip",
-    "xAxisLabel",
-    "yAxisLabel",
-    "stacking"
-  ],
-  PieChart: [
-    "dataPath",
-    "nameKey",
-    "labelKey",
-    "valueKey",
-    "height",
-    "innerSize",
-    "showLabels",
-    "showLegend",
-    "showTooltip",
-    "colors"
-  ],
-  Grid: ["columns", "gap"],
-  Stack: ["gap"]
-};
-function clampNumber(value, min, max, fallback) {
-  const numeric = typeof value === "number" ? value : Number(value);
-  if (Number.isNaN(numeric)) return fallback;
-  return Math.min(max, Math.max(min, numeric));
-}
-function normalizeButtonProps(input) {
-  const props = { ...input };
-  const action = props.action;
-  const value = props.value ?? props.url;
-  if (typeof action === "string") {
-    const params = {};
-    if (typeof value === "string") {
-      params.url = value;
-    }
-    props.action = { name: action, params };
-  } else if (!action && typeof value === "string") {
-    props.action = { name: "open_link", params: { url: value } };
-  }
-  if (props.variant === "primary") props.variant = "default";
-  if (props.variant === "solid") props.variant = "default";
-  if (props.variant === "danger") props.variant = "destructive";
-  if (props.size === "small") props.size = "sm";
-  if (props.size === "medium") props.size = "md";
-  if (props.size === "large") props.size = "lg";
-  return props;
-}
-function normalizeSelectOptions(input) {
-  if (!Array.isArray(input)) return input;
-  return input.map((option) => {
-    if (!option || typeof option !== "object") return null;
-    const raw = option;
-    const label = typeof raw.label === "string" ? raw.label : raw.value !== void 0 ? String(raw.value) : "Option";
-    const value = raw.value !== void 0 ? String(raw.value) : typeof raw.label === "string" ? raw.label : "option";
-    return { label, value };
-  }).filter(Boolean);
-}
-function normalizeCarouselItems(input) {
-  if (!Array.isArray(input)) return input;
-  return input.map((item) => {
-    if (!item || typeof item !== "object") return null;
-    const raw = item;
-    if (typeof raw.src !== "string") return null;
-    return {
-      src: raw.src,
-      alt: typeof raw.alt === "string" ? raw.alt : void 0,
-      caption: typeof raw.caption === "string" ? raw.caption : void 0
-    };
-  }).filter(Boolean);
-}
-function normalizeChartSeries(input) {
-  if (!Array.isArray(input)) return input;
-  return input.map((item) => {
-    if (!item || typeof item !== "object") return item;
-    const raw = item;
-    const dataKey = typeof raw.dataKey === "string" ? raw.dataKey : typeof raw.key === "string" ? raw.key : void 0;
-    const name = typeof raw.name === "string" ? raw.name : typeof raw.label === "string" ? raw.label : void 0;
-    const color = typeof raw.color === "string" ? raw.color : typeof raw.stroke === "string" ? raw.stroke : typeof raw.fill === "string" ? raw.fill : void 0;
-    const lineWidth = typeof raw.lineWidth === "number" ? raw.lineWidth : typeof raw.strokeWidth === "number" ? raw.strokeWidth : void 0;
-    const marker = typeof raw.marker === "boolean" ? raw.marker : typeof raw.dot === "boolean" ? raw.dot : void 0;
-    const borderRadius = typeof raw.borderRadius === "number" ? raw.borderRadius : typeof raw.radius === "number" ? raw.radius : void 0;
-    return {
-      ...raw,
-      ...dataKey ? { dataKey } : null,
-      ...name ? { name } : null,
-      ...color ? { color } : null,
-      ...lineWidth !== void 0 ? { lineWidth } : null,
-      ...marker !== void 0 ? { marker } : null,
-      ...borderRadius !== void 0 ? { borderRadius } : null
-    };
-  });
-}
-function normalizeLegacyNode(node, depth = 0) {
-  if (!node || depth > MAX_DEPTH) {
-    return { root: "", elements: {} };
-  }
-  const elements = {};
-  const walk = (current) => {
-    const key = (0, import_crypto.randomUUID)();
-    const type = typeof current.type === "string" ? current.type : "Text";
-    const rawProps = current.props && typeof current.props === "object" ? current.props : {};
-    const propKeys = componentPropMap[type] || [];
-    const merged = { ...rawProps };
-    for (const keyName of propKeys) {
-      if (keyName in current && current[keyName] !== void 0) {
-        merged[keyName] = current[keyName];
-      }
-    }
-    if (!("text" in merged) && type === "Text" && typeof current.text !== "string") {
-      merged.text = typeof current.title === "string" ? current.title : "Content";
-    }
-    if (type === "Stack" || type === "Grid") {
-      merged.gap = clampNumber(merged.gap, 2, 6, 4);
-    }
-    if (type === "Grid") {
-      merged.columns = clampNumber(merged.columns, 1, 4, 2);
-    }
-    if (type === "Heading" && typeof merged.level === "number") {
-      merged.level = String(merged.level);
-    }
-    if (type === "Metric" && !merged.valuePath && typeof merged.value_path === "string") {
-      merged.valuePath = merged.value_path;
-    }
-    if (type === "Table" && !merged.rowsPath && typeof merged.rows_path === "string") {
-      merged.rowsPath = merged.rows_path;
-    }
-    if (type === "Button") {
-      Object.assign(merged, normalizeButtonProps(merged));
-    }
-    if (type === "Select") {
-      merged.options = normalizeSelectOptions(merged.options);
-    }
-    if (type === "Carousel") {
-      merged.items = normalizeCarouselItems(merged.items);
-    }
-    if (type === "Tooltip") {
-      if (!merged.label) merged.label = "Info";
-      if (!merged.content) merged.content = "More details";
-    }
-    if (type === "Popover") {
-      if (!merged.triggerLabel) merged.triggerLabel = "Details";
-      if (!merged.title) merged.title = "Details";
-    }
-    if (type === "Dialog") {
-      if (!merged.triggerLabel) merged.triggerLabel = "Open";
-      if (!merged.title) merged.title = "Details";
-      if (!merged.actionLabel) merged.actionLabel = "Confirm";
-      if (!merged.action) merged.action = { name: "refresh_data" };
-    }
-    const children = Array.isArray(current.children) ? current.children : [];
-    const childKeys = children.map((child) => walk(child));
-    elements[key] = {
-      key,
-      type,
-      props: merged,
-      children: childKeys
-    };
-    return key;
-  };
-  const root = walk(node);
-  return { root, elements };
-}
-function normalizeTree(input) {
-  if (input && typeof input === "object" && "root" in input && "elements" in input) {
-    const tree = input;
-    const elements = {};
-    for (const [key, element] of Object.entries(tree.elements || {})) {
-      const children = Array.isArray(element.children) ? element.children : [];
-      elements[key] = {
-        ...element,
-        key: element.key || key,
-        children
-      };
-    }
-    return { root: tree.root, elements };
-  }
-  return normalizeLegacyNode(input);
-}
-function normalizeInlineChildren(tree) {
-  const elements = { ...tree.elements };
-  const materializeChild = (child) => {
-    if (typeof child === "string") return child;
-    if (!child || typeof child !== "object") return null;
-    const legacy = child;
-    const key = (0, import_crypto.randomUUID)();
-    const type = typeof legacy.type === "string" ? legacy.type : "Text";
-    const rawProps = legacy.props && typeof legacy.props === "object" ? legacy.props : {};
-    const propKeys = componentPropMap[type] || [];
-    const merged = { ...rawProps };
-    for (const keyName of propKeys) {
-      if (keyName in legacy && legacy[keyName] !== void 0) {
-        merged[keyName] = legacy[keyName];
-      }
-    }
-    if (!("text" in merged) && type === "Text" && typeof legacy.text !== "string") {
-      merged.text = typeof legacy.title === "string" ? legacy.title : "Content";
-    }
-    if (type === "Stack" || type === "Grid") {
-      merged.gap = clampNumber(merged.gap, 2, 6, 4);
-    }
-    if (type === "Grid") {
-      merged.columns = clampNumber(merged.columns, 1, 4, 2);
-    }
-    if (type === "Heading" && typeof merged.level === "number") {
-      merged.level = String(merged.level);
-    }
-    if (type === "Metric" && !merged.valuePath && typeof merged.value_path === "string") {
-      merged.valuePath = merged.value_path;
-    }
-    if (type === "Table" && !merged.rowsPath && typeof merged.rows_path === "string") {
-      merged.rowsPath = merged.rows_path;
-    }
-    if (type === "Button") {
-      Object.assign(merged, normalizeButtonProps(merged));
-    }
-    if (type === "Select") {
-      merged.options = normalizeSelectOptions(merged.options);
-    }
-    if (type === "Carousel") {
-      merged.items = normalizeCarouselItems(merged.items);
-    }
-    if (type === "LineChart" || type === "AreaChart" || type === "BarChart") {
-      merged.series = normalizeChartSeries(merged.series);
-    }
-    if (type === "PieChart") {
-      if (!merged.nameKey && typeof merged.labelKey === "string") {
-        merged.nameKey = merged.labelKey;
-      }
-      if (!merged.valueKey && typeof merged.dataKey === "string") {
-        merged.valueKey = merged.dataKey;
-      }
-    }
-    elements[key] = {
-      key,
-      type,
-      props: merged,
-      children: []
-    };
-    if (Array.isArray(legacy.children) && legacy.children.length > 0) {
-      const childKeys = legacy.children.map((childItem) => materializeChild(childItem)).filter((childKey) => typeof childKey === "string");
-      elements[key].children = childKeys;
-    }
-    return key;
-  };
-  for (const element of Object.values(elements)) {
-    if (!Array.isArray(element.children) || element.children.length === 0) continue;
-    const normalized = element.children.map((child) => materializeChild(child)).filter((childKey) => typeof childKey === "string");
-    element.children = normalized;
-  }
-  return { root: tree.root, elements };
-}
-function normalizeTreeProps(tree) {
-  const elements = {};
-  for (const [key, element] of Object.entries(tree.elements)) {
-    const props = element.props ?? {};
-    const merged = { ...props };
-    if (element.type === "Stack" || element.type === "Grid") {
-      merged.gap = clampNumber(merged.gap, 2, 6, 4);
-    }
-    if (element.type === "Grid") {
-      merged.columns = clampNumber(merged.columns, 1, 4, 2);
-    }
-    if (element.type === "Heading" && typeof merged.level === "number") {
-      merged.level = String(merged.level);
-    }
-    if (element.type === "Metric" && !merged.valuePath && typeof merged.value_path === "string") {
-      merged.valuePath = merged.value_path;
-    }
-    if (element.type === "Table" && !merged.rowsPath && typeof merged.rows_path === "string") {
-      merged.rowsPath = merged.rows_path;
-    }
-    if (element.type === "Button") {
-      Object.assign(merged, normalizeButtonProps(merged));
-    }
-    if (element.type === "Select") {
-      merged.options = normalizeSelectOptions(merged.options);
-    }
-    if (element.type === "Carousel") {
-      merged.items = normalizeCarouselItems(merged.items);
-    }
-    if (element.type === "Tooltip") {
-      if (!merged.label) merged.label = "Info";
-      if (!merged.content) merged.content = "More details";
-    }
-    if (element.type === "FollowUp") {
-      const raw = Array.isArray(merged.questions) ? merged.questions : [];
-      const normalized = raw.map((value) => typeof value === "string" ? value.trim() : "").filter(Boolean).slice(0, 2);
-      while (normalized.length < 2) {
-        normalized.push("What should we explore next to add richer visuals?");
-      }
-      merged.questions = normalized;
-      if (merged.title && typeof merged.title !== "string") {
-        delete merged.title;
-      }
-    }
-    if (element.type === "Popover") {
-      if (!merged.triggerLabel) merged.triggerLabel = "Details";
-      if (!merged.title) merged.title = "Details";
-    }
-    if (element.type === "Dialog") {
-      if (!merged.triggerLabel) merged.triggerLabel = "Open";
-      if (!merged.title) merged.title = "Details";
-      if (!merged.actionLabel) merged.actionLabel = "Confirm";
-      if (!merged.action) merged.action = { name: "refresh_data" };
-    }
-    if (element.type === "LineChart" || element.type === "AreaChart" || element.type === "BarChart") {
-      merged.series = normalizeChartSeries(merged.series);
-    }
-    if (element.type === "PieChart") {
-      if (!merged.nameKey && typeof merged.labelKey === "string") {
-        merged.nameKey = merged.labelKey;
-      }
-      if (!merged.valueKey && typeof merged.dataKey === "string") {
-        merged.valueKey = merged.dataKey;
-      }
-    }
-    elements[key] = {
-      ...element,
-      key: element.key || key,
-      props: merged
-    };
-  }
-  return { root: tree.root, elements };
-}
-function ensureFollowUp(tree) {
-  const elements = { ...tree.elements };
-  const rootKey = tree.root;
-  const root = elements[rootKey];
-  if (!root) return tree;
-  const hasFollowUp = Object.values(elements).some((element) => element.type === "FollowUp");
-  if (hasFollowUp) return tree;
-  const followUpKey = (0, import_crypto.randomUUID)();
-  elements[followUpKey] = {
-    key: followUpKey,
-    type: "FollowUp",
-    props: {
-      title: "Follow up",
-      questions: [
-        "Can you compare the key sections side by side in a table or chart?",
-        "Show a time-based or category breakdown to deepen the analysis."
-      ]
-    },
-    children: []
-  };
-  const children = Array.isArray(root.children) ? [...root.children] : [];
-  children.push(followUpKey);
-  elements[rootKey] = { ...root, children };
-  return { root: tree.root, elements };
-}
-function ensureTabsCoverage(tree) {
-  const elements = { ...tree.elements };
-  const root = tree.root;
-  for (const element of Object.values(elements)) {
-    if (element.type !== "Tabs") continue;
-    const items = element.props?.items;
-    if (!items?.length) continue;
-    if (!element.props?.defaultValue && items[0]?.value) {
-      element.props = { ...element.props, defaultValue: items[0].value };
-    }
-    const children = element.children || [];
-    const panelsByValue = /* @__PURE__ */ new Map();
-    const usedPanels = new Set(children);
-    for (const childKey of children) {
-      const child = elements[childKey];
-      if (child?.type === "TabPanel" && typeof child.props?.value === "string") {
-        panelsByValue.set(child.props.value, childKey);
-      }
-    }
-    for (const [panelKey, panel] of Object.entries(elements)) {
-      if (panel.type !== "TabPanel") continue;
-      if (usedPanels.has(panelKey)) continue;
-      const value = panel.props?.value;
-      if (typeof value !== "string") continue;
-      if (!items.some((item) => item.value === value)) continue;
-      children.push(panelKey);
-      usedPanels.add(panelKey);
-      panelsByValue.set(value, panelKey);
-    }
-    for (const item of items) {
-      if (!item?.value || panelsByValue.has(item.value)) continue;
-      const panelKey = (0, import_crypto.randomUUID)();
-      const textKey = (0, import_crypto.randomUUID)();
-      elements[textKey] = {
-        key: textKey,
-        type: "Text",
-        props: {
-          text: "No content yet",
-          tone: "muted"
-        },
-        children: []
-      };
-      elements[panelKey] = {
-        key: panelKey,
-        type: "TabPanel",
-        props: { value: item.value },
-        children: [textKey]
-      };
-      children.push(panelKey);
-    }
-    elements[element.key] = {
-      ...element,
-      children
-    };
-  }
-  return { root, elements };
-}
-function mergeImageGroups(tree) {
-  const elements = { ...tree.elements };
-  for (const element of Object.values(elements)) {
-    if (!Array.isArray(element.children) || element.children.length === 0) continue;
-    const nextChildren = [];
-    let buffer = [];
-    const flushBuffer = () => {
-      if (buffer.length === 0) return;
-      if (buffer.length === 1) {
-        nextChildren.push(buffer[0]);
-        buffer = [];
-        return;
-      }
-      const items = buffer.map((key) => elements[key]).filter((node) => node?.type === "Image").map((node) => ({
-        src: node.props?.src,
-        alt: node.props?.alt,
-        caption: node.props?.caption
-      })).filter((item) => typeof item.src === "string");
-      const carouselKey = (0, import_crypto.randomUUID)();
-      elements[carouselKey] = {
-        key: carouselKey,
-        type: "Carousel",
-        props: { items },
-        children: []
-      };
-      nextChildren.push(carouselKey);
-      for (const key of buffer) {
-        delete elements[key];
-      }
-      buffer = [];
-    };
-    for (const childKey of element.children) {
-      const child = elements[childKey];
-      if (child?.type === "Image") {
-        buffer.push(childKey);
-        continue;
-      }
-      flushBuffer();
-      nextChildren.push(childKey);
-    }
-    flushBuffer();
-    element.children = nextChildren;
-  }
-  return { root: tree.root, elements };
-}
-function normalizeChartGrids(tree) {
-  const elements = { ...tree.elements };
-  const chartTypes = /* @__PURE__ */ new Set(["LineChart", "AreaChart", "BarChart", "PieChart"]);
-  for (const element of Object.values(elements)) {
-    if (element.type !== "Grid" || !Array.isArray(element.children)) continue;
-    const chartCardChildren = element.children.filter((childKey) => {
-      const child = elements[childKey];
-      if (!child || child.type !== "Card") return false;
-      const cardChildren = Array.isArray(child.children) ? child.children : [];
-      return cardChildren.some((grandKey) => chartTypes.has(elements[grandKey]?.type));
-    });
-    if (chartCardChildren.length >= 2) {
-      element.props = { ...element.props || {}, columns: 1, gap: 4 };
-    }
-  }
-  return { root: tree.root, elements };
-}
-function groupButtonRows(tree) {
-  const elements = { ...tree.elements };
-  for (const element of Object.values(elements)) {
-    if (!Array.isArray(element.children) || element.children.length === 0) continue;
-    const nextChildren = [];
-    let buffer = [];
-    const flushBuffer = () => {
-      if (buffer.length === 0) return;
-      if (buffer.length === 1) {
-        nextChildren.push(buffer[0]);
-        buffer = [];
-        return;
-      }
-      const gridKey = (0, import_crypto.randomUUID)();
-      elements[gridKey] = {
-        key: gridKey,
-        type: "Grid",
-        props: {
-          columns: Math.min(2, buffer.length),
-          gap: 3
-        },
-        children: buffer
-      };
-      nextChildren.push(gridKey);
-      buffer = [];
-    };
-    for (const childKey of element.children) {
-      const child = elements[childKey];
-      if (child?.type === "Button") {
-        buffer.push(childKey);
-        continue;
-      }
-      flushBuffer();
-      nextChildren.push(childKey);
-    }
-    flushBuffer();
-    element.children = nextChildren;
-  }
-  return { root: tree.root, elements };
-}
-function stripRefreshButtons(tree) {
-  const elements = { ...tree.elements };
-  const removed = /* @__PURE__ */ new Set();
-  for (const [key, element] of Object.entries(elements)) {
-    if (element.type !== "Button") continue;
-    const actionName = element.props?.action?.name;
-    if (actionName === "refresh_data") {
-      removed.add(key);
-      delete elements[key];
-    }
-  }
-  if (!removed.size) return tree;
-  for (const element of Object.values(elements)) {
-    if (!Array.isArray(element.children)) continue;
-    element.children = element.children.filter((child) => !removed.has(child));
-  }
-  return { root: tree.root, elements };
-}
-function ensureDataForTree(tree, data) {
-  const nextData = { ...data };
-  for (const element of Object.values(tree.elements)) {
-    if (element.type === "Table") {
-      const rowsPath = element.props?.rowsPath;
-      const columns = element.props?.columns;
-      if (!rowsPath || !columns?.length) continue;
-      const existing = getByPath(nextData, rowsPath);
-      if (Array.isArray(existing) && existing.length > 0) continue;
-      const placeholder = columns.reduce((acc, column) => {
-        acc[column.key] = "\u2014";
-        return acc;
-      }, {});
-      setByPath(nextData, rowsPath, [placeholder, { ...placeholder }, { ...placeholder }]);
-    }
-    if (element.type === "Select") {
-      const valuePath = element.props?.valuePath;
-      const options = element.props?.options;
-      if (!valuePath || !options?.length) continue;
-      const existing = getByPath(nextData, valuePath);
-      const normalizedOptions = normalizeSelectOptions(options);
-      if (existing === void 0) {
-        setByPath(nextData, valuePath, normalizedOptions?.[0]?.value ?? "");
-        continue;
-      }
-      if (typeof existing !== "string") {
-        setByPath(nextData, valuePath, String(existing));
-        continue;
-      }
-      if (!normalizedOptions?.some((opt) => opt.value === existing)) {
-        setByPath(nextData, valuePath, normalizedOptions?.[0]?.value ?? "");
-      }
-    }
-    if (element.type === "TextField" || element.type === "Input" || element.type === "Textarea") {
-      const valuePath = element.props?.valuePath;
-      if (!valuePath) continue;
-      const existing = getByPath(nextData, valuePath);
-      if (existing !== void 0) continue;
-      setByPath(nextData, valuePath, "");
-    }
-    if (element.type === "Checkbox" || element.type === "Switch") {
-      const valuePath = element.props?.valuePath;
-      if (!valuePath) continue;
-      const existing = getByPath(nextData, valuePath);
-      if (existing !== void 0) continue;
-      setByPath(nextData, valuePath, false);
-    }
-    if (element.type === "Slider") {
-      const valuePath = element.props?.valuePath;
-      if (!valuePath) continue;
-      const existing = getByPath(nextData, valuePath);
-      if (existing !== void 0) continue;
-      const min = typeof element.props?.min === "number" ? element.props.min : 0;
-      setByPath(nextData, valuePath, min);
-    }
-    if (element.type === "Metric" || element.type === "Progress") {
-      const valuePath = element.props?.valuePath;
-      if (!valuePath) continue;
-      const existing = getByPath(nextData, valuePath);
-      if (existing !== void 0) continue;
-      setByPath(nextData, valuePath, element.type === "Progress" ? 40 : 0);
-    }
-    if (element.type === "LineChart" || element.type === "AreaChart" || element.type === "BarChart" || element.type === "PieChart") {
-      const dataPath = element.props?.dataPath;
-      if (!dataPath) continue;
-      const existing = getByPath(nextData, dataPath);
-      if (Array.isArray(existing) && existing.length > 0) continue;
-      const xKey = element.type === "PieChart" ? element.props?.nameKey ?? element.props?.labelKey : element.props?.xKey;
-      const series = element.props?.series;
-      const valueKey = element.type === "PieChart" ? element.props?.valueKey ?? element.props?.dataKey : series?.[0]?.dataKey ?? series?.[0]?.key;
-      if (!xKey || !valueKey) {
-        continue;
-      }
-      if (element.type === "PieChart") {
-        setByPath(nextData, dataPath, [
-          { [xKey]: "A", [valueKey]: 40 },
-          { [xKey]: "B", [valueKey]: 60 }
-        ]);
-      } else {
-        setByPath(nextData, dataPath, [
-          { [xKey]: "Jan", [valueKey]: 24 },
-          { [xKey]: "Feb", [valueKey]: 38 },
-          { [xKey]: "Mar", [valueKey]: 52 },
-          { [xKey]: "Apr", [valueKey]: 41 }
-        ]);
-      }
-    }
-  }
-  return nextData;
-}
-var generateJsonRendererTool = (0, import_tools2.createTool)({
-  id: "generate-json-renderer",
-  description: "Register a JSON Renderer UI tree that matches the catalog schema. Returns an id that can be used in <JSONRenderer>{id}</JSONRenderer> tags.",
-  inputSchema: external_exports.object({
-    tree: external_exports.unknown(),
-    data: external_exports.record(external_exports.unknown()).optional()
-  }),
-  outputSchema: external_exports.object({
-    id: external_exports.string(),
-    tree: external_exports.unknown(),
-    data: external_exports.record(external_exports.unknown()).optional()
-  }),
-  execute: async ({ context }) => {
-    const tree = stripRefreshButtons(
-      ensureTabsCoverage(
-        normalizeChartGrids(
-          mergeImageGroups(
-            groupButtonRows(
-              normalizeInlineChildren(
-                ensureFollowUp(normalizeTreeProps(normalizeTree(context?.tree)))
-              )
-            )
-          )
-        )
-      )
-    );
-    const data = ensureDataForTree(tree, context?.data ?? {});
-    const validation = jsonRendererCatalog.validateTree(tree);
-    if (!validation.success) {
-      const firstIssue = validation.error?.issues?.[0];
-      const detail = firstIssue ? `${firstIssue.path.join(".")}: ${firstIssue.message}` : "Unknown schema error";
-      throw new Error(`JSON renderer tree failed catalog validation: ${detail}`);
-    }
-    const encoded = JSON.stringify(tree);
-    if (encoded.length > MAX_TREE_BYTES) {
-      throw new Error("JSON renderer tree is too large.");
-    }
-    return {
-      id: (0, import_crypto.randomUUID)(),
-      tree: validation.data,
-      data
-    };
-  }
-});
-
 // ../src/mastra/tools/portfolio-tools.ts
 var portfolioTools = {
-  ...githubTools,
-  generateJsonRenderer: generateJsonRendererTool
+  ...githubTools
 };
 
 // ../src/mastra/agents/input-processors/fast-guardrails-processor.ts
@@ -29547,7 +27486,7 @@ var FastGuardrailsProcessor = class {
 };
 
 // ../src/mastra/agents/portfolio-agent.ts
-var catalogPrompt = generateCatalogPrompt(jsonRendererCatalog);
+var openuiSystemPrompt = generatedOpenUISystemPrompt;
 var azure = (0, import_azure.createAzure)({
   resourceName: process.env.AZURE_RESOURCE_NAME,
   apiKey: process.env.AZURE_API_KEY,
@@ -29581,7 +27520,7 @@ if (!global._memory) {
       lastMessages: 20,
       semanticRecall: {
         topK: 3,
-        // Optimized: Reduced from 5 
+        // Optimized: Reduced from 5
         messageRange: 2
         // Optimized: Reduced from 3
       }
@@ -29642,798 +27581,46 @@ GitHub Data:
 6. getGitHubStats - Top languages, total stars, most starred repo
 7. searchRepos - Find repositories by keyword
 
-UI OUTPUT (REQUIRED):
-- Output JSONL where each line is a patch operation.
-- Use the catalog below.
-- Return only JSONL, no extra text.
-
-DATA BINDING:
-- valuePath: "/analytics/revenue" (single values like Metric)
-- dataPath: "/analytics/salesByRegion" (arrays like Chart, Table)
-
-OUTPUT FORMAT (JSONL PATCH OPS):
-- {"op":"set","path":"/root","value":"root-key"}
-- {"op":"add","path":"/elements/root-key","value":{...}}
-- {"op":"set","path":"/data","value":{...}} (data model for all valuePath/dataPath bindings)
-- Always add a FollowUp element as a direct child of the root and place it last in the root's children array.
-
-ELEMENT STRUCTURE:
-{
-  "key": "unique-key",
-  "type": "ComponentType",
-  "props": { ... },
-  "children": ["child-key-1", "child-key-2"]
-}
-
-PATCH RULES:
-1. First set /root to the root element's key.
-2. Add each element with a unique key using /elements/{key}.
-3. Parent elements list child keys in their "children" array.
-4. Stream elements progressively - parent first, then children.
-5. Each element must include: key, type, props.
-6. children contains string keys, not nested objects.
-7. Provide a single /data object that satisfies every valuePath/dataPath used.
-8. Always include FollowUp as the last child of the root.
-
-UI CATALOG (allowed components + props):
-- Section { title?, description? } children
-- Card { title?, description?, footer? } children
-- Metric { label, valuePath, format }
-- Button { label, action, variant?, size? }
-- Badge { label, variant? }
-- Alert { title, description?, variant? }
-- Table { rowsPath, columns[{ key, label, align? }] }
-- Tabs { items[{ value, label }], defaultValue? } children
-- TabPanel { value } children
-- Heading { text, level? }
-- Text { text, tone? }
-- Input { label, valuePath, placeholder?, type? }
-- Textarea { label, valuePath, placeholder?, rows? }
-- TextField { label, valuePath, placeholder?, type?, checks?, validateOn?, enabled? }
-- Select { label, valuePath, placeholder?, options[{ label, value }] }
-- Checkbox { label, valuePath }
-- Switch { label, valuePath }
-- Slider { label, valuePath, min?, max?, step? }
-- Progress { valuePath }
-- Avatar { name, imageUrl?, fallback? }
-- Separator { orientation? }
-- Image { src, alt?, caption? }
-- Carousel { items[{ src, alt?, caption? }] }
-- Tooltip { label, content }
-- FollowUp { title?, questions[2] }
-- Popover { triggerLabel, title?, description? } children
-- Dialog { triggerLabel, title, description?, actionLabel, action, size? } children
-- LineChart { dataPath, xKey, series[{ dataKey, name?, color?, lineWidth?, dashStyle?, marker?, connectNulls? }], height?, showGrid?, showLegend?, showTooltip?, xAxisLabel?, yAxisLabel? }
-- AreaChart { dataPath, xKey, series[{ dataKey, name?, color?, fillOpacity?, stackId? }], height?, showGrid?, showLegend?, showTooltip?, xAxisLabel?, yAxisLabel?, stacking? }
-- BarChart { dataPath, xKey, series[{ dataKey, name?, color?, borderRadius?, stackId? }], height?, layout?, showGrid?, showLegend?, showTooltip?, xAxisLabel?, yAxisLabel?, stacking? }
-- PieChart { dataPath, nameKey, valueKey, height?, innerSize?, showLabels?, showLegend?, showTooltip?, colors? }
-- Grid { columns?, gap? } children
-- Stack { gap? } children
-
-Allowed actions: export_report, open_link, run_query, apply_filter
-
-CATALOG DETAILS (STRICT):
-- Use only the components listed above.
-- valuePath, rowsPath, and dataPath must be absolute JSON Pointer paths (RFC 6901), e.g. /metrics/revenue or /projects.
-- Provide a data model that satisfies every valuePath and rowsPath in the tree.
-- Table column keys must match keys in each row object.
-- Tabs must include items and matching TabPanel children for each item.
-- Button action must be an object with name and params when needed:
-  - open_link: { name: "open_link", params: { url: "https://..." } }
-  - refresh_data: { name: "refresh_data" } (only if user explicitly asks to refresh)
-  - apply_filter: { name: "apply_filter", params: { path: "/filters/status", value: "Active" } }
-- Actions may include confirm, onSuccess, and onError when relevant.
-- Metric and Progress must point to numeric values.
-- Select must include at least 2 options and set a default value in data.
-- Select option values must be strings (e.g., "7", "14", "30"), not numbers.
-- TextField supports validation:
-  - checks: array of { fn, message, args? }
-  - validateOn: "blur" or "change"
-- Tooltip requires label and content.
-- Popover requires triggerLabel and should include a short title/description when used.
-- Dialog requires triggerLabel, title, actionLabel, and action.
-- Use Carousel for images. For a single image, use Carousel with one item.
-- Do not add refresh buttons or refresh actions unless requested.
-- Do not invent placeholder metrics/charts/tables. Fetch data via tools first.
-- Use charts for trends or comparisons when data supports it.
-- Avoid generic "Insights" sections unless the user asks.
-- FollowUp questions must be specific, phrased as questions, and designed to unlock richer UI (charts, tables, comparisons, filters).
-- FollowUp questions must be grounded in the current response and point to data the UI can visualize.
-
-DATA MODEL CONVENTIONS:
-- Use /filters for UI filters, /metrics or /analytics for KPI values, /projects or /rows for tables.
-- Use /form for input fields and /ui for UI state when needed.
-
-## COMPLEX UI PATTERNS (USE THESE LIBERALLY)
-
-### Pattern 1: Stat Cards with Badges & Progress
-Use for: Metrics, KPIs, project stats, skill proficiency
-"
-Card (with title + description)
-\u251C\u2500 Grid (columns: 2, gap: 3)
-\u2502  \u251C\u2500 Stack (gap: 2)
-\u2502  \u2502  \u251C\u2500 Badge (variant: secondary)
-\u2502  \u2502  \u2514\u2500 Metric (format: number/percent)
-\u2502  \u2514\u2500 Stack (gap: 2)
-\u2502     \u251C\u2500 Text (tone: muted, showing context)
-\u2502     \u2514\u2500 Progress (showing completion/growth)
-"
-
-### Pattern 2: Interactive Data Cards with Actions
-Use for: Projects, repositories, work experience
-"
-Card (title, description, footer with metadata)
-\u251C\u2500 Stack (gap: 3)
-\u2502  \u251C\u2500 Grid (columns: 3, gap: 2) [Badges row]
-\u2502  \u2502  \u251C\u2500 Badge (technology)
-\u2502  \u2502  \u251C\u2500 Badge (status)
-\u2502  \u2502  \u2514\u2500 Badge (stars/metric)
-\u2502  \u251C\u2500 Text (description)
-\u2502  \u251C\u2500 Grid (columns: 3, gap: 3) [Mini metrics]
-\u2502  \u2502  \u251C\u2500 Stack (gap: 2)
-\u2502  \u2502  \u2502  \u251C\u2500 Text (tone: muted, label)
-\u2502  \u2502  \u2502  \u2514\u2500 Text (value)
-\u2502  \u2502  \u2514\u2500 ...
-\u2502  \u2514\u2500 Grid (columns: 2, gap: 3) [Action buttons]
-\u2502     \u251C\u2500 Button (variant: outline, open_link)
-\u2502     \u2514\u2500 Dialog (triggerLabel: "Details")
-\u2502        \u2514\u2500 [Detailed content in dialog]
-"
-
-### Pattern 3: Analytics Dashboard
-Use for: Overview pages, activity summaries, portfolio stats
-"
-Stack (gap: 4)
-\u251C\u2500 Heading (level: 1)
-\u251C\u2500 Grid (columns: 3, gap: 4) [KPI row]
-\u2502  \u251C\u2500 Card
-\u2502  \u2502  \u2514\u2500 Stack (gap: 2)
-\u2502  \u2502     \u251C\u2500 Badge (variant: outline)
-\u2502  \u2502     \u251C\u2500 Metric (large number)
-\u2502  \u2502     \u2514\u2500 Text (tone: muted, trend/context)
-\u2502  \u2514\u2500 ... (3 more similar cards)
-\u251C\u2500 Grid (columns: 2, gap: 4) [Charts row]
-\u2502  \u251C\u2500 Card (title: "Trend Analysis")
-\u2502  \u2502  \u2514\u2500 LineChart/AreaChart
-\u2502  \u2514\u2500 Card (title: "Distribution")
-\u2502     \u2514\u2500 PieChart/BarChart
-\u2514\u2500 Card (title: "Detailed Breakdown")
-   \u2514\u2500 Tabs
-      \u251C\u2500 TabPanel \u2192 Table with actions
-      \u2514\u2500 TabPanel \u2192 Grid of stat cards
-"
-
-### Pattern 4: Nested Information Architecture
-Use for: Complex data with multiple dimensions
-"
-Tabs (items: ["Overview", "Deep Dive", "Analytics"])
-\u251C\u2500 TabPanel (value: "Overview")
-\u2502  \u2514\u2500 Grid (columns: 2, gap: 4)
-\u2502     \u251C\u2500 Card [Summary stats]
-\u2502     \u2502  \u2514\u2500 Stack (gap: 3)
-\u2502     \u2502     \u251C\u2500 Grid (badges)
-\u2502     \u2502     \u2514\u2500 Grid (mini metrics)
-\u2502     \u2514\u2500 Card [Quick insights]
-\u2502        \u2514\u2500 Stack (gap: 2)
-\u2502           \u251C\u2500 Alert (variant: default)
-\u2502           \u2514\u2500 Grid (action buttons)
-\u251C\u2500 TabPanel (value: "Deep Dive")
-\u2502  \u2514\u2500 Stack (gap: 4)
-\u2502     \u251C\u2500 Card (with chart)
-\u2502     \u2514\u2500 Table (with rich columns)
-\u2514\u2500 TabPanel (value: "Analytics")
-   \u2514\u2500 Grid (columns: 2, gap: 4)
-      \u251C\u2500 Card (chart 1)
-      \u2514\u2500 Card (chart 2)
-"
-
-### Pattern 5: Hero Section with Rich Context
-Use for: Introduction, about me, featured project
-"
-Stack (gap: 4)
-\u251C\u2500 Card (no title, large card)
-\u2502  \u2514\u2500 Stack (gap: 3)
-\u2502     \u251C\u2500 Grid (columns: 2, gap: 4)
-\u2502     \u2502  \u251C\u2500 Stack (gap: 3)
-\u2502     \u2502  \u2502  \u251C\u2500 Heading (level: 1)
-\u2502     \u2502  \u2502  \u251C\u2500 Text (tone: lead)
-\u2502     \u2502  \u2502  \u251C\u2500 Grid (columns: 3, gap: 2) [Inline badges]
-\u2502     \u2502  \u2502  \u2502  \u251C\u2500 Badge
-\u2502     \u2502  \u2502  \u2502  \u2514\u2500 ...
-\u2502     \u2502  \u2502  \u2514\u2500 Grid (columns: 2, gap: 3) [CTAs]
-\u2502     \u2502  \u2502     \u251C\u2500 Button (variant: default)
-\u2502     \u2502  \u2502     \u2514\u2500 Button (variant: outline)
-\u2502     \u2502  \u2514\u2500 Grid (columns: 2, gap: 3) [Quick stats]
-\u2502     \u2502     \u251C\u2500 Card (nested small card)
-\u2502     \u2502     \u2502  \u2514\u2500 Stack (gap: 2)
-\u2502     \u2502     \u2502     \u251C\u2500 Badge
-\u2502     \u2502     \u2502     \u2514\u2500 Metric
-\u2502     \u2502     \u2514\u2500 ... (more stat cards)
-\u2502     \u2514\u2500 Separator
-\u2502     \u2514\u2500 Grid (columns: 3, gap: 3) [Additional info]
-\u2502        \u251C\u2500 Popover (with context)
-\u2502        \u2514\u2500 ...
-"
-
-### Pattern 6: Comparison View
-Use for: Comparing projects, skills, time periods
-"
-Stack (gap: 4)
-\u251C\u2500 Grid (columns: 2, gap: 3) [Filters]
-\u2502  \u251C\u2500 Select (comparison dimension)
-\u2502  \u2514\u2500 Select (time period)
-\u251C\u2500 Grid (columns: 2, gap: 4) [Side by side]
-\u2502  \u251C\u2500 Card (title: "Option A")
-\u2502  \u2502  \u2514\u2500 Stack (gap: 3)
-\u2502  \u2502     \u251C\u2500 Grid (columns: 3, gap: 2) [Badges]
-\u2502  \u2502     \u251C\u2500 Grid (columns: 2, gap: 3) [Metrics]
-\u2502  \u2502     \u2502  \u251C\u2500 Stack (gap: 2)
-\u2502  \u2502     \u2502  \u2502  \u251C\u2500 Text (muted label)
-\u2502  \u2502     \u2502  \u2502  \u2514\u2500 Metric
-\u2502  \u2502     \u2502  \u2514\u2500 ...
-\u2502  \u2502     \u2514\u2500 BarChart (comparison data)
-\u2502  \u2514\u2500 Card (title: "Option B")
-\u2502     \u2514\u2500 [Same structure]
-\u2514\u2500 Card (title: "Combined Analysis")
-   \u2514\u2500 LineChart (overlay both)
-"
-
-### Pattern 7: Timeline/Activity Feed
-Use for: Recent activity, work history, project timeline
-"
-Card (title: "Recent Activity")
-\u2514\u2500 Stack (gap: 2)
-   \u251C\u2500 Card (nested, no title)
-   \u2502  \u2514\u2500 Grid (columns: 3, gap: 3)
-   \u2502     \u251C\u2500 Stack (gap: 2)
-   \u2502     \u2502  \u251C\u2500 Badge (variant: outline, timestamp)
-   \u2502     \u2502  \u2514\u2500 Text (tone: muted, date)
-   \u2502     \u251C\u2500 Stack (gap: 2) [spans 2 columns]
-   \u2502     \u2502  \u251C\u2500 Text (event title)
-   \u2502     \u2502  \u251C\u2500 Text (tone: muted, description)
-   \u2502     \u2502  \u2514\u2500 Grid (columns: 3, gap: 2) [inline badges]
-   \u2502     \u2514\u2500 Button (variant: ghost, size: sm, action)
-   \u2514\u2500 ... (more activity items)
-"
-
-### Pattern 8: Skill Matrix
-Use for: Skills, technologies, competencies
-"
-Grid (columns: 2, gap: 4)
-\u251C\u2500 Card (title: "Frontend")
-\u2502  \u2514\u2500 Stack (gap: 3)
-\u2502     \u251C\u2500 Stack (gap: 2) [Per skill]
-\u2502     \u2502  \u251C\u2500 Grid (columns: 2, gap: 3)
-\u2502     \u2502  \u2502  \u251C\u2500 Stack (gap: 1)
-\u2502     \u2502  \u2502  \u2502  \u251C\u2500 Text (skill name)
-\u2502     \u2502  \u2502  \u2502  \u2514\u2500 Text (tone: muted, experience)
-\u2502     \u2502  \u2502  \u2514\u2500 Badge (proficiency level)
-\u2502     \u2502  \u2514\u2500 Progress (skill level)
-\u2502     \u2514\u2500 ... (more skills)
-\u2514\u2500 Card (title: "Backend")
-   \u2514\u2500 [Same structure]
-"
-
-### Pattern 9: Project Showcase
-Use for: Featured projects, portfolio pieces
-"
-Stack (gap: 4)
-\u251C\u2500 Grid (columns: 3, gap: 4) [Featured projects grid]
-\u2502  \u2514\u2500 Card (title, description, footer)
-\u2502     \u2514\u2500 Stack (gap: 3)
-\u2502        \u251C\u2500 Carousel (project screenshots)
-\u2502        \u251C\u2500 Text (description)
-\u2502        \u251C\u2500 Grid (columns: 3, gap: 2) [Tech stack badges]
-\u2502        \u251C\u2500 Separator
-\u2502        \u251C\u2500 Grid (columns: 3, gap: 3) [Project stats]
-\u2502        \u2502  \u251C\u2500 Stack (gap: 1)
-\u2502        \u2502  \u2502  \u251C\u2500 Text (tone: muted, label)
-\u2502        \u2502  \u2502  \u2514\u2500 Badge (value)
-\u2502        \u2502  \u2514\u2500 ...
-\u2502        \u2514\u2500 Grid (columns: 2, gap: 2) [Actions]
-\u2502           \u251C\u2500 Button (variant: default, "View Live")
-\u2502           \u251C\u2500 Button (variant: outline, "GitHub")
-\u2502           \u2514\u2500 Dialog (triggerLabel: "Full Details")
-\u2502              \u2514\u2500 Stack (gap: 3)
-\u2502                 \u251C\u2500 Text (detailed description)
-\u2502                 \u251C\u2500 Table (features/specs)
-\u2502                 \u2514\u2500 LineChart (usage/performance)
-"
-
-### Pattern 10: Interactive Filters Panel
-Use for: Data exploration, repository filtering
-"
-Card (title: "Filters")
-\u2514\u2500 Stack (gap: 3)
-   \u251C\u2500 Grid (columns: 2, gap: 3)
-   \u2502  \u251C\u2500 Select (category)
-   \u2502  \u251C\u2500 Select (language)
-   \u2502  \u251C\u2500 Slider (min stars)
-   \u2502  \u2514\u2500 Select (sort by)
-   \u251C\u2500 Grid (columns: 3, gap: 2) [Quick filters]
-   \u2502  \u251C\u2500 Checkbox (active projects)
-   \u2502  \u251C\u2500 Checkbox (has docs)
-   \u2502  \u2514\u2500 Checkbox (recent updates)
-   \u251C\u2500 Separator
-   \u2514\u2500 Grid (columns: 2, gap: 3)
-      \u251C\u2500 Button (variant: outline, "Reset")
-      \u2514\u2500 Button (variant: default, apply_filter action)
-"
-
-Here's the responsive design instruction block to add:
-
-## RESPONSIVE DESIGN & LAYOUT CONSISTENCY (CRITICAL)
-
-### Grid Column Rules (STRICT)
-- **Desktop (default)**: Use columns 2-3 as specified in patterns
-- **Tablet/Mobile consideration**: 
-  - 3-column grids \u2192 use for small items only (badges, mini-metrics, icons)
-  - 3-column grids \u2192 use for medium cards (project cards, stat cards)
-  - 2-column grids \u2192 use for large cards or comparison views
-  - Never use 4-column grids for Cards with substantial content
-- **Badge clusters**: Always use Grid with columns 2-3 and gap 2
-- **Project cards**: Maximum 3 columns, prefer 2 for content-heavy cards
-- **KPI metrics**: Maximum 3 columns, only when each metric is concise
-
-### Card Content Consistency (STRICT)
-- **Minimum content per Card**: Every Card must have at least 2 child elements
-- **Card height balancing**: 
-  - When creating Grid of Cards, ensure similar content structure in each
-  - If one card has 5 elements, others in the same Grid should have 4-6 elements
-  - Add visual elements (Separator, Badge, Progress) to balance sparse cards
-  - Never leave cards with just 1 Text element - add at least a Badge or Metric
-- **Card footer usage**: Use footer prop for metadata to keep cards balanced
-- **Padding compensation**: If a card has less data, add:
-  - A Progress bar showing a relevant metric
-  - A Grid of badges (2-3 items)
-  - A mini metrics row (Grid with 2-3 small Stack elements)
-  - An Alert or Separator for visual weight
-
-### Content Spacing (STRICT)
-- **Badge groups**: Minimum 2 badges per cluster, always in Grid (never Stack)
-- **Between sections**: Use gap 4 in parent Stack
-- **Within cards**: Use gap 3 for main sections, gap 2 for related items
-- **Button groups**: Minimum gap 3, always wrap in Grid (2 columns max)
-- **Text wrapping**: Keep text labels under 40 characters, descriptions under 120 characters
-
-### Content Geneartion Instructions (STRICT)
-- If you have any type of text inside a grid (either coming from a tool call dont add directly santize it properly before adding), ensure that the length of text is similar across all cards to maintain visual balance, dont repeat content inside the same card ever (VERY IMPORTANT) (CRITICAL)
-- If you are generating card the max length of title should be 5 words (CRITICAL)
-- If you are generating card the max and min both length of description should be 80 characters (CRITICAL)
-- If you are generating card the action items like buttons or links should be added in footer always (CRITICAL)
-- When generating badge labels, keep them concise (max 12 characters) to avoid overflow and maintain a clean layout.
-- When generating metric labels, ensure they are brief (1-3 words) to fit well within card layouts.
-- When generating button labels, keep them short (1-4 words) to ensure they fit nicely within the card without causing layout issues.
-
-### Layout Balance (STRICT)
-- **Avoid orphan elements**: If creating a Grid of 3 items, ensure you have 3, 6, or 9 items (not 4, 5, 7, 8)
-- **Minimum items per Grid**: 
-  - 2-column Grid: minimum 2 items (obviously), prefer 2, 4, 6, 8
-  - 3-column Grid: minimum 3 items, prefer 3, 6, 9
-- **Fill incomplete grids**: If you have 5 items for a 3-column grid:
-  - Add a 6th placeholder card with an Alert or Popover
-  - OR use 2-column grid instead
-  - OR add a "View More" button card as 6th item
-
-### Component Size Constraints (STRICT)
-- **Metric labels**: 1-3 words maximum
-- **Badge labels**: 1-2 words or max 15 characters
-- **Button labels**: 1-4 words maximum
-- **Card titles**: 1-5 words maximum
-- **Card descriptions**: 1-2 sentences maximum (under 120 chars)
-- **Table column labels**: 1-2 words maximum
-- **If content is longer**: Use Dialog or Popover for details instead
-
-### Visual Weight Distribution (STRICT)
-For each Grid of Cards:
-1. Count total elements in each card
-2. If variance is > 3 elements, rebalance by:
-   - Adding Progress bars to lighter cards
-   - Adding Badge clusters (2-3 badges)
-   - Adding a Separator + Text combo
-   - Adding mini-metric Grid (2-3 items)
-3. **Never have one card with 8 elements and another with 2 elements**
-
-### Anti-Patterns to AVOID
-- \u274C Single Badge alone in a Card (add 2-3 more or add other elements)
-- \u274C Grid with only Text elements (add Badges, Metrics, Buttons)
-- \u274C 4-column Grid with large Cards (use 2-3 columns max)
-- \u274C Card with just one Text element (add Badge + Metric at minimum)
-- \u274C Uneven Grid items (5 items in 3-column grid)
-- \u274C Buttons without Grid wrapper as siblings
-- \u274C Badge clusters in Stack (always use Grid for badges)
-
-### Balancing Example
-
-WRONG - Unbalanced cards:
-Card 1: Badge + Text (2 elements)
-Card 2: Badge + Text + Table + Separator + Buttons (5 elements)
-
-RIGHT - Balanced cards:
-Card 1: Badge + Text + Progress + Separator + Button (5 elements)
-Card 2: Badge + Text + Table + Separator + Buttons (5 elements)
-
-OR use different layouts:
-Card 1 (lighter): Stack with gap 2 (smaller, compact)
-Card 2 (heavier): Stack with gap 3 (normal spacing)
-
-Here's a **strict instruction block** to fix those exact issues:
-
-## LAYOUT CONSISTENCY & SPACING FIXES (CRITICAL)
-
-### Badge Overlap Prevention (STRICT)
-- **Never place badges in horizontal Grid without proper gap**
-- Badge Grid rules:
-  - **Always use gap: 2 minimum** for badge clusters
-  - **Maximum 4 badges per row** in any Grid
-  - **If 5+ badges**: Use Grid columns: 3 with gap: 2, NOT columns: 4
-  - **Inline badge rows** (language + stars + forks): Use Grid columns: 3, gap: 3 (NOT gap: 2)
-  - **Tech stack badges**: Use Grid columns: 3, gap: 2, wrapping is OK
-- **Badge sizing**: Keep labels short (max 12 chars including icons)
-- **Format for stat badges**: "\u2B50 30" not "Stars: 30" (shorter = less overlap)
-
-### Card Height Normalization (CRITICAL)
-When creating Grid of Cards (project cards, stat cards, etc.):
-
-**Rule 1: Equal Structure Depth**
-- All cards in same Grid MUST have same number of major sections
-- Count major sections: heading \u2192 badges \u2192 description \u2192 metrics \u2192 actions
-- Example: If Card 1 has 5 sections, Card 2-3 must also have 5 sections
-
-**Rule 2: Image/Carousel Handling**
-- **If one card has Carousel/Image**: 
-  - ALL cards in that Grid must have Carousel/Image
-  - OR move Carousel to Dialog instead
-  - OR create separate section above/below the Grid for featured project with image
-- **Never mix**: Cards with images + Cards without images in same Grid
-- **Preferred pattern**: Use Tabs where one tab shows image galleries, another shows list/table
-
-**Rule 3: Content Padding**
-For cards with less content, add filler elements in this order:
-1. **Add Progress bar** (shows activity, completion, or popularity metric)
-2. **Add mini-metrics Grid** (2-3 small stat items with muted labels)
-3. **Add Alert** with tip or status update
-4. **Add Separator** + additional Text with context
-5. **Add Badge cluster** (3-4 related tags)
-
-**Example - Balancing Cards with/without Images:**
-
-WRONG:
-Card 1: Image + Title + Badges + Buttons (has image, tall)
-Card 2: Title + Badges + Buttons (no image, short) \u274C
-
-RIGHT Option 1 - Add compensating content:
-Card 1: Image + Title + Badges + Text + Buttons
-Card 2: Title + Badges + Text + Progress + Alert + Buttons \u2713
-
-RIGHT Option 2 - Move images out:
-Card 1: Title + Badges + Text + Metrics + Buttons (Dialog has image)
-Card 2: Title + Badges + Text + Metrics + Buttons \u2713
-
-RIGHT Option 3 - Separate featured section:
-Featured Card (above grid): Image + Title + Badges + Metrics + Buttons
-Grid of Cards (all same structure): Title + Badges + Metrics + Buttons \u2713
-
-
-### Vertical Alignment Fixes (STRICT)
-- **Card footer usage**: Put "Updated YYYY-MM-DD" in footer prop, NOT as last child
-  - This keeps footers aligned at bottom regardless of content height
-  - Format: "footer: "Updated 2023-06-13""
-- **Button placement**: 
-  - Always place buttons in a Grid at the BOTTOM of card content
-  - Use "footer" for metadata, not for buttons
-  - Buttons should be second-to-last section (before footer)
-- **Separator before actions**: Add Separator right before button Grid for visual consistency
-
-### Grid Item Count Rules (STRICT)
-- **3-column Grid**: Use 3, 6, 9, or 12 items (multiples of 3)
-- **If you have 4-5 items for 3-column grid**:
-  - Change to 2-column Grid instead
-  - OR add placeholder card: "View All Projects" button card
-  - OR add stats summary card as final item
-- **If you have 7-8 items for 3-column grid**:
-  - Add placeholder to reach 9
-  - OR use Tabs: "Featured" (6 items) + "More" (remaining)
-  - OR show 6 in grid + add "Show 2 More" button below
-
-### Content Length Normalization (STRICT)
-- **Card titles**: 2-5 words (if longer, truncate with "..." or use Dialog)
-- **Card descriptions**: 15-25 words (approximately 2 lines at typical width)
-  - If description is 1 short sentence: Add second sentence OR add badges/metrics to compensate
-  - If description is 3+ sentences: Move to Dialog, keep 2 sentences in card
-- **Metadata rows** (language, stars, forks):
-  - Always same structure across all cards: Badge + Badge + Badge
-  - Format consistently: "JavaScript", "\u2B50 30", "\u{1F531} 11" (same pattern)
-
-### Specific Fix for Your Screenshot Issue
-
-Pattern to use for project cards:
-
-Card (title, description, footer: "Updated DATE")
-\u2514\u2500 Stack (gap: 3)
-   \u251C\u2500 Grid (columns: 3, gap: 3) [Metadata row - ALWAYS 3 items]
-   \u2502  \u251C\u2500 Badge (language)
-   \u2502  \u251C\u2500 Badge (stars with icon)
-   \u2502  \u2514\u2500 Badge (forks with icon)
-   \u251C\u2500 Text (description - 15-25 words, tone: default)
-   \u251C\u2500 [OPTIONAL: Only if ALL cards in grid have this]
-   \u2502  \u2514\u2500 Carousel (screenshots) OR Progress (metric)
-   \u251C\u2500 Separator
-   \u2514\u2500 Grid (columns: 2, gap: 3) [Actions - ALWAYS 2 buttons]
-      \u251C\u2500 Button ("View Live" or "Details")
-      \u2514\u2500 Button ("GitHub")
-
-This ensures:
-- All cards have exactly 5 sections (metadata, desc, optional, sep, actions)
-- Metadata row always has 3 badges with gap: 3 (no overlap)
-- Footer metadata stays at bottom
-- Heights match even without images
-
-
-### Badge Cluster Specific Rules
-
-For technology/feature badges (not stats):
-- Use Grid (columns: 3, gap: 2)
-- Maximum 6 badges visible (if more, use Dialog)
-- Keep labels short: "React" not "React.js", "TS" not "TypeScript"
-
-For stat badges (stars, forks, issues):
-- Use Grid (columns: 3, gap: 3) [wider gap for number visibility]
-- Format: icon + number (\u2B50 30, \u{1F531} 8, \u26A0\uFE0F 3)
-- Always include exactly 3 items (add "Updated: Xd" if needed)
-
-
-
-## UI COMPOSITION RULES (MANDATORY)
-
-### Avoid Text-Heavy Responses
-- **Never create layouts with more than 3 consecutive Text elements**
-- Break up text with Cards, Badges, Metrics, Progress bars
-- Always send Dates and time in human-readable format (e.g., "2 days ago") or Date in human readable format like "Jan 1, 2023"
-- Use Grid to create visual interest and grouping
-- Replace long text descriptions with structured data (Tables, Cards with mini-metrics)
-
-### Rich Data Display
-When showing data:
-1. **Always use at least 2 different component types** (e.g., Metric + Badge, or Card + Progress)
-2. **Add visual hierarchy**: Badges for categories, Metrics for numbers, Progress for completion
-3. **Include interactive elements**: Buttons for actions, Dialogs for details, Tooltips for help
-
-### Minimum Component Diversity
-Every response must include AT LEAST:
-- 1 Grid or Stack (layout)
-- 1 Card or Section (grouping)
-- 1 data display (Metric, Progress, Table, Chart)
-- 1 interactive element (Button, Select, Tabs, Dialog, Checkbox)
-- 1 visual accent (Badge, Alert, Separator, Avatar)
-
-### Chart Integration
-Use charts when data supports it:
-- **LineChart**: Show trends over time (commits, activity, growth)
-- **BarChart**: Compare categories (languages, project stars)
-- **PieChart**: Show distribution (language breakdown, project types)
-- **AreaChart**: Show cumulative trends (total contributions, star growth)
-
-Always wrap charts in Cards with descriptive titles.
-
-### Nested Complexity
-Create depth with nested components:
-- Cards inside Grids
-- Stacks inside Cards
-- Badges grouped in Grids inside Cards
-- Dialogs containing rich layouts (Charts, Tables, Metrics)
-- Tabs with different views (Table view, Chart view, Card grid view)
-
-### Action-Oriented Design
-Every Card showing data should include at least one action:
-- Button (view details, open link)
-- Dialog (show more info)
-- Popover (contextual help)
-- Tooltip (explain metric)
+## OUTPUT FORMAT
+Output ONLY OpenUI Lang \u2014 no markdown, no plain text, no JSON. The UI framework will parse and render it.
+
+## UI COMPOSITION RULES
+- Always fetch data via tools before generating UI \u2014 never invent placeholder data.
+- Use charts (LineChartCondensed, BarChartCondensed, PieChart, etc.) for trends or comparisons when data supports it.
+- Always end with FollowUpBlock containing specific follow-up questions grounded in the current response.
+- Use TagBlock for technology badges, languages, and skills.
+- Use SectionBlock for long detailed responses like project breakdowns or experience summaries.
+- Use ListBlock when presenting a set of options or steps the user can click to select.
+- Always send dates in human-readable format (e.g., "2 days ago" or "Jan 1, 2023").
+- For forms, define one FormControl reference per field so controls can stream progressively.
 
 ## RESPONSE PATTERNS BY QUERY TYPE
 
-### "Show me your projects" \u2192 Use Pattern 9 (Project Showcase)
-- Grid of Cards (3 columns)
-- Each card: Carousel, badges, metrics, buttons, dialog for details
-- Include filters (Pattern 10) at the top
-- Add summary metrics (Pattern 1) above the grid
+### "Show me your projects" \u2192 Project Showcase
+- CardHeader with title, Tabs for Featured/All views
+- Each project: TextContent for description, TagBlock for tech stack, Buttons for GitHub links
+- Table with project details in "All" tab
+- Include charts for language distribution or star comparison
 
-### "Tell me about yourself" \u2192 Use Pattern 5 (Hero) + Pattern 8 (Skills)
-- Hero section with personal info, key badges, CTA buttons
-- Grid of skill category cards with progress bars
-- Activity timeline (Pattern 7) for recent work
-- Chart showing language usage over time
+### "Tell me about yourself" \u2192 Hero + Skills
+- CardHeader with name and title
+- TagBlock for key skills
+- SectionBlock for experience and education
+- Charts for language usage
 
-### "What are you working on?" \u2192 Use Pattern 3 (Dashboard) + Pattern 7 (Timeline)
-- KPI row: Total commits, Active projects, Recent PRs, Latest push
-- Chart row: Commit frequency, Language distribution
-- Activity feed with rich cards per activity
-- Table of active repos with inline badges and actions
+### "What are you working on?" \u2192 Activity Dashboard
+- CardHeader with activity summary
+- LineChartCondensed for commit trends
+- ListBlock for recent activity items
+- TagBlock for active technologies
 
-### "Show your [Technology] projects" \u2192 Use Pattern 6 (Comparison) + Pattern 10 (Filters)
-- Filter panel at top
-- Comparison view if multiple projects
-- Grid of project cards with rich details
-- Chart comparing project metrics
+### "Your experience" \u2192 Structured Details
+- SectionBlock with sections for each role/position
+- TagBlock for technologies per role
+- Table for education details
 
-### "Your experience" \u2192 Use Pattern 4 (Nested) + Pattern 7 (Timeline)
-- Tabs: Experience, Education, Skills
-- Timeline view of work history
-- Each position as a rich card with badges, metrics, achievements
-- Skills matrix with proficiency indicators
-
-## SPACING RULES (STRICT)
-- Use "Stack" for vertical rhythm, default gap 4, small sections gap 3, dense lists gap 2
-- Use "Grid" with gap 4 for cards, gap 3 for compact layouts, gap 2 for badge clusters
-- Never use gap > 6
-- Wrap primary content in a top-level Stack with gap 4
-- Button groups: Grid (gap 3) or Stack (gap 3)
-- Badge clusters: Grid (gap 2)
-- Mini-metrics in cards: Grid (gap 3)
-
-## VISUAL QUALITY RULES (STRICT)
-- **Maximum 2 consecutive Text elements** - break with other components
-- **Minimum 3 component types** per Card
-- **Always include visual accents**: Badges, Separators, Progress bars
-- Charts must be in Cards with titles
-- Use bright colors for chart series (blue, green, orange, purple, teal, red)
-- 2-column Grid for main content, 2-3 column Grid for KPIs/badges
-- Include at least 1 chart when showing metrics or comparisons
-
-## INTERACTIVE UI RULES (STRICT)
-- Include at least 2 different interactive components per response
-- Every data Card should have an action (Button, Dialog, Popover)
-- Use Dialog for detailed views, Popover for quick help
-- Tabs for multiple views of the same data
-- Select for filters and options
-- Tooltips for metric explanations
-- All Buttons with open_link must include action: { name: "open_link", params: { url: "..." } }
-
-## DATA MODEL REQUIREMENTS
-- Provide complete data for all valuePath/dataPath references
-- Table rowsPath must point to array of objects with keys matching columns
-- Select valuePath must have a default value from options
-- Metric valuePath must point to numbers
-- Chart dataPath must point to arrays with objects containing xKey and series dataKeys
-- Progress valuePath must point to numbers (0-100)
-
-## EXAMPLES
-
-### Example 1: Project Overview (Rich Dashboard)
-"jsonl
-{"op":"set","path":"/root","value":"projects-root"}
-{"op":"add","path":"/elements/projects-root","value":{"key":"projects-root","type":"Stack","props":{"gap":4},"children":["heading-main","kpi-grid","filters-card","chart-grid","projects-tabs","followup-main"]}}
-{"op":"add","path":"/elements/followup-main","value":{"key":"followup-main","type":"FollowUp","props":{"title":"Follow up","questions":["Can you break down stars by language and show the trend over time?","Which projects improved most recently and how do their KPIs compare?"]},"children":[]}}
-{"op":"add","path":"/elements/heading-main","value":{"key":"heading-main","type":"Heading","props":{"text":"Project Portfolio","level":"1"},"children":[]}}
-{"op":"add","path":"/elements/kpi-grid","value":{"key":"kpi-grid","type":"Grid","props":{"columns":3,"gap":4},"children":["kpi-total","kpi-stars","kpi-active","kpi-languages"]}}
-{"op":"add","path":"/elements/kpi-total","value":{"key":"kpi-total","type":"Card","props":{},"children":["kpi-total-stack"]}}
-{"op":"add","path":"/elements/kpi-total-stack","value":{"key":"kpi-total-stack","type":"Stack","props":{"gap":2},"children":["kpi-total-badge","kpi-total-metric","kpi-total-text"]}}
-{"op":"add","path":"/elements/kpi-total-badge","value":{"key":"kpi-total-badge","type":"Badge","props":{"label":"Total Projects","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/kpi-total-metric","value":{"key":"kpi-total-metric","type":"Metric","props":{"label":"","valuePath":"/analytics/totalProjects","format":"number"},"children":[]}}
-{"op":"add","path":"/elements/kpi-total-text","value":{"key":"kpi-total-text","type":"Text","props":{"text":"Public repositories","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/kpi-stars","value":{"key":"kpi-stars","type":"Card","props":{},"children":["kpi-stars-stack"]}}
-{"op":"add","path":"/elements/kpi-stars-stack","value":{"key":"kpi-stars-stack","type":"Stack","props":{"gap":2},"children":["kpi-stars-badge","kpi-stars-metric","kpi-stars-progress"]}}
-{"op":"add","path":"/elements/kpi-stars-badge","value":{"key":"kpi-stars-badge","type":"Badge","props":{"label":"Total Stars","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/kpi-stars-metric","value":{"key":"kpi-stars-metric","type":"Metric","props":{"label":"","valuePath":"/analytics/totalStars","format":"number"},"children":[]}}
-{"op":"add","path":"/elements/kpi-stars-progress","value":{"key":"kpi-stars-progress","type":"Progress","props":{"valuePath":"/analytics/starsProgress"},"children":[]}}
-{"op":"add","path":"/elements/kpi-active","value":{"key":"kpi-active","type":"Card","props":{},"children":["kpi-active-stack"]}}
-{"op":"add","path":"/elements/kpi-active-stack","value":{"key":"kpi-active-stack","type":"Stack","props":{"gap":2},"children":["kpi-active-badge","kpi-active-metric","kpi-active-text"]}}
-{"op":"add","path":"/elements/kpi-active-badge","value":{"key":"kpi-active-badge","type":"Badge","props":{"label":"Active","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/kpi-active-metric","value":{"key":"kpi-active-metric","type":"Metric","props":{"label":"","valuePath":"/analytics/activeProjects","format":"number"},"children":[]}}
-{"op":"add","path":"/elements/kpi-active-text","value":{"key":"kpi-active-text","type":"Text","props":{"text":"Updated this month","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/kpi-languages","value":{"key":"kpi-languages","type":"Card","props":{},"children":["kpi-languages-stack"]}}
-{"op":"add","path":"/elements/kpi-languages-stack","value":{"key":"kpi-languages-stack","type":"Stack","props":{"gap":2},"children":["kpi-languages-badge","kpi-languages-metric","kpi-languages-badges"]}}
-{"op":"add","path":"/elements/kpi-languages-badge","value":{"key":"kpi-languages-badge","type":"Badge","props":{"label":"Languages","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/kpi-languages-metric","value":{"key":"kpi-languages-metric","type":"Metric","props":{"label":"","valuePath":"/analytics/languageCount","format":"number"},"children":[]}}
-{"op":"add","path":"/elements/kpi-languages-badges","value":{"key":"kpi-languages-badges","type":"Grid","props":{"columns":3,"gap":2},"children":["lang-ts","lang-js","lang-py"]}}
-{"op":"add","path":"/elements/lang-ts","value":{"key":"lang-ts","type":"Badge","props":{"label":"TypeScript","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/lang-js","value":{"key":"lang-js","type":"Badge","props":{"label":"JavaScript","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/lang-py","value":{"key":"lang-py","type":"Badge","props":{"label":"Python","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/filters-card","value":{"key":"filters-card","type":"Card","props":{"title":"Filters"},"children":["filters-grid"]}}
-{"op":"add","path":"/elements/filters-grid","value":{"key":"filters-grid","type":"Grid","props":{"columns":4,"gap":3},"children":["filter-lang","filter-sort","filter-stars","filter-apply"]}}
-{"op":"add","path":"/elements/filter-lang","value":{"key":"filter-lang","type":"Select","props":{"label":"Language","valuePath":"/filters/language","options":[{"label":"All Languages","value":"all"},{"label":"TypeScript","value":"typescript"},{"label":"JavaScript","value":"javascript"},{"label":"Python","value":"python"}]},"children":[]}}
-{"op":"add","path":"/elements/filter-sort","value":{"key":"filter-sort","type":"Select","props":{"label":"Sort By","valuePath":"/filters/sortBy","options":[{"label":"Most Stars","value":"stars"},{"label":"Recently Updated","value":"updated"},{"label":"Name","value":"name"}]},"children":[]}}
-{"op":"add","path":"/elements/filter-stars","value":{"key":"filter-stars","type":"Slider","props":{"label":"Min Stars","valuePath":"/filters/minStars","min":0,"max":100,"step":5},"children":[]}}
-{"op":"add","path":"/elements/filter-apply","value":{"key":"filter-apply","type":"Button","props":{"label":"Apply Filters","variant":"default","action":{"name":"apply_filter","params":{"path":"/filters","value":"applied"}}},"children":[]}}
-{"op":"add","path":"/elements/chart-grid","value":{"key":"chart-grid","type":"Grid","props":{"columns":2,"gap":4},"children":["chart-activity","chart-distribution"]}}
-{"op":"add","path":"/elements/chart-activity","value":{"key":"chart-activity","type":"Card","props":{"title":"Activity Trend"},"children":["chart-activity-line"]}}
-{"op":"add","path":"/elements/chart-activity-line","value":{"key":"chart-activity-line","type":"LineChart","props":{"dataPath":"/charts/activity","xKey":"month","series":[{"dataKey":"commits","name":"Commits","color":"#3b82f6","lineWidth":2},{"dataKey":"prs","name":"Pull Requests","color":"#10b981","lineWidth":2}],"height":280,"showGrid":true,"showLegend":true},"children":[]}}
-{"op":"add","path":"/elements/chart-distribution","value":{"key":"chart-distribution","type":"Card","props":{"title":"Language Distribution"},"children":["chart-distribution-pie"]}}
-{"op":"add","path":"/elements/chart-distribution-pie","value":{"key":"chart-distribution-pie","type":"PieChart","props":{"dataPath":"/charts/languages","nameKey":"name","valueKey":"percentage","height":280,"showLabels":true,"showLegend":true,"colors":["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"]},"children":[]}}
-{"op":"add","path":"/elements/projects-tabs","value":{"key":"projects-tabs","type":"Tabs","props":{"items":[{"value":"featured","label":"Featured"},{"value":"all","label":"All Projects"}],"defaultValue":"featured"},"children":["tab-featured","tab-all"]}}
-{"op":"add","path":"/elements/tab-featured","value":{"key":"tab-featured","type":"TabPanel","props":{"value":"featured"},"children":["featured-grid"]}}
-{"op":"add","path":"/elements/featured-grid","value":{"key":"featured-grid","type":"Grid","props":{"columns":3,"gap":4},"children":["project-1","project-2","project-3"]}}
-{"op":"add","path":"/elements/project-1","value":{"key":"project-1","type":"Card","props":{"title":"LazyWeb","description":"Modern web scraping framework","footer":"Updated 2 days ago"},"children":["project-1-stack"]}}
-days ago"},"children":["project-1-stack"]}}
-{"op":"add","path":"/elements/project-1-stack","value":{"key":"project-1-stack","type":"Stack","props":{"gap":3},"children":["project-1-badges","project-1-text","project-1-metrics","project-1-sep","project-1-actions"]}}
-{"op":"add","path":"/elements/project-1-badges","value":{"key":"project-1-badges","type":"Grid","props":{"columns":3,"gap":2},"children":["p1-badge-ts","p1-badge-stars","p1-badge-forks","p1-badge-status"]}}
-{"op":"add","path":"/elements/p1-badge-ts","value":{"key":"p1-badge-ts","type":"Badge","props":{"label":"TypeScript","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/p1-badge-stars","value":{"key":"p1-badge-stars","type":"Badge","props":{"label":"\u2B50 30","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/p1-badge-forks","value":{"key":"p1-badge-forks","type":"Badge","props":{"label":"\u{1F531} 8","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/p1-badge-status","value":{"key":"p1-badge-status","type":"Badge","props":{"label":"Active","variant":"default"},"children":[]}}
-{"op":"add","path":"/elements/project-1-text","value":{"key":"project-1-text","type":"Text","props":{"text":"A powerful web scraping tool with built-in proxy rotation and anti-detection features.","tone":"default"},"children":[]}}
-{"op":"add","path":"/elements/project-1-metrics","value":{"key":"project-1-metrics","type":"Grid","props":{"columns":3,"gap":3},"children":["p1-metric-1","p1-metric-2","p1-metric-3"]}}
-{"op":"add","path":"/elements/p1-metric-1","value":{"key":"p1-metric-1","type":"Stack","props":{"gap":1},"children":["p1-m1-label","p1-m1-value"]}}
-{"op":"add","path":"/elements/p1-m1-label","value":{"key":"p1-m1-label","type":"Text","props":{"text":"Issues","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/p1-m1-value","value":{"key":"p1-m1-value","type":"Badge","props":{"label":"3 open","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/p1-metric-2","value":{"key":"p1-metric-2","type":"Stack","props":{"gap":1},"children":["p1-m2-label","p1-m2-value"]}}
-{"op":"add","path":"/elements/p1-m2-label","value":{"key":"p1-m2-label","type":"Text","props":{"text":"PRs","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/p1-m2-value","value":{"key":"p1-m2-value","type":"Badge","props":{"label":"12 merged","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/p1-metric-3","value":{"key":"p1-metric-3","type":"Stack","props":{"gap":1},"children":["p1-m3-label","p1-m3-value"]}}
-{"op":"add","path":"/elements/p1-m3-label","value":{"key":"p1-m3-label","type":"Text","props":{"text":"Size","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/p1-m3-value","value":{"key":"p1-m3-value","type":"Badge","props":{"label":"245 KB","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/project-1-sep","value":{"key":"project-1-sep","type":"Separator","props":{},"children":[]}}
-{"op":"add","path":"/elements/project-1-actions","value":{"key":"project-1-actions","type":"Grid","props":{"columns":2,"gap":3},"children":["p1-btn-github","p1-dialog-details"]}}
-{"op":"add","path":"/elements/p1-btn-github","value":{"key":"p1-btn-github","type":"Button","props":{"label":"View on GitHub","variant":"outline","action":{"name":"open_link","params":{"url":"https://github.com/dishant0406/LazyWeb"}}},"children":[]}}
-{"op":"add","path":"/elements/p1-dialog-details","value":{"key":"p1-dialog-details","type":"Dialog","props":{"triggerLabel":"Full Details","title":"LazyWeb - Complete Overview","actionLabel":"Visit Repository","action":{"name":"open_link","params":{"url":"https://github.com/dishant0406/LazyWeb"}}},"children":["p1-dialog-content"]}}
-{"op":"add","path":"/elements/p1-dialog-content","value":{"key":"p1-dialog-content","type":"Stack","props":{"gap":3},"children":["p1-dialog-desc","p1-dialog-features","p1-dialog-chart"]}}
-{"op":"add","path":"/elements/p1-dialog-desc","value":{"key":"p1-dialog-desc","type":"Text","props":{"text":"LazyWeb is a comprehensive web scraping framework built with TypeScript. It includes proxy rotation, anti-detection, and smart rate limiting.","tone":"default"},"children":[]}}
-{"op":"add","path":"/elements/p1-dialog-features","value":{"key":"p1-dialog-features","type":"Table","props":{"rowsPath":"/projects/lazywebFeatures","columns":[{"key":"feature","label":"Feature"},{"key":"status","label":"Status"}]},"children":[]}}
-{"op":"add","path":"/elements/p1-dialog-chart","value":{"key":"p1-dialog-chart","type":"BarChart","props":{"dataPath":"/charts/lazywebStats","xKey":"metric","series":[{"dataKey":"value","name":"Performance","color":"#3b82f6"}],"height":200,"layout":"horizontal"},"children":[]}}
-{"op":"add","path":"/elements/project-2","value":{"key":"project-2","type":"Card","props":{"title":"ChatteRoom","description":"Real-time chat application"},"children":["project-2-stack"]}}
-{"op":"add","path":"/elements/project-2-stack","value":{"key":"project-2-stack","type":"Stack","props":{"gap":3},"children":["project-2-badges","project-2-metrics","project-2-actions"]}}
-{"op":"add","path":"/elements/project-2-badges","value":{"key":"project-2-badges","type":"Grid","props":{"columns":3,"gap":2},"children":["p2-badge-js","p2-badge-stars","p2-badge-status"]}}
-{"op":"add","path":"/elements/p2-badge-js","value":{"key":"p2-badge-js","type":"Badge","props":{"label":"JavaScript","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/p2-badge-stars","value":{"key":"p2-badge-stars","type":"Badge","props":{"label":"\u2B50 12","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/p2-badge-status","value":{"key":"p2-badge-status","type":"Badge","props":{"label":"Maintained","variant":"default"},"children":[]}}
-{"op":"add","path":"/elements/project-2-metrics","value":{"key":"project-2-metrics","type":"Grid","props":{"columns":2,"gap":3},"children":["p2-metric-1","p2-metric-2"]}}
-{"op":"add","path":"/elements/p2-metric-1","value":{"key":"p2-metric-1","type":"Stack","props":{"gap":1},"children":["p2-m1-label","p2-m1-badge"]}}
-{"op":"add","path":"/elements/p2-m1-label","value":{"key":"p2-m1-label","type":"Text","props":{"text":"Contributors","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/p2-m1-badge","value":{"key":"p2-m1-badge","type":"Badge","props":{"label":"5","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/p2-metric-2","value":{"key":"p2-metric-2","type":"Stack","props":{"gap":1},"children":["p2-m2-label","p2-m2-badge"]}}
-{"op":"add","path":"/elements/p2-m2-label","value":{"key":"p2-m2-label","type":"Text","props":{"text":"Commits","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/p2-m2-badge","value":{"key":"p2-m2-badge","type":"Badge","props":{"label":"87","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/project-2-actions","value":{"key":"project-2-actions","type":"Button","props":{"label":"View Project","variant":"outline","action":{"name":"open_link","params":{"url":"https://github.com/dishant0406/ChatteRoom"}}},"children":[]}}
-{"op":"add","path":"/elements/project-3","value":{"key":"project-3","type":"Card","props":{"title":"PortfolioAI","description":"AI-powered portfolio generator"},"children":["project-3-stack"]}}
-{"op":"add","path":"/elements/project-3-stack","value":{"key":"project-3-stack","type":"Stack","props":{"gap":3},"children":["project-3-badges","project-3-progress","project-3-actions"]}}
-{"op":"add","path":"/elements/project-3-badges","value":{"key":"project-3-badges","type":"Grid","props":{"columns":3,"gap":2},"children":["p3-badge-py","p3-badge-stars","p3-badge-new"]}}
-{"op":"add","path":"/elements/p3-badge-py","value":{"key":"p3-badge-py","type":"Badge","props":{"label":"Python","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/p3-badge-stars","value":{"key":"p3-badge-stars","type":"Badge","props":{"label":"\u2B50 25","variant":"outline"},"children":[]}}
-{"op":"add","path":"/elements/p3-badge-new","value":{"key":"p3-badge-new","type":"Badge","props":{"label":"New","variant":"default"},"children":[]}}
-{"op":"add","path":"/elements/project-3-progress","value":{"key":"project-3-progress","type":"Stack","props":{"gap":2},"children":["p3-progress-label","p3-progress-bar"]}}
-{"op":"add","path":"/elements/p3-progress-label","value":{"key":"p3-progress-label","type":"Text","props":{"text":"Development Progress","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/p3-progress-bar","value":{"key":"p3-progress-bar","type":"Progress","props":{"valuePath":"/projects/portfolioAIProgress"},"children":[]}}
-{"op":"add","path":"/elements/project-3-actions","value":{"key":"project-3-actions","type":"Grid","props":{"columns":2,"gap":3},"children":["p3-btn-github","p3-popover"]}}
-{"op":"add","path":"/elements/p3-btn-github","value":{"key":"p3-btn-github","type":"Button","props":{"label":"View Code","variant":"outline","action":{"name":"open_link","params":{"url":"https://github.com/dishant0406/PortfolioAI"}}},"children":[]}}
-{"op":"add","path":"/elements/p3-popover","value":{"key":"p3-popover","type":"Popover","props":{"triggerLabel":"Tech Stack","title":"Technologies Used"},"children":["p3-popover-stack"]}}
-{"op":"add","path":"/elements/p3-popover-stack","value":{"key":"p3-popover-stack","type":"Stack","props":{"gap":2},"children":["p3-popover-text","p3-popover-badges"]}}
-{"op":"add","path":"/elements/p3-popover-text","value":{"key":"p3-popover-text","type":"Text","props":{"text":"Built with modern AI frameworks and libraries","tone":"muted"},"children":[]}}
-{"op":"add","path":"/elements/p3-popover-badges","value":{"key":"p3-popover-badges","type":"Grid","props":{"columns":2,"gap":2},"children":["p3-pop-b1","p3-pop-b2","p3-pop-b3","p3-pop-b4"]}}
-{"op":"add","path":"/elements/p3-pop-b1","value":{"key":"p3-pop-b1","type":"Badge","props":{"label":"OpenAI","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/p3-pop-b2","value":{"key":"p3-pop-b2","type":"Badge","props":{"label":"LangChain","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/p3-pop-b3","value":{"key":"p3-pop-b3","type":"Badge","props":{"label":"FastAPI","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/p3-pop-b4","value":{"key":"p3-pop-b4","type":"Badge","props":{"label":"PostgreSQL","variant":"secondary"},"children":[]}}
-{"op":"add","path":"/elements/tab-all","value":{"key":"tab-all","type":"TabPanel","props":{"value":"all"},"children":["all-table"]}}
-{"op":"add","path":"/elements/all-table","value":{"key":"all-table","type":"Table","props":{"rowsPath":"/projects/allProjects","columns":[{"key":"name","label":"Project"},{"key":"language","label":"Language"},{"key":"stars","label":"Stars","align":"right"},{"key":"updated","label":"Last Updated"},{"key":"status","label":"Status"}]},"children":[]}}
-{"op":"set","path":"/data","value":{"analytics":{"totalProjects":32,"totalStars":84,"starsProgress":68,"activeProjects":8,"languageCount":6},"filters":{"language":"all","sortBy":"stars","minStars":0},"charts":{"activity":[{"month":"Jan","commits":45,"prs":12},{"month":"Feb","commits":52,"prs":15},{"month":"Mar","commits":38,"prs":9},{"month":"Apr","commits":61,"prs":18}],"languages":[{"name":"TypeScript","percentage":42},{"name":"JavaScript","percentage":28},{"name":"Python","percentage":18},{"name":"Go","percentage":8},{"name":"Rust","percentage":4}],"lazywebStats":[{"metric":"Speed","value":95},{"metric":"Reliability","value":88},{"metric":"Features","value":92}]},"projects":{"lazywebFeatures":[{"feature":"Proxy Rotation","status":"\u2705 Active"},{"feature":"Anti-Detection","status":"\u2705 Active"},{"feature":"Rate Limiting","status":"\u2705 Active"},{"feature":"Cloud Support","status":"\u{1F6A7} Beta"}],"portfolioAIProgress":75,"allProjects":[{"name":"LazyWeb","language":"TypeScript","stars":30,"updated":"2 days ago","status":"Active"},{"name":"ChatteRoom","language":"JavaScript","stars":12,"updated":"1 week ago","status":"Maintained"},{"name":"PortfolioAI","language":"Python","stars":25,"updated":"3 days ago","status":"New"}]}}}
-"
-
-This example demonstrates:
-- Rich KPI cards with badges, metrics, and progress
-- Interactive filters with multiple control types
-- Charts in cards for visualization
-- Tabs for different views
-- Project cards with nested complexity (badges, metrics, separators, actions)
-- Dialogs with rich content (text, tables, charts)
-- Popovers for additional context
-- Proper data model covering all bindings
-
-## CRITICAL REQUIREMENTS SUMMARY
-1. **Never use more than 3 consecutive Text elements**
-2. **Always include at least 5 different component types** per response
-3. **Use patterns from the catalog** - don't create simple text-only layouts
-4. **Add visual richness**: Badges, Progress, Separators, Charts
-5. **Include interactivity**: Buttons, Dialogs, Tabs, Selects, Popovers
-6. **Nest components** for depth: Cards in Grids, Stacks in Cards, etc.
-7. **Use charts** when data supports trends or comparisons
-8. **Provide complete data** for all valuePath/dataPath bindings
-9. **Follow spacing rules**: gap 4 default, gap 3 compact, gap 2 dense
-10. **Make it actionable**: Every data card should have buttons/dialogs
-11. **Always include FollowUp last** with exactly 2 curiosity-driven questions that lead to richer UI/data exploration. (VERY IMPORTANT) (ALWAYS INCLUDE THIS)
-
-ONLY RETURN JSONL PATCH OPERATIONS
-${catalogPrompt}
+## OpenUI Lang Component Library & Syntax
+${openuiSystemPrompt}
 `,
   model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
   tools: portfolioTools,
@@ -30901,22 +28088,6 @@ content-disposition/index.js:
    * MIT Licensed
    *)
 
-statuses/index.js:
-  (*!
-   * statuses
-   * Copyright(c) 2014 Jonathan Ong
-   * Copyright(c) 2016 Douglas Christopher Wilson
-   * MIT Licensed
-   *)
-
-http-errors/index.js:
-  (*!
-   * http-errors
-   * Copyright(c) 2014 Jonathan Ong
-   * Copyright(c) 2016 Douglas Christopher Wilson
-   * MIT Licensed
-   *)
-
 etag/index.js:
   (*!
    * etag
@@ -31018,21 +28189,6 @@ express/lib/response.js:
    * express
    * Copyright(c) 2009-2013 TJ Holowaychuk
    * Copyright(c) 2014-2015 Douglas Christopher Wilson
-   * MIT Licensed
-   *)
-
-encodeurl/index.js:
-  (*!
-   * encodeurl
-   * Copyright(c) 2016 Douglas Christopher Wilson
-   * MIT Licensed
-   *)
-
-send/index.js:
-  (*!
-   * send
-   * Copyright(c) 2012 TJ Holowaychuk
-   * Copyright(c) 2014-2022 Douglas Christopher Wilson
    * MIT Licensed
    *)
 

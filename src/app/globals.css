@@ -1,4 +1,9 @@
-@import 'tailwindcss';
+/* Cascade layer ordering: keep OpenUI component styles above Tailwind's
+   Preflight (base) but below our utilities so app CSS can override when needed.
+   Imported from exactly one place to avoid Turbopack layer-order races. */
+@layer theme, base, openui, components, utilities;
+@import "tailwindcss";
+@import "@openuidev/react-ui/layered/styles/index.css";
 
 /* Configure Tailwind v4 to use class-based dark mode */
 /* stylelint-disable-next-line at-rule-no-unknown */
