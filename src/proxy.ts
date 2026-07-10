@@ -22,28 +22,32 @@ export async function proxy(request: NextRequest) {
 // Async function to fetch geo-location data and set headers
 async function fetchGeoLocationData(ip: string, response: NextResponse) {
   try {
-    // Using custom Azure Container Apps geo-location API
-    const geoResponse = await fetch(`https://ipinfo.proudsmoke-360acd96.centralindia.azurecontainerapps.io/lookup/${ip}`, {
+    // Free, no-key, HTTPS geo-location API (ipwho.is)
+    const geoResponse = await fetch(`https://ipwho.is/${ip}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       next: { revalidate: 3600 } // Cache for 1 hour
     });
 
     if (geoResponse.ok) {
       const geoData = await geoResponse.json();
-      
-      // Set custom geo headers based on the API response format
-      response.headers.set('x-geo-timezone', geoData.timezone || 'Asia/Kolkata');
-      response.headers.set('x-geo-city', geoData.city || 'Bangalore');
-      response.headers.set('x-geo-latitude', geoData.ll?.[0]?.toString() || '12.9716');
-      response.headers.set('x-geo-longitude', geoData.ll?.[1]?.toString() || '77.5946');
-      response.headers.set('x-geo-country', geoData.country || 'IN');
-      
-      console.log('Geo data fetched:', {
-        city: geoData.city,
-        country: geoData.country,
-        timezone: geoData.timezone,
-        coordinates: geoData.ll
-      });
+
+      if (geoData.success) {
+        // Set custom geo headers based on the API response format
+        response.headers.set('x-geo-timezone', geoData.timezone?.id || 'Asia/Kolkata');
+        response.headers.set('x-geo-city', geoData.city || 'Bangalore');
+        response.headers.set('x-geo-latitude', geoData.latitude?.toString() || '12.9716');
+        response.headers.set('x-geo-longitude', geoData.longitude?.toString() || '77.5946');
+        response.headers.set('x-geo-country', geoData.country_code || 'IN');
+
+        console.log('Geo data fetched:', {
+          city: geoData.city,
+          country: geoData.country_code,
+          timezone: geoData.timezone?.id,
+          coordinates: [geoData.latitude, geoData.longitude]
+        });
+      } else {
+        setDefaultHeaders(response);
+      }
     } else {
       setDefaultHeaders(response);
     }
