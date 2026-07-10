@@ -3,7 +3,7 @@
 import { useTheme } from '@/hooks';
 import { ThemeProvider as OpenUIThemeProvider } from '@openuidev/react-ui';
 import { ReactNode } from 'react';
-import { portfolioOpenUITheme } from '@/openui/theme';
+import { portfolioOpenUIDarkTheme, portfolioOpenUILightTheme } from '@/openui/theme';
 
 interface OpenUIThemeScopeProps {
   children: ReactNode;
@@ -15,8 +15,8 @@ export function OpenUIThemeScope({ children }: OpenUIThemeScopeProps) {
   return (
     <OpenUIThemeProvider
       mode={mounted && resolvedTheme === 'dark' ? 'dark' : 'light'}
-      lightTheme={portfolioOpenUITheme}
-      darkTheme={portfolioOpenUITheme}
+      lightTheme={portfolioOpenUILightTheme}
+      darkTheme={portfolioOpenUIDarkTheme}
     >
       {children}
     </OpenUIThemeProvider>

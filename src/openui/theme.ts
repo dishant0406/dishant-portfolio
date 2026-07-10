@@ -2,7 +2,7 @@ import { createTheme } from '@openuidev/react-ui'
 
 // Keep OpenUI aligned with the app's existing CSS variables so the generated
 // renderer automatically follows light/dark mode and brand accents.
-export const portfolioOpenUITheme = createTheme({
+const portfolioOpenUIBaseTheme = {
   background: 'var(--color-background)',
   // OpenUI uses "foreground" as the default raised surface fill token.
   foreground: 'var(--color-card)',
@@ -155,4 +155,23 @@ export const portfolioOpenUITheme = createTheme({
   shadowXl: 'var(--shadow-lg)',
   shadow2xl: 'var(--shadow-xl)',
   shadow3xl: 'var(--shadow-2xl)',
+}
+
+export const portfolioOpenUILightTheme = createTheme(portfolioOpenUIBaseTheme)
+
+export const portfolioOpenUIDarkTheme = createTheme({
+  ...portfolioOpenUIBaseTheme,
+  // OpenUI primary buttons use inverted/white text. The app's dark-mode
+  // --color-primary is intentionally light, so use the dark accent surface for
+  // enabled OpenUI actions to preserve contrast after streaming finishes.
+  interactiveAccentDefault: 'var(--color-accent)',
+  interactiveAccentHover: 'color-mix(in srgb, var(--color-accent) 80%, var(--color-foreground))',
+  interactiveAccentPressed: 'color-mix(in srgb, var(--color-accent) 88%, var(--color-background))',
+  interactiveAccentDisabled: 'var(--color-muted)',
+  borderInteractiveSelected: 'var(--color-accent)',
+  borderAccent: 'var(--color-accent)',
+  borderAccentEmphasis: 'color-mix(in srgb, var(--color-accent) 70%, var(--color-foreground))',
+  borderAccentSelected: 'var(--color-accent)',
 })
+
+export const portfolioOpenUITheme = portfolioOpenUILightTheme
