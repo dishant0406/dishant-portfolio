@@ -39,6 +39,8 @@ interface AppState {
   setIsLoading: (isLoading: boolean) => void;
   isChatLoading: boolean;
   setIsChatLoading: (isLoading: boolean) => void;
+  activeStreamId: string | null;
+  activeStreamController: AbortController | null;
   
   // Message state
   message: string;
@@ -103,13 +105,45 @@ export const formatRelativeTime = (date: Date) => {
 // Resource ID for memory (using a constant for visitor sessions)
 const RESOURCE_ID = 'portfolio-visitor';
 
+type SseBoundary = { index: number; length: number } | null;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const findSseBoundary = (buffer: string): SseBoundary => {
+  const lfIndex = buffer.indexOf('\n\n');
+  const crlfIndex = buffer.indexOf('\r\n\r\n');
+
+  if (lfIndex === -1 && crlfIndex === -1) return null;
+  if (lfIndex === -1) return { index: crlfIndex, length: 4 };
+  if (crlfIndex === -1) return { index: lfIndex, length: 2 };
+
+  return lfIndex < crlfIndex
+    ? { index: lfIndex, length: 2 }
+    : { index: crlfIndex, length: 4 };
+};
+
+const extractSseData = (event: string) => {
+  const dataLines = event
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart());
+
+  return dataLines.length > 0 ? dataLines.join('\n').trim() : '';
+};
+
+const isAbortError = (error: unknown) =>
+  error instanceof DOMException && error.name === 'AbortError';
+
 // Stream response from the Mastra API
 const streamResponse = async (
   chatId: string,
   messages: Array<{ role: string; content: string }>,
   updateChat: (id: string, updates: Partial<Chat>) => void,
-  setIsLoading: (isLoading: boolean) => void,
-  getChat: () => Chat | undefined
+  getChat: () => Chat | undefined,
+  signal: AbortSignal,
+  isCurrentStream: () => boolean,
+  finishStream: () => void
 ) => {
   const messageId = generateId();
   let fullContent = '';
@@ -127,6 +161,8 @@ const streamResponse = async (
   
   // Helper to update the message in chat
   const updateMessage = () => {
+    if (!isCurrentStream()) return;
+
     const chat = getChat();
     if (chat && chat.messages) {
       const updatedMessages = chat.messages.filter(m => m.id !== messageId);
@@ -147,6 +183,7 @@ const streamResponse = async (
       headers: {
         'Content-Type': 'application/json',
       },
+      signal,
       body: JSON.stringify({ 
         messages,
         threadId: chatId,
@@ -164,58 +201,89 @@ const streamResponse = async (
     if (!reader) {
       throw new Error('No reader available');
     }
+
+    const processSseData = (data: string) => {
+      if (!data || data === '[DONE]') return;
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(data);
+      } catch {
+        return;
+      }
+
+      if (!isRecord(parsed)) return;
+
+      if (parsed.type === 'text' && typeof parsed.text === 'string' && parsed.text.length > 0) {
+        fullContent += parsed.text;
+        updateMessage();
+        return;
+      }
+
+      if (parsed.type === 'tool-call') {
+        const toolCallId = typeof parsed.toolCallId === 'string' ? parsed.toolCallId : generateId();
+        const toolName = typeof parsed.toolName === 'string' ? parsed.toolName : 'unknown';
+
+        const newToolCall: ToolCall = {
+          id: toolCallId,
+          toolName,
+          args: parsed.args,
+          status: 'running',
+        };
+        toolCalls = [...toolCalls.filter(t => t.id !== toolCallId), newToolCall];
+        updateMessage();
+        return;
+      }
+
+      if (parsed.type === 'tool-result') {
+        const toolCallId = typeof parsed.toolCallId === 'string' ? parsed.toolCallId : '';
+        if (!toolCallId) return;
+
+        toolCalls = toolCalls.map(t =>
+          t.id === toolCallId
+            ? { ...t, status: 'completed' as const, result: parsed.result }
+            : t
+        );
+        updateMessage();
+        return;
+      }
+
+      if (parsed.type === 'error') {
+        const errorMessage = typeof parsed.error === 'string' ? parsed.error : 'Stream error';
+        throw new Error(errorMessage);
+      }
+    };
+
+    const processSseEvent = (event: string) => {
+      processSseData(extractSseData(event));
+    };
+
+    let buffer = '';
     
     while (true) {
       const { done, value } = await reader.read();
       
       if (done) break;
       
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split('\n');
-      
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          
-          if (data === '[DONE]') {
-            continue;
-          }
-          
-          try {
-            const parsed = JSON.parse(data);
-            
-            if (parsed.type === 'text' && parsed.text) {
-              fullContent += parsed.text;
-              updateMessage();
-            } else if (parsed.type === 'tool-call') {
-              // Add new tool call with running status
-              const newToolCall: ToolCall = {
-                id: parsed.toolCallId,
-                toolName: parsed.toolName,
-                args: parsed.args,
-                status: 'running',
-              };
-              toolCalls = [...toolCalls.filter(t => t.id !== parsed.toolCallId), newToolCall];
-              updateMessage();
-            } else if (parsed.type === 'tool-result') {
-              // Update tool call with completed status
-              toolCalls = toolCalls.map(t => 
-                t.id === parsed.toolCallId 
-                  ? { ...t, status: 'completed' as const, result: parsed.result }
-                  : t
-              );
-              updateMessage();
-            }
-          } catch {
-            // Skip invalid JSON
-          }
-        }
+      buffer += decoder.decode(value, { stream: true });
+
+      let boundary = findSseBoundary(buffer);
+      while (boundary) {
+        const event = buffer.slice(0, boundary.index);
+        buffer = buffer.slice(boundary.index + boundary.length);
+        processSseEvent(event);
+        boundary = findSseBoundary(buffer);
       }
+    }
+
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      processSseEvent(buffer);
     }
     
     // Finalize message
     const chat = getChat();
-    if (chat && chat.messages) {
+    if (isCurrentStream() && chat && chat.messages) {
       const updatedMessages = chat.messages.filter(m => m.id !== messageId);
       updateChat(chatId, {
         messages: [...updatedMessages, { 
@@ -229,6 +297,25 @@ const streamResponse = async (
     }
   } catch (error) {
     console.error('Streaming error:', error);
+    if (!isCurrentStream() || isAbortError(error)) return;
+
+    if (fullContent) {
+      const chat = getChat();
+      if (chat && chat.messages) {
+        const updatedMessages = chat.messages.filter(m => m.id !== messageId);
+        updateChat(chatId, {
+          messages: [...updatedMessages, {
+            ...assistantMessage,
+            content: fullContent,
+            toolCalls,
+            isStreaming: false,
+          }],
+          updatedAt: new Date(),
+        });
+      }
+
+      return;
+    }
     
     // Fallback to non-streaming API
     try {
@@ -237,6 +324,7 @@ const streamResponse = async (
         headers: {
           'Content-Type': 'application/json',
         },
+        signal,
         body: JSON.stringify({ 
           messages,
           threadId: chatId,
@@ -256,7 +344,7 @@ const streamResponse = async (
     
     // Update with fallback content
     const chat = getChat();
-    if (chat && chat.messages) {
+    if (isCurrentStream() && chat && chat.messages) {
       const updatedMessages = chat.messages.filter(m => m.id !== messageId);
       updateChat(chatId, {
         messages: [...updatedMessages, { 
@@ -268,7 +356,7 @@ const streamResponse = async (
       });
     }
   } finally {
-    setIsLoading(false);
+    finishStream();
   }
 };
 
@@ -335,6 +423,8 @@ export const useAppStore = create<AppState>()(
       setIsLoading: (isLoading) => set({ isLoading }),
       isChatLoading: false,
       setIsChatLoading: (isChatLoading) => set({ isChatLoading }),
+      activeStreamId: null,
+      activeStreamController: null,
       
       // Message state
       message: '',
@@ -393,12 +483,13 @@ export const useAppStore = create<AppState>()(
         
         return chatId;
       },
-      
+       
       sendMessage: () => {
-        const { message, currentChatId, createNewChat, updateChat, setIsLoading } = get();
-        
+        const { message, currentChatId, createNewChat, updateChat, isLoading, activeStreamId } = get();
+         
         if (!message.trim()) return;
-        
+        if (isLoading || activeStreamId) return;
+         
         let chatId = currentChatId;
         let existingMessages: Array<{ role: string; content: string }> = [];
         
@@ -444,20 +535,38 @@ export const useAppStore = create<AppState>()(
           ...existingMessages,
           { role: 'user', content: message }
         ];
-        
+
+        const streamId = generateId();
+        const abortController = new AbortController();
+        const isCurrentStream = () => get().activeStreamId === streamId;
+        const finishStream = () => {
+          if (get().activeStreamId === streamId) {
+            set({
+              isLoading: false,
+              activeStreamId: null,
+              activeStreamController: null,
+            });
+          }
+        };
+
+        set({ activeStreamId: streamId, activeStreamController: abortController });
+         
         // Call the Mastra API
         streamResponse(
           chatId!, 
           apiMessages, 
           updateChat, 
-          setIsLoading, 
-          () => get().chats.find(c => c.id === chatId)
+          () => get().chats.find(c => c.id === chatId),
+          abortController.signal,
+          isCurrentStream,
+          finishStream
         );
       },
-      
+       
       handleCardAction: (cardId) => {
-        const { updateChat, setIsLoading } = get();
-        
+        const { updateChat, isLoading, activeStreamId } = get();
+        if (isLoading || activeStreamId) return;
+         
         // Track feature card click
         analytics.featureCardClicked(cardId);
         
@@ -499,14 +608,31 @@ export const useAppStore = create<AppState>()(
         
         // Build messages array for API
         const apiMessages = [{ role: 'user', content: userQuestion }];
-        
+
+        const streamId = generateId();
+        const abortController = new AbortController();
+        const isCurrentStream = () => get().activeStreamId === streamId;
+        const finishStream = () => {
+          if (get().activeStreamId === streamId) {
+            set({
+              isLoading: false,
+              activeStreamId: null,
+              activeStreamController: null,
+            });
+          }
+        };
+
+        set({ activeStreamId: streamId, activeStreamController: abortController });
+         
         // Call the Mastra API
         streamResponse(
           chatId, 
           apiMessages, 
           updateChat, 
-          setIsLoading, 
-          () => get().chats.find(c => c.id === chatId)
+          () => get().chats.find(c => c.id === chatId),
+          abortController.signal,
+          isCurrentStream,
+          finishStream
         );
       },
       
@@ -523,35 +649,53 @@ export const useAppStore = create<AppState>()(
             return null;
           }
           
-          const data = await response.json();
+          const data: unknown = await response.json();
+          const responseData = isRecord(data) ? data : {};
+          const rawMessages = Array.isArray(responseData.messages) ? responseData.messages : [];
+          const thread = isRecord(responseData.thread) ? responseData.thread : undefined;
           
           // Convert API messages to our format
-          const messages: ChatMessage[] = (data.messages || []).map((msg: any) => {
+          const messages: ChatMessage[] = rawMessages.filter(isRecord).map((msg) => {
+            const rawToolInvocations = Array.isArray(msg.toolInvocations) ? msg.toolInvocations : [];
+
             // Extract tool invocations if present
-            const toolCalls: ToolCall[] | undefined = msg.toolInvocations?.map((inv: any) => ({
-              id: inv.toolCallId || generateId(),
-              toolName: inv.toolName,
-              args: inv.args,
-              status: inv.state === 'result' ? 'completed' : 
-                      inv.state === 'partial-call' ? 'running' : 
-                      'pending',
-              result: inv.result,
-            }));
+            const toolCalls: ToolCall[] | undefined = rawToolInvocations.filter(isRecord).map((inv) => {
+              const state = typeof inv.state === 'string' ? inv.state : '';
+
+              return {
+                id: typeof inv.toolCallId === 'string' ? inv.toolCallId : generateId(),
+                toolName: typeof inv.toolName === 'string' ? inv.toolName : 'unknown',
+                args: inv.args,
+                status: state === 'result' ? 'completed' :
+                        state === 'partial-call' ? 'running' :
+                        'pending',
+                result: inv.result,
+              };
+            });
+
+            const role = msg.role === 'assistant' ? 'assistant' : 'user';
+            const createdAt = typeof msg.createdAt === 'string' || typeof msg.createdAt === 'number'
+              ? new Date(msg.createdAt)
+              : new Date();
 
             return {
-              id: msg.id || generateId(),
-              role: msg.role as 'user' | 'assistant',
-              content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-              timestamp: msg.createdAt ? new Date(msg.createdAt) : new Date(),
+              id: typeof msg.id === 'string' ? msg.id : generateId(),
+              role,
+              content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content ?? ''),
+              timestamp: createdAt,
               toolCalls,
             };
           });
           
           const chat: Chat = {
             id: threadId,
-            title: data.thread?.title || 'Conversation',
-            createdAt: data.thread?.createdAt ? new Date(data.thread.createdAt) : new Date(),
-            updatedAt: data.thread?.updatedAt ? new Date(data.thread.updatedAt) : new Date(),
+            title: typeof thread?.title === 'string' ? thread.title : 'Conversation',
+            createdAt: typeof thread?.createdAt === 'string' || typeof thread?.createdAt === 'number'
+              ? new Date(thread.createdAt)
+              : new Date(),
+            updatedAt: typeof thread?.updatedAt === 'string' || typeof thread?.updatedAt === 'number'
+              ? new Date(thread.updatedAt)
+              : new Date(),
             messages,
           };
           

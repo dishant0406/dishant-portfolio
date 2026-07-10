@@ -27639,6 +27639,13 @@ var mastra = global._mastraInstance;
 // index.ts
 var app = (0, import_express.default)();
 var PORT = process.env.MASTRA_PORT || 4e3;
+var isRecord = (value) => typeof value === "object" && value !== null;
+var firstString = (...values) => {
+  for (const value of values) {
+    if (typeof value === "string") return value;
+  }
+  return "";
+};
 app.use((0, import_cors.default)({
   origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
   credentials: true
@@ -27670,54 +27677,71 @@ app.post("/agent/stream", async (req, res) => {
       }))
     });
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+    let responseClosed = false;
+    res.on("close", () => {
+      responseClosed = true;
+    });
+    const writeSse = (event) => {
+      if (responseClosed || res.writableEnded) return;
+      res.write(`data: ${JSON.stringify(event)}
+
+`);
+    };
     for await (const chunk of stream.fullStream) {
       const c = chunk;
       const chunkType = c.type;
-      const payload = c.payload;
-      if (chunkType === "text-delta" || chunkType === "textDelta" || chunkType === "text") {
-        const text = c.textDelta || payload?.textDelta || c.text || payload?.text || "";
+      const payload = isRecord(c.payload) ? c.payload : void 0;
+      if (chunkType === "text-delta" || chunkType === "textDelta") {
+        const text = firstString(c.text, payload?.text, c.textDelta, payload?.textDelta);
         if (text) {
-          res.write(`data: ${JSON.stringify({ type: "text", text })}
-`);
+          writeSse({ type: "text", text });
         }
       } else if (chunkType === "tool-call" || chunkType === "toolCall") {
-        const toolName = c.toolName || payload?.toolName || "unknown";
-        const toolCallId = c.toolCallId || payload?.toolCallId || String(Date.now());
+        const toolName = firstString(c.toolName, payload?.toolName) || "unknown";
+        const toolCallId = firstString(c.toolCallId, payload?.toolCallId) || String(Date.now());
         const args = c.args || payload?.args;
-        res.write(`data: ${JSON.stringify({
+        writeSse({
           type: "tool-call",
           toolName,
           toolCallId,
           args
-        })}
-`);
+        });
       } else if (chunkType === "tool-result" || chunkType === "toolResult") {
-        const toolName = c.toolName || payload?.toolName || "unknown";
-        const toolCallId = c.toolCallId || payload?.toolCallId || String(Date.now());
+        const toolName = firstString(c.toolName, payload?.toolName) || "unknown";
+        const toolCallId = firstString(c.toolCallId, payload?.toolCallId) || String(Date.now());
         const result = c.result || payload?.result;
-        res.write(`data: ${JSON.stringify({
+        writeSse({
           type: "tool-result",
           toolName,
           toolCallId,
           result
-        })}
-`);
+        });
       } else if (chunkType === "tripwire") {
-        const tripwireReason = c.tripwireReason || payload?.tripwireReason || "Request blocked by guardrails";
-        res.write(`data: ${JSON.stringify({
+        const tripwireReason = firstString(c.tripwireReason, payload?.tripwireReason) || "Request blocked by guardrails";
+        writeSse({
           type: "text",
           text: tripwireReason
-        })}
-`);
+        });
       }
     }
-    res.write("data: [DONE]\n\n");
-    res.end();
+    if (!responseClosed && !res.writableEnded) {
+      res.write("data: [DONE]\n\n");
+      res.end();
+    }
   } catch (error) {
     console.error("Stream error:", error);
-    res.status(500).json({ error: "Internal server error", details: String(error) });
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Internal server error", details: String(error) });
+    } else if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: "error", error: "Internal server error" })}
+
+`);
+      res.end();
+    }
   }
 });
 app.post("/agent/generate", async (req, res) => {
