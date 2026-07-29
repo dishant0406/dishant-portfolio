@@ -98,6 +98,7 @@ Create a `.env.local` file in the project root:
 OPENCODE_API_KEY=your-opencode-key
 OPENCODE_MODEL=deepseek-v4-flash
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
+OPENCODE_THINKING_MODE=disabled
 
 # Database
 MEMORY_DATABASE_URL=postgresql://user:password@host:port/database

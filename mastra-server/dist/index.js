@@ -27586,6 +27586,30 @@ if (!global._mastraInstance) {
 }
 var mastra = global._mastraInstance;
 
+// opencode-thinking.ts
+var OPENCODE_PROVIDER_KEY = "opencode-go";
+var DISABLED_VALUES = /* @__PURE__ */ new Set(["disabled", "disable", "off", "false", "0", "none", "no"]);
+var ENABLED_VALUES = /* @__PURE__ */ new Set(["enabled", "enable", "on", "true", "1", "yes"]);
+var AUTO_VALUES = /* @__PURE__ */ new Set(["auto", "default", "provider"]);
+var getOpencodeThinkingMode = (value = process.env.OPENCODE_THINKING_MODE) => {
+  const normalized = String(value || "disabled").trim().toLowerCase();
+  if (ENABLED_VALUES.has(normalized)) return "enabled";
+  if (AUTO_VALUES.has(normalized)) return "auto";
+  if (DISABLED_VALUES.has(normalized)) return "disabled";
+  return "disabled";
+};
+var shouldForwardThinkingEvents = (mode = getOpencodeThinkingMode()) => mode !== "disabled";
+var getOpencodeProviderOptions = (mode = getOpencodeThinkingMode()) => {
+  if (mode === "auto") return void 0;
+  return {
+    [OPENCODE_PROVIDER_KEY]: {
+      thinking: {
+        type: mode
+      }
+    }
+  };
+};
+
 // portfolio-context.ts
 var import_runtime_context = require("@mastra/core/runtime-context");
 var BASE_TOOL_RUNS = [
@@ -27724,22 +27748,26 @@ var createSseWriter = (res) => {
     }
   };
 };
-var streamChunkToSseEvent = (chunk) => {
+var streamChunkToSseEvent = (chunk, options = {}) => {
   if (!isRecord(chunk)) return null;
   const payload = nestedRecord(chunk, "payload");
   const chunkType = firstString(chunk.type, payload?.type);
+  const includeThinking = options.includeThinking ?? true;
   if (chunkType === "text-delta" || chunkType === "textDelta" || chunkType === "text") {
     const text = firstString(chunk.text, payload?.text, chunk.textDelta, payload?.textDelta);
     return text ? { type: "text", text } : null;
   }
   if (chunkType === "reasoning-start") {
+    if (!includeThinking) return null;
     return { type: "thinking-start", id: firstString(chunk.id, payload?.id) || "reasoning" };
   }
   if (chunkType === "reasoning-delta") {
+    if (!includeThinking) return null;
     const text = firstString(chunk.text, payload?.text, chunk.delta, payload?.delta);
     return text ? { type: "thinking-delta", id: firstString(chunk.id, payload?.id) || "reasoning", text } : null;
   }
   if (chunkType === "reasoning-end") {
+    if (!includeThinking) return null;
     return { type: "thinking-end", id: firstString(chunk.id, payload?.id) || "reasoning" };
   }
   if (chunkType === "tool-call" || chunkType === "toolCall" || chunkType === "tool-input-available") {
@@ -27827,6 +27855,7 @@ var streamAgentResponse = async (req, res) => {
   }
   const writer = createSseWriter(res);
   const guardrailsMode2 = String(process.env.GUARDRAILS_MODE || "fast").toLowerCase();
+  const thinkingMode = getOpencodeThinkingMode();
   if (guardrailsMode2 !== "off" && looksLikePromptInjection(lastUserMessage.content)) {
     writer.write({ type: "text", text: "Request blocked by local guardrails." });
     writer.done();
@@ -27858,6 +27887,7 @@ var streamAgentResponse = async (req, res) => {
       memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
       context: getModelContext(messages, portfolioContext),
       maxSteps: 1,
+      providerOptions: getOpencodeProviderOptions(thinkingMode),
       toolChoice: "none"
     });
     let startedModelOutput = false;
@@ -27872,7 +27902,9 @@ var streamAgentResponse = async (req, res) => {
       });
     };
     for await (const chunk of stream.fullStream) {
-      const event = streamChunkToSseEvent(chunk);
+      const event = streamChunkToSseEvent(chunk, {
+        includeThinking: shouldForwardThinkingEvents(thinkingMode)
+      });
       if (!event) continue;
       completeComposeOnFirstOutput(event.type, completeCompose);
       writer.write(event);

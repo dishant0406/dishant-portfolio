@@ -1,6 +1,11 @@
 import type { Request, Response } from 'express';
 import { mastra } from '../src/mastra';
 import { looksLikePromptInjection } from '../src/mastra/agents/input-processors/local-guardrails-processor';
+import {
+  getOpencodeProviderOptions,
+  getOpencodeThinkingMode,
+  shouldForwardThinkingEvents,
+} from './opencode-thinking';
 import { collectPortfolioContext } from './portfolio-context';
 import { createSseWriter, streamChunkToSseEvent } from './sse';
 
@@ -89,6 +94,7 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
 
   const writer = createSseWriter(res);
   const guardrailsMode = String(process.env.GUARDRAILS_MODE || 'fast').toLowerCase();
+  const thinkingMode = getOpencodeThinkingMode();
 
   if (guardrailsMode !== 'off' && looksLikePromptInjection(lastUserMessage.content)) {
     writer.write({ type: 'text', text: 'Request blocked by local guardrails.' });
@@ -123,6 +129,7 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
       memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
       context: getModelContext(messages, portfolioContext),
       maxSteps: 1,
+      providerOptions: getOpencodeProviderOptions(thinkingMode),
       toolChoice: 'none',
     });
 
@@ -139,7 +146,9 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
     };
 
     for await (const chunk of stream.fullStream) {
-      const event = streamChunkToSseEvent(chunk);
+      const event = streamChunkToSseEvent(chunk, {
+        includeThinking: shouldForwardThinkingEvents(thinkingMode),
+      });
       if (!event) continue;
 
       completeComposeOnFirstOutput(event.type, completeCompose);

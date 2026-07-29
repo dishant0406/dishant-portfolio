@@ -16,6 +16,10 @@ type SseWriter = {
   write: (event: ChatSseEvent) => void;
 };
 
+type StreamChunkOptions = {
+  includeThinking?: boolean;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
@@ -91,11 +95,15 @@ export const createSseWriter = (res: Response): SseWriter => {
   };
 };
 
-export const streamChunkToSseEvent = (chunk: unknown): ChatSseEvent | null => {
+export const streamChunkToSseEvent = (
+  chunk: unknown,
+  options: StreamChunkOptions = {},
+): ChatSseEvent | null => {
   if (!isRecord(chunk)) return null;
 
   const payload = nestedRecord(chunk, 'payload');
   const chunkType = firstString(chunk.type, payload?.type);
+  const includeThinking = options.includeThinking ?? true;
 
   if (chunkType === 'text-delta' || chunkType === 'textDelta' || chunkType === 'text') {
     const text = firstString(chunk.text, payload?.text, chunk.textDelta, payload?.textDelta);
@@ -103,10 +111,12 @@ export const streamChunkToSseEvent = (chunk: unknown): ChatSseEvent | null => {
   }
 
   if (chunkType === 'reasoning-start') {
+    if (!includeThinking) return null;
     return { type: 'thinking-start', id: firstString(chunk.id, payload?.id) || 'reasoning' };
   }
 
   if (chunkType === 'reasoning-delta') {
+    if (!includeThinking) return null;
     const text = firstString(chunk.text, payload?.text, chunk.delta, payload?.delta);
     return text
       ? { type: 'thinking-delta', id: firstString(chunk.id, payload?.id) || 'reasoning', text }
@@ -114,6 +124,7 @@ export const streamChunkToSseEvent = (chunk: unknown): ChatSseEvent | null => {
   }
 
   if (chunkType === 'reasoning-end') {
+    if (!includeThinking) return null;
     return { type: 'thinking-end', id: firstString(chunk.id, payload?.id) || 'reasoning' };
   }
 

@@ -56,6 +56,7 @@ MEMORY_DATABASE_URL=postgresql://...
 OPENCODE_API_KEY=...
 OPENCODE_MODEL=deepseek-v4-flash
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
+OPENCODE_THINKING_MODE=disabled
 ```
 
 ## Deployment
