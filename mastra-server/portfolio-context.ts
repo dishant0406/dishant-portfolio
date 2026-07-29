@@ -18,6 +18,16 @@ const BASE_TOOL_RUNS: Array<{ toolName: ToolName; args: Record<string, unknown> 
   { toolName: 'getGitHubStats', args: {} },
 ];
 
+const toolStatusLabels: Record<ToolName, string> = {
+  getPersonalInfo: 'Reading portfolio profile',
+  getGitHubProfile: 'Fetching GitHub profile',
+  getGitHubRepos: 'Loading recent repositories',
+  getGitHubStats: 'Analyzing GitHub stats',
+  getGitHubActivity: 'Checking recent GitHub activity',
+  getRepoReadme: 'Reading project README',
+  searchRepos: 'Searching repositories',
+};
+
 const truncateString = (value: string, maxLength: number) =>
   value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 
@@ -40,6 +50,11 @@ const executePortfolioTool = async (
   emit: EmitEvent,
 ): Promise<CollectedToolResult> => {
   const toolCallId = `prefetch-${toolName}`;
+  const label = toolName === 'getRepoReadme' && typeof args.repo === 'string'
+    ? `Reading ${args.repo} README`
+    : toolStatusLabels[toolName];
+
+  emit({ type: 'status', id: toolCallId, label, state: 'running' });
   emit({ type: 'tool-call', toolName, toolCallId, args });
 
   const tool = portfolioTools[toolName];
@@ -50,6 +65,7 @@ const executePortfolioTool = async (
   const compactedResult = compactResult(result);
 
   emit({ type: 'tool-result', toolName, toolCallId, result: compactedResult });
+  emit({ type: 'status', id: toolCallId, label, state: 'completed' });
 
   return { toolName, args, result: compactedResult };
 };

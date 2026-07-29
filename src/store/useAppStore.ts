@@ -2,6 +2,8 @@ import { analytics } from '@/lib/analytics';
 import { Chat, ChatMessage, ToolCall, User } from '@/types';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { generateId } from './chatIds';
+import { stopStreamingMessages, streamResponse } from './chatStream';
 
 interface AppState {
   // Hydration state
@@ -72,9 +74,6 @@ interface AppState {
   getFilteredChats: () => Chat[];
 }
 
-// Helper to generate unique IDs
-const generateId = () => Math.random().toString(36).substring(2, 15);
-
 // Get greeting based on time of day
 export const getGreeting = () => {
   const hour = new Date().getHours();
@@ -105,262 +104,14 @@ export const formatRelativeTime = (date: Date) => {
   return formatDate(date);
 };
 
-// Resource ID for memory (using a constant for visitor sessions)
-const RESOURCE_ID = 'portfolio-visitor';
-
-type SseBoundary = { index: number; length: number } | null;
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const findSseBoundary = (buffer: string): SseBoundary => {
-  const lfIndex = buffer.indexOf('\n\n');
-  const crlfIndex = buffer.indexOf('\r\n\r\n');
-
-  if (lfIndex === -1 && crlfIndex === -1) return null;
-  if (lfIndex === -1) return { index: crlfIndex, length: 4 };
-  if (crlfIndex === -1) return { index: lfIndex, length: 2 };
-
-  return lfIndex < crlfIndex
-    ? { index: lfIndex, length: 2 }
-    : { index: crlfIndex, length: 4 };
-};
-
-const extractSseData = (event: string) => {
-  const dataLines = event
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith('data:'))
-    .map((line) => line.slice(5).trimStart());
-
-  return dataLines.length > 0 ? dataLines.join('\n').trim() : '';
-};
-
-const isAbortError = (error: unknown) =>
-  error instanceof DOMException && error.name === 'AbortError';
-
-const stopStreamingMessages = (messages: ChatMessage[]) =>
-  messages.map((message) => (
-    message.isStreaming ? { ...message, isStreaming: false } : message
-  ));
 
 const cardMessages: Record<string, string> = {
   projects: 'Tell me about your projects',
   skills: 'What are your technical skills?',
   screenshots: 'Show me some screenshots of your projects',
   resume: 'Can you share your resume?',
-};
-
-// Stream response from the Mastra API
-const streamResponse = async (
-  chatId: string,
-  messages: Array<{ role: string; content: string }>,
-  updateChat: (id: string, updates: Partial<Chat>) => void,
-  getChat: () => Chat | undefined,
-  signal: AbortSignal,
-  isCurrentStream: () => boolean,
-  finishStream: () => void
-) => {
-  const messageId = generateId();
-  let fullContent = '';
-  let toolCalls: ToolCall[] = [];
-  
-  // Create initial assistant message
-  const assistantMessage: ChatMessage = {
-    id: messageId,
-    role: 'assistant',
-    content: '',
-    timestamp: new Date(),
-    isStreaming: true,
-    toolCalls: [],
-  };
-  
-  // Helper to update the message in chat
-  const updateMessage = () => {
-    if (!isCurrentStream()) return;
-
-    const chat = getChat();
-    if (chat && chat.messages) {
-      const updatedMessages = chat.messages.filter(m => m.id !== messageId);
-      updateChat(chatId, {
-        messages: [...updatedMessages, { 
-          ...assistantMessage, 
-          content: fullContent,
-          toolCalls: [...toolCalls],
-        }],
-        description: fullContent.substring(0, 150) + '...',
-      });
-    }
-  };
-  
-  try {
-    const response = await fetch('/api/chat/stream', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal,
-      body: JSON.stringify({ 
-        messages,
-        threadId: chatId,
-        resourceId: RESOURCE_ID,
-      }),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-    
-    if (!reader) {
-      throw new Error('No reader available');
-    }
-
-    const processSseData = (data: string) => {
-      if (!data || data === '[DONE]') return;
-
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(data);
-      } catch {
-        return;
-      }
-
-      if (!isRecord(parsed)) return;
-
-      if (parsed.type === 'text' && typeof parsed.text === 'string' && parsed.text.length > 0) {
-        fullContent += parsed.text;
-        updateMessage();
-        return;
-      }
-
-      if (parsed.type === 'tool-call') {
-        const toolCallId = typeof parsed.toolCallId === 'string' ? parsed.toolCallId : generateId();
-        const toolName = typeof parsed.toolName === 'string' ? parsed.toolName : 'unknown';
-
-        const newToolCall: ToolCall = {
-          id: toolCallId,
-          toolName,
-          args: parsed.args,
-          status: 'running',
-        };
-        toolCalls = [...toolCalls.filter(t => t.id !== toolCallId), newToolCall];
-        updateMessage();
-        return;
-      }
-
-      if (parsed.type === 'tool-result') {
-        const toolCallId = typeof parsed.toolCallId === 'string' ? parsed.toolCallId : '';
-        if (!toolCallId) return;
-
-        const existingToolCall = toolCalls.find(t => t.id === toolCallId);
-        if (existingToolCall) {
-          toolCalls = toolCalls.map(t =>
-            t.id === toolCallId
-              ? { ...t, status: 'completed' as const, result: parsed.result }
-              : t
-          );
-        } else {
-          toolCalls = [...toolCalls, {
-            id: toolCallId,
-            toolName: typeof parsed.toolName === 'string' ? parsed.toolName : 'unknown',
-            status: 'completed',
-            result: parsed.result,
-          }];
-        }
-
-        updateMessage();
-        return;
-      }
-
-      if (parsed.type === 'error') {
-        const errorMessage = typeof parsed.error === 'string' ? parsed.error : 'Stream error';
-        throw new Error(errorMessage);
-      }
-    };
-
-    const processSseEvent = (event: string) => {
-      processSseData(extractSseData(event));
-    };
-
-    let buffer = '';
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      if (done) break;
-      
-      buffer += decoder.decode(value, { stream: true });
-
-      let boundary = findSseBoundary(buffer);
-      while (boundary) {
-        const event = buffer.slice(0, boundary.index);
-        buffer = buffer.slice(boundary.index + boundary.length);
-        processSseEvent(event);
-        boundary = findSseBoundary(buffer);
-      }
-    }
-
-    buffer += decoder.decode();
-    if (buffer.trim()) {
-      processSseEvent(buffer);
-    }
-    
-    // Finalize message
-    const chat = getChat();
-    if (isCurrentStream() && chat && chat.messages) {
-      const updatedMessages = chat.messages.filter(m => m.id !== messageId);
-      updateChat(chatId, {
-        messages: [...updatedMessages, { 
-          ...assistantMessage, 
-          content: fullContent,
-          toolCalls,
-          isStreaming: false 
-        }],
-        updatedAt: new Date(),
-      });
-    }
-  } catch (error) {
-    if (!isCurrentStream() || isAbortError(error)) return;
-
-    console.error('Streaming error:', error);
-
-    if (fullContent) {
-      const chat = getChat();
-      if (chat && chat.messages) {
-        const updatedMessages = chat.messages.filter(m => m.id !== messageId);
-        updateChat(chatId, {
-          messages: [...updatedMessages, {
-            ...assistantMessage,
-            content: fullContent,
-            toolCalls,
-            isStreaming: false,
-          }],
-          updatedAt: new Date(),
-        });
-      }
-
-      return;
-    }
-    
-    fullContent = 'Sorry, the stream failed before a response started. Please try again.';
-    
-    const chat = getChat();
-    if (isCurrentStream() && chat && chat.messages) {
-      const updatedMessages = chat.messages.filter(m => m.id !== messageId);
-      updateChat(chatId, {
-        messages: [...updatedMessages, { 
-          ...assistantMessage, 
-          content: fullContent,
-          isStreaming: false 
-        }],
-        updatedAt: new Date(),
-      });
-    }
-  } finally {
-    finishStream();
-  }
 };
 
 export const useAppStore = create<AppState>()(
@@ -584,15 +335,15 @@ export const useAppStore = create<AppState>()(
 
         set({ activeStreamId: streamId, activeStreamController: abortController });
 
-        streamResponse(
+        streamResponse({
           chatId,
-          apiMessages,
-          get().updateChat,
-          () => get().chats.find(c => c.id === chatId),
-          abortController.signal,
+          messages: apiMessages,
+          updateChat: get().updateChat,
+          getChat: () => get().chats.find(c => c.id === chatId),
+          signal: abortController.signal,
           isCurrentStream,
-          finishStream
-        );
+          finishStream,
+        });
 
         return chatId;
       },

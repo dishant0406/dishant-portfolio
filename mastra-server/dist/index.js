@@ -27594,6 +27594,15 @@ var BASE_TOOL_RUNS = [
   { toolName: "getGitHubRepos", args: { limit: 12, sort: "pushed" } },
   { toolName: "getGitHubStats", args: {} }
 ];
+var toolStatusLabels = {
+  getPersonalInfo: "Reading portfolio profile",
+  getGitHubProfile: "Fetching GitHub profile",
+  getGitHubRepos: "Loading recent repositories",
+  getGitHubStats: "Analyzing GitHub stats",
+  getGitHubActivity: "Checking recent GitHub activity",
+  getRepoReadme: "Reading project README",
+  searchRepos: "Searching repositories"
+};
 var truncateString = (value, maxLength) => value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 var compactResult = (value) => {
   if (typeof value === "string") return truncateString(value, 3500);
@@ -27608,6 +27617,8 @@ var compactResult = (value) => {
 };
 var executePortfolioTool = async (toolName, args, emit) => {
   const toolCallId = `prefetch-${toolName}`;
+  const label = toolName === "getRepoReadme" && typeof args.repo === "string" ? `Reading ${args.repo} README` : toolStatusLabels[toolName];
+  emit({ type: "status", id: toolCallId, label, state: "running" });
   emit({ type: "tool-call", toolName, toolCallId, args });
   const tool = portfolioTools[toolName];
   const result = await tool.execute?.({
@@ -27616,6 +27627,7 @@ var executePortfolioTool = async (toolName, args, emit) => {
   });
   const compactedResult = compactResult(result);
   emit({ type: "tool-result", toolName, toolCallId, result: compactedResult });
+  emit({ type: "status", id: toolCallId, label, state: "completed" });
   return { toolName, args, result: compactedResult };
 };
 var getRepositoryNames = (reposResult) => {
@@ -27680,11 +27692,15 @@ var fallbackToolCallId = (chunk) => firstString(
 var getToolArgs = (chunk, payload) => chunk.args ?? chunk.input ?? chunk.toolInput ?? payload?.args ?? payload?.input ?? payload?.toolInput;
 var createSseWriter = (res) => {
   let closed = false;
+  const flushableResponse = res;
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
+  res.socket?.setNoDelay(true);
   res.flushHeaders?.();
+  res.write(": connected\n\n");
+  flushableResponse.flush?.();
   res.on("close", () => {
     closed = true;
   });
@@ -27693,6 +27709,7 @@ var createSseWriter = (res) => {
     res.write(`data: ${data}
 
 `);
+    flushableResponse.flush?.();
   };
   return {
     close: () => {
@@ -27714,6 +27731,16 @@ var streamChunkToSseEvent = (chunk) => {
   if (chunkType === "text-delta" || chunkType === "textDelta" || chunkType === "text") {
     const text = firstString(chunk.text, payload?.text, chunk.textDelta, payload?.textDelta);
     return text ? { type: "text", text } : null;
+  }
+  if (chunkType === "reasoning-start") {
+    return { type: "thinking-start", id: firstString(chunk.id, payload?.id) || "reasoning" };
+  }
+  if (chunkType === "reasoning-delta") {
+    const text = firstString(chunk.text, payload?.text, chunk.delta, payload?.delta);
+    return text ? { type: "thinking-delta", id: firstString(chunk.id, payload?.id) || "reasoning", text } : null;
+  }
+  if (chunkType === "reasoning-end") {
+    return { type: "thinking-end", id: firstString(chunk.id, payload?.id) || "reasoning" };
   }
   if (chunkType === "tool-call" || chunkType === "toolCall" || chunkType === "tool-input-available") {
     return {
@@ -27742,7 +27769,7 @@ var streamChunkToSseEvent = (chunk) => {
   return null;
 };
 
-// chat-routes.ts
+// chat-stream-handler.ts
 var getLastUserMessage = (messages) => messages.filter((message) => message.role === "user").pop();
 var getMemoryOptions = (threadId, resourceId) => {
   if (typeof threadId !== "string" || typeof resourceId !== "string") return void 0;
@@ -27783,6 +27810,13 @@ var validateMessages = (req, res) => {
   }
   return validMessages;
 };
+var completeComposeOnFirstOutput = (eventType, completeCompose) => {
+  if (eventType !== "text" && eventType !== "thinking-start" && eventType !== "thinking-delta") {
+    return false;
+  }
+  completeCompose();
+  return true;
+};
 var streamAgentResponse = async (req, res) => {
   const messages = validateMessages(req, res);
   if (!messages) return;
@@ -27801,17 +27835,49 @@ var streamAgentResponse = async (req, res) => {
   }
   try {
     const agent = mastra.getAgent("portfolioAgent");
+    writer.write({
+      type: "status",
+      id: "portfolio-context",
+      label: "Preparing portfolio context",
+      state: "running"
+    });
     const portfolioContext = await collectPortfolioContext(lastUserMessage.content, writer.write);
+    writer.write({
+      type: "status",
+      id: "portfolio-context",
+      label: "Preparing portfolio context",
+      state: "completed"
+    });
+    writer.write({
+      type: "status",
+      id: "compose-response",
+      label: "Composing response",
+      state: "running"
+    });
     const stream = await agent.stream(lastUserMessage.content, {
       memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
       context: getModelContext(messages, portfolioContext),
       maxSteps: 1,
       toolChoice: "none"
     });
+    let startedModelOutput = false;
+    const completeCompose = () => {
+      if (startedModelOutput) return;
+      startedModelOutput = true;
+      writer.write({
+        type: "status",
+        id: "compose-response",
+        label: "Composing response",
+        state: "completed"
+      });
+    };
     for await (const chunk of stream.fullStream) {
       const event = streamChunkToSseEvent(chunk);
-      if (event) writer.write(event);
+      if (!event) continue;
+      completeComposeOnFirstOutput(event.type, completeCompose);
+      writer.write(event);
     }
+    completeCompose();
     writer.done();
   } catch (error) {
     console.error("Stream error:", error);
@@ -27821,6 +27887,8 @@ var streamAgentResponse = async (req, res) => {
     writer.close();
   }
 };
+
+// chat-routes.ts
 var getAgentMemory = async () => {
   const agent = mastra.getAgent("portfolioAgent");
   return agent.getMemory();

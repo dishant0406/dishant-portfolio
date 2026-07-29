@@ -2,6 +2,10 @@ import type { Response } from 'express';
 
 export type ChatSseEvent =
   | { type: 'text'; text: string }
+  | { type: 'thinking-start'; id?: string }
+  | { type: 'thinking-delta'; id?: string; text: string }
+  | { type: 'thinking-end'; id?: string }
+  | { type: 'status'; id: string; label: string; state: 'running' | 'completed' | 'cancelled' }
   | { type: 'tool-call'; toolName: string; toolCallId: string; args?: unknown }
   | { type: 'tool-result'; toolName: string; toolCallId: string; result?: unknown }
   | { type: 'error'; error: string };
@@ -52,12 +56,16 @@ const getToolArgs = (chunk: Record<string, unknown>, payload?: Record<string, un
 
 export const createSseWriter = (res: Response): SseWriter => {
   let closed = false;
+  const flushableResponse = res as Response & { flush?: () => void };
 
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
+  res.socket?.setNoDelay(true);
   res.flushHeaders?.();
+  res.write(': connected\n\n');
+  flushableResponse.flush?.();
 
   res.on('close', () => {
     closed = true;
@@ -66,6 +74,7 @@ export const createSseWriter = (res: Response): SseWriter => {
   const writeData = (data: string) => {
     if (closed || res.writableEnded) return;
     res.write(`data: ${data}\n\n`);
+    flushableResponse.flush?.();
   };
 
   return {
@@ -91,6 +100,21 @@ export const streamChunkToSseEvent = (chunk: unknown): ChatSseEvent | null => {
   if (chunkType === 'text-delta' || chunkType === 'textDelta' || chunkType === 'text') {
     const text = firstString(chunk.text, payload?.text, chunk.textDelta, payload?.textDelta);
     return text ? { type: 'text', text } : null;
+  }
+
+  if (chunkType === 'reasoning-start') {
+    return { type: 'thinking-start', id: firstString(chunk.id, payload?.id) || 'reasoning' };
+  }
+
+  if (chunkType === 'reasoning-delta') {
+    const text = firstString(chunk.text, payload?.text, chunk.delta, payload?.delta);
+    return text
+      ? { type: 'thinking-delta', id: firstString(chunk.id, payload?.id) || 'reasoning', text }
+      : null;
+  }
+
+  if (chunkType === 'reasoning-end') {
+    return { type: 'thinking-end', id: firstString(chunk.id, payload?.id) || 'reasoning' };
   }
 
   if (

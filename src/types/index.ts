@@ -82,6 +82,20 @@ export interface ToolCall {
   result?: unknown;
 }
 
+export interface ThinkingTrace {
+  content: string;
+  isStreaming: boolean;
+  startedAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface StreamStatus {
+  id: string;
+  label: string;
+  state: 'running' | 'completed' | 'cancelled';
+  timestamp: Date;
+}
+
 // Chat Message Types
 export interface ChatMessage {
   id: string;
@@ -90,6 +104,8 @@ export interface ChatMessage {
   timestamp: Date;
   isStreaming?: boolean;
   toolCalls?: ToolCall[];
+  thinking?: ThinkingTrace;
+  statusEvents?: StreamStatus[];
 }
 
 // Chat Types
