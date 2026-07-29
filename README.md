@@ -1,6 +1,6 @@
 # Dishant Sharma - AI-Powered Portfolio
 
-An intelligent, conversational portfolio application that leverages AI to provide dynamic insights about Dishant Sharma's professional background, projects, and expertise. Built with Next.js and powered by Azure OpenAI through the Mastra framework.
+An intelligent, conversational portfolio application that leverages AI to provide dynamic insights about Dishant Sharma's professional background, projects, and expertise. Built with Next.js and powered by OpenCode Go through the Mastra framework.
 
 ![Portfolio Demo](https://via.placeholder.com/800x400?text=AI+Portfolio+Interface)
 
@@ -76,8 +76,8 @@ src/mastra/
 
 **Backend Stack:**
 - **Mastra Framework**: AI agent orchestration and memory management
-- **Azure OpenAI**: GPT-4 and embedding models for conversation
-- **PostgreSQL + pgVector**: Vector database for conversation memory
+- **OpenCode Go**: OpenAI-compatible chat completions provider
+- **PostgreSQL**: Persistent conversation memory
 - **Express.js**: API server for streaming and real-time communication
 - **GitHub API**: Live integration for project and profile data
 
@@ -86,21 +86,18 @@ src/mastra/
 ### Prerequisites
 - Node.js 20+
 - pnpm (recommended) or npm
-- PostgreSQL database with pgVector extension
-- Azure OpenAI account with deployments
+- PostgreSQL database
+- OpenCode Go API key
 
 ### Environment Variables
 
 Create a `.env.local` file in the project root:
 
 ```env
-# Azure OpenAI Configuration
-AZURE_RESOURCE_NAME=your-azure-resource
-AZURE_API_KEY=your-azure-api-key
-AZURE_API_VERSION=2025-01-01-preview
-AZURE_DEPLOYMENT_NAME=your-gpt4-deployment
-AZURE_DEPLOYMENT_NAME_MINI=your-gpt-mini-deployment
-AZURE_EMBEDDING_DEPLOYMENT_NAME=your-embedding-deployment
+# OpenCode Go Configuration
+OPENCODE_API_KEY=your-opencode-key
+OPENCODE_MODEL=deepseek-v4-flash
+OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 
 # Database
 MEMORY_DATABASE_URL=postgresql://user:password@host:port/database
@@ -127,7 +124,7 @@ MASTRA_API_URL=http://localhost:4000
 
 2. **Set up the database:**
    ```bash
-   # Create PostgreSQL database with pgVector extension
+   # Create a PostgreSQL database
    # The application will automatically create necessary tables
    ```
 
@@ -159,8 +156,8 @@ MASTRA_API_URL=http://localhost:4000
 
 3. **Docker deployment:**
    ```bash
-   docker build --build-arg AZURE_API_KEY=your-key \
-                --build-arg MEMORY_DATABASE_URL=your-db-url \
+   docker build --build-arg NEXT_PUBLIC_HASHNODE_HOST=dishantsharma.hashnode.dev \
+                --build-arg NEXT_PUBLIC_SITE_URL=https://dishantsharma.dev \
                 -t portfolio-app .
    docker run -p 3000:3000 portfolio-app
    ```
@@ -168,10 +165,10 @@ MASTRA_API_URL=http://localhost:4000
 ## 🔧 Key Components
 
 ### AI Agent (`portfolio-agent.ts`)
-- **Azure OpenAI Integration**: GPT-4 for conversations and embeddings for memory
-- **Memory System**: PostgreSQL + pgVector for persistent conversation context
-- **Tool Integration**: GitHub API tools for live data fetching
-- **Input Processing**: Security layers for PII detection and prompt injection prevention
+- **OpenCode Go Integration**: OpenAI-compatible model provider for chat
+- **Memory System**: PostgreSQL for persistent conversation context
+- **Tool Integration**: Server-prefetched GitHub API data streamed as tool events
+- **Input Processing**: Local guardrails for prompt-injection blocking and sensitive text redaction
 
 ### Chat System (`ChatView.tsx`)
 - **Real-time Streaming**: Server-sent events for live AI responses
@@ -214,7 +211,6 @@ The application is designed for modern deployment platforms:
 
 - `GET /health` - Health check for the Mastra server
 - `POST /agent/stream` - Streaming chat interface
-- `POST /agent/generate` - Non-streaming chat responses
 - `GET /api/chat/threads` - Fetch conversation threads
 - `POST /api/chat/[threadId]` - Load specific conversation
 

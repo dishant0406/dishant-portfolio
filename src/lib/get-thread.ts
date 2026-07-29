@@ -1,5 +1,3 @@
-import { mastra } from "@/mastra";
-
 export interface ThreadData {
   id: string;
   title?: string;
@@ -10,6 +8,7 @@ export interface ThreadData {
 
 export async function getThreadById(threadId: string): Promise<ThreadData | null> {
   try {
+    const { mastra } = await import("@/mastra");
     const agent = mastra.getAgent("portfolioAgent");
     const memory = await agent.getMemory();
 

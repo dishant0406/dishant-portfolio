@@ -4,6 +4,7 @@ import { BlogList } from '@/components/blog/BlogList';
 import { BlogPagination } from '@/components/blog/BlogPagination';
 import { fetchBlogPostsForPage } from '@/lib/api/hashnode';
 import { env } from '@/lib/env';
+import type { BlogPost } from '@/lib/types/blog';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -48,8 +49,16 @@ export default async function BlogPage({
   const page = Math.max(1, parseInt((params.page as string) || '1', 10));
   const publicationHost = env.NEXT_PUBLIC_HASHNODE_HOST;
 
-  const paginationData = await fetchBlogPostsForPage(publicationHost, page, POSTS_PER_PAGE);
-  const { posts, totalPages } = paginationData;
+  let posts: BlogPost[] = [];
+  let totalPages = 1;
+
+  try {
+    const paginationData = await fetchBlogPostsForPage(publicationHost, page, POSTS_PER_PAGE);
+    posts = paginationData.posts;
+    totalPages = paginationData.totalPages;
+  } catch (error) {
+    console.error('Error fetching blog posts:', error);
+  }
 
   return (
     <main className="blog-page blog-page-light">

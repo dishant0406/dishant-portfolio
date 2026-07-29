@@ -52,13 +52,13 @@ export interface BlogPostsResponse {
         endCursor: string;
       };
     };
-  };
+  } | null;
 }
 
 export interface BlogPostDetailResponse {
   publication: {
     post: BlogPostDetail;
-  };
+  } | null;
 }
 
 export interface BlogPostsParams {

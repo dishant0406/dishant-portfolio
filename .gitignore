@@ -41,6 +41,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local cloud auth/config
+.gcloud-config/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -24,6 +24,7 @@ if ! kill -0 $MASTRA_PID 2>/dev/null; then
     exit 1
 fi
 
-# Start Next.js server in the foreground
-echo "Starting Next.js server on port 3000..."
-exec npm run start:next
+# Start Next.js server in the foreground. Cloud Run injects PORT.
+APP_PORT="${PORT:-3000}"
+echo "Starting Next.js server on port ${APP_PORT}..."
+exec npm run start:next -- -p "$APP_PORT" -H 0.0.0.0

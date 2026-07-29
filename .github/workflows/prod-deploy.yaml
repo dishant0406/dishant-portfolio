@@ -1,113 +1,73 @@
-name: Deploy to Azure Container Apps
+name: Deploy to Cloud Run
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag. Defaults to the commit SHA.
+        required: false
+        type: string
 
-env:
-  IMAGE_NAME: prod-folio
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ secrets.GCP_REGION }}
+      GAR_LOCATION: ${{ secrets.GAR_LOCATION }}
+      GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
+      CLOUD_RUN_SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
+      NEXT_PUBLIC_HASHNODE_HOST: ${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }}
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Log in to Azure Container Registry
-        uses: docker/login-action@v2
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          registry: ${{ secrets.REGISTRY_LOGIN_SERVER }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
 
-      - name: Build and push image to ACR
-        uses: docker/build-push-action@v4
-        with:
-          push: true
-          tags: ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          file: ./Dockerfile
-          build-args: |
-            AZURE_RESOURCE_NAME=${{ secrets.AZURE_RESOURCE_NAME }}
-            AZURE_API_KEY=${{ secrets.AZURE_API_KEY }}
-            AZURE_API_VERSION=${{ secrets.AZURE_API_VERSION }}
-            AZURE_DEPLOYMENT_NAME=${{ secrets.AZURE_DEPLOYMENT_NAME }}
-            AZURE_DEPLOYMENT_NAME_MINI=${{ secrets.AZURE_DEPLOYMENT_NAME_MINI }}
-            AZURE_EMBEDDING_DEPLOYMENT_NAME=${{ secrets.AZURE_EMBEDDING_DEPLOYMENT_NAME }}
-            MEMORY_DATABASE_URL=${{ secrets.MEMORY_DATABASE_URL }}
-            PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }}
-            CALENDARIFIC_API_KEY=${{ secrets.CALENDARIFIC_API_KEY }}
-            ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}
-            NEXT_PUBLIC_HASHNODE_HOST=${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }}
-            HASHNODE_PAT=${{ secrets.HASHNODE_PAT }}
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GAR_LOCATION}-docker.pkg.dev" --quiet
 
-      - name: Check if Container App exists and create if not
+      - name: Build and push image
+        id: image
+        shell: bash
         run: |
-          if az containerapp show --name ${{ env.IMAGE_NAME }} --resource-group ${{ secrets.RESOURCE_GROUP }} --query properties.provisioningState -o tsv &>/dev/null; then
-            echo "Container App already exists. Will update in next step."
-          else
-            echo "Container App does not exist. Creating..."
-            az containerapp create \
-              --name ${{ env.IMAGE_NAME }} \
-              --resource-group ${{ secrets.RESOURCE_GROUP }} \
-              --environment ${{ secrets.CONTAINER_APP_ENVIRONMENT }} \
-              --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-              --registry-server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
-              --registry-username ${{ secrets.REGISTRY_USERNAME }} \
-              --registry-password ${{ secrets.REGISTRY_PASSWORD }} \
-              --target-port 3000 \
-              --ingress external \
-              --cpu 2.5 \
-              --memory 5Gi \
-              --env-vars \
-                AZURE_RESOURCE_NAME=${{ secrets.AZURE_RESOURCE_NAME }} \
-                AZURE_API_KEY=${{ secrets.AZURE_API_KEY }} \
-                AZURE_API_VERSION=${{ secrets.AZURE_API_VERSION }} \
-                AZURE_DEPLOYMENT_NAME=${{ secrets.AZURE_DEPLOYMENT_NAME }} \
-                AZURE_DEPLOYMENT_NAME_MINI=${{ secrets.AZURE_DEPLOYMENT_NAME_MINI }} \
-                AZURE_EMBEDDING_DEPLOYMENT_NAME=${{ secrets.AZURE_EMBEDDING_DEPLOYMENT_NAME }} \
-                MEMORY_DATABASE_URL=${{ secrets.MEMORY_DATABASE_URL }} \
-                PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }} \
-                CALENDARIFIC_API_KEY=${{ secrets.CALENDARIFIC_API_KEY }} \
-                ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }} \
-                NEXT_PUBLIC_HASHNODE_HOST=${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }} \
-                HASHNODE_PAT=${{ secrets.HASHNODE_PAT }}
+          set -euo pipefail
+
+          image_tag="${{ inputs.image_tag }}"
+          if [ -z "$image_tag" ]; then
+            image_tag="$GITHUB_SHA"
           fi
 
-      - name: Update Container App Registry Credentials
-        run: |
-          az containerapp registry set \
-            --name ${{ env.IMAGE_NAME }} \
-            --resource-group ${{ secrets.RESOURCE_GROUP }} \
-            --server ${{ secrets.REGISTRY_LOGIN_SERVER }} \
-            --username ${{ secrets.REGISTRY_USERNAME }} \
-            --password ${{ secrets.REGISTRY_PASSWORD }}
+          image="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${CLOUD_RUN_SERVICE}:${image_tag}"
+          docker build \
+            --build-arg "NEXT_PUBLIC_HASHNODE_HOST=${NEXT_PUBLIC_HASHNODE_HOST}" \
+            --build-arg "NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}" \
+            -t "$image" \
+            .
+          docker push "$image"
 
-      - name: Update Azure Container App
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloud Run
         run: |
-          az containerapp update \
-            --name ${{ env.IMAGE_NAME }} \
-            --resource-group ${{ secrets.RESOURCE_GROUP }} \
-            --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            --set-env-vars \
-              AZURE_RESOURCE_NAME=${{ secrets.AZURE_RESOURCE_NAME }} \
-              AZURE_API_KEY=${{ secrets.AZURE_API_KEY }} \
-              AZURE_API_VERSION=${{ secrets.AZURE_API_VERSION }} \
-              AZURE_DEPLOYMENT_NAME=${{ secrets.AZURE_DEPLOYMENT_NAME }} \
-              AZURE_DEPLOYMENT_NAME_MINI=${{ secrets.AZURE_DEPLOYMENT_NAME_MINI }} \
-              AZURE_EMBEDDING_DEPLOYMENT_NAME=${{ secrets.AZURE_EMBEDDING_DEPLOYMENT_NAME }} \
-              MEMORY_DATABASE_URL=${{ secrets.MEMORY_DATABASE_URL }} \
-              PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }} \
-              CALENDARIFIC_API_KEY=${{ secrets.CALENDARIFIC_API_KEY }} \
-              ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }} \
-              NEXT_PUBLIC_HASHNODE_HOST=${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }} \
-              HASHNODE_PAT=${{ secrets.HASHNODE_PAT }}
+          gcloud run deploy "$CLOUD_RUN_SERVICE" \
+            --image "${{ steps.image.outputs.image }}" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_ID" \
+            --platform managed \
+            --quiet

@@ -239,11 +239,22 @@ const streamResponse = async (
         const toolCallId = typeof parsed.toolCallId === 'string' ? parsed.toolCallId : '';
         if (!toolCallId) return;
 
-        toolCalls = toolCalls.map(t =>
-          t.id === toolCallId
-            ? { ...t, status: 'completed' as const, result: parsed.result }
-            : t
-        );
+        const existingToolCall = toolCalls.find(t => t.id === toolCallId);
+        if (existingToolCall) {
+          toolCalls = toolCalls.map(t =>
+            t.id === toolCallId
+              ? { ...t, status: 'completed' as const, result: parsed.result }
+              : t
+          );
+        } else {
+          toolCalls = [...toolCalls, {
+            id: toolCallId,
+            toolName: typeof parsed.toolName === 'string' ? parsed.toolName : 'unknown',
+            status: 'completed',
+            result: parsed.result,
+          }];
+        }
+
         updateMessage();
         return;
       }
@@ -317,32 +328,8 @@ const streamResponse = async (
       return;
     }
     
-    // Fallback to non-streaming API
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal,
-        body: JSON.stringify({ 
-          messages,
-          threadId: chatId,
-          resourceId: RESOURCE_ID,
-        }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        fullContent = data.text || 'Sorry, I encountered an error.';
-      } else {
-        fullContent = 'Sorry, I encountered an error processing your request.';
-      }
-    } catch {
-      fullContent = 'Sorry, I encountered an error. Please check if the API is properly configured.';
-    }
+    fullContent = 'Sorry, the stream failed before a response started. Please try again.';
     
-    // Update with fallback content
     const chat = getChat();
     if (isCurrentStream() && chat && chat.messages) {
       const updatedMessages = chat.messages.filter(m => m.id !== messageId);

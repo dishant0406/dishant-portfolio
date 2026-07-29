@@ -5,8 +5,8 @@ Standalone API server for Mastra agent - share across multiple applications.
 ## Features
 
 - ✅ Always-running instance (no cold starts)
-- ✅ RESTful API endpoints
-- ✅ Server-Sent Events for streaming
+- ✅ Streaming-only chat API
+- ✅ Server-Sent Events for live model/tool output
 - ✅ CORS enabled for multiple origins
 - ✅ Memory/thread management
 
@@ -18,34 +18,15 @@ Stream agent responses in real-time.
 **Request:**
 ```json
 {
-  "message": "Tell me about your projects",
+  "messages": [
+    { "role": "user", "content": "Tell me about your projects" }
+  ],
   "threadId": "optional-thread-id",
   "resourceId": "optional-resource-id"
 }
 ```
 
 **Response:** Server-Sent Events stream
-
-### `POST /agent/generate`
-Get a complete response (non-streaming).
-
-**Request:**
-```json
-{
-  "message": "What's your background?",
-  "threadId": "optional-thread-id",
-  "resourceId": "optional-resource-id"
-}
-```
-
-**Response:**
-```json
-{
-  "text": "Response text...",
-  "threadId": "thread-id",
-  "resourceId": "resource-id"
-}
-```
 
 ### `GET /threads/:threadId?resourceId=xyz`
 Get thread history.
@@ -72,8 +53,9 @@ Server runs on `http://localhost:4000`
 MASTRA_PORT=4000
 ALLOWED_ORIGINS=https://app1.com,https://app2.com
 MEMORY_DATABASE_URL=postgresql://...
-AZURE_RESOURCE_NAME=...
-AZURE_API_KEY=...
+OPENCODE_API_KEY=...
+OPENCODE_MODEL=deepseek-v4-flash
+OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 ```
 
 ## Deployment

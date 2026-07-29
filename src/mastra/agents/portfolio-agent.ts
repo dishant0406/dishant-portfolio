@@ -1,39 +1,32 @@
 import { portfolioOpenUISystemPrompt } from "@/openui/system-prompt";
-import { createAzure } from "@ai-sdk/azure";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { Agent } from "@mastra/core/agent";
-import {
-  PIIDetector,
-  PromptInjectionDetector,
-  UnicodeNormalizer,
-} from "@mastra/core/processors";
+import { UnicodeNormalizer } from "@mastra/core/processors";
 import { Memory } from "@mastra/memory";
-import { PgVector, PostgresStore } from "@mastra/pg";
+import { PostgresStore } from "@mastra/pg";
 import { portfolioTools } from "../tools/portfolio-tools";
-import { FastGuardrailsProcessor } from "./input-processors/fast-guardrails-processor";
+import { LocalGuardrailsProcessor } from "./input-processors/local-guardrails-processor";
 
 // Cache expensive instances across serverless invocations
 declare global {
   var _postgresStore: PostgresStore | undefined;
-  var _pgVector: PgVector | undefined;
   var _memory: Memory | undefined;
 }
 
 const openuiSystemPrompt = portfolioOpenUISystemPrompt
 
-// Create Azure OpenAI provider
-const azure = createAzure({
-  resourceName: process.env.AZURE_RESOURCE_NAME,
-  apiKey: process.env.AZURE_API_KEY,
-  apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
-  useDeploymentBasedUrls: true,
+const opencodeGo = createOpenAICompatible({
+  name: "opencode-go",
+  apiKey: process.env.OPENCODE_API_KEY,
+  baseURL: process.env.OPENCODE_BASE_URL || "https://opencode.ai/zen/go/v1",
+  headers: {
+    "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev",
+  },
 });
 
-const memoryModel = createAzure({
-        resourceName: process.env.AZURE_RESOURCE_NAME!,
-        apiKey: process.env.AZURE_API_KEY!,
-        apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
-        useDeploymentBasedUrls: true,
-        }).textEmbedding(process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME!)
+const chatModel = opencodeGo(
+  process.env.OPENCODE_MODEL || "deepseek-v4-flash"
+);
 
 // Create or reuse PostgreSQL storage for memory (cached globally)
 if (!global._postgresStore) {
@@ -43,61 +36,25 @@ if (!global._postgresStore) {
 }
 const storage = global._postgresStore;
 
-// Create or reuse PgVector instance (cached globally)
-if (!global._pgVector) {
-  global._pgVector = new PgVector({
-    connectionString: process.env.MEMORY_DATABASE_URL!,
-  });
-}
-const vector = global._pgVector;
-
 // Create or reuse memory instance (cached globally)
 if (!global._memory) {
   global._memory = new Memory({
     storage,
-    vector,
-    embedder: memoryModel,
     options: {
       lastMessages: 20,
-          semanticRecall: {
-        topK: 3, // Optimized: Reduced from 5
-        messageRange: 2, // Optimized: Reduced from 3
-      },
     },
   });
 }
 const memory = global._memory;
 
 const guardrailsMode = (process.env.GUARDRAILS_MODE || "fast").toLowerCase();
-const guardrailsModel = azure(process.env.AZURE_GUARDRAILS_DEPLOYMENT || "gpt-4.1-nano");
 
 const inputProcessors = (() => {
   if (guardrailsMode === "off") {
     return [new UnicodeNormalizer({ stripControlChars: true })];
   }
 
-  if (guardrailsMode === "fast") {
-    return [new FastGuardrailsProcessor({ model: guardrailsModel })];
-  }
-
-  return [
-    new UnicodeNormalizer({ stripControlChars: true }),
-    new PromptInjectionDetector({
-      model: guardrailsModel,
-      strategy: "block",
-      structuredOutputOptions: {
-        jsonPromptInjection: true,
-      },
-    }),
-    new PIIDetector({
-      model: guardrailsModel,
-      strategy: "redact",
-      detectionTypes: ["address", "credit_card"],
-      structuredOutputOptions: {
-        jsonPromptInjection: true,
-      },
-    }),
-  ];
+  return [new LocalGuardrailsProcessor()];
 })();
 
 const portfolioAgent = new Agent({
@@ -166,7 +123,7 @@ Output ONLY OpenUI Lang — no markdown, no plain text, no JSON. The UI framewor
 ## OpenUI Lang Component Library & Syntax
 ${openuiSystemPrompt}
 `,
-  model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
+  model: chatModel,
   tools: portfolioTools,
   memory,
   inputProcessors,

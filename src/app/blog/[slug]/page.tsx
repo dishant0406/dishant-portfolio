@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 
   try {
     const response = await fetchBlogPostMetadata(publicationHost, slug);
-    const post = response.publication.post;
+    const post = response.publication?.post;
 
     if (!post) {
       return {
@@ -101,7 +101,7 @@ export default async function BlogPostPage({
   let post: BlogPostDetail | null = null;
   try {
     const response = await fetchBlogPostBySlug(publicationHost, slug);
-    post = response.publication.post;
+    post = response.publication?.post || null;
 
     if (!post) {
       notFound();

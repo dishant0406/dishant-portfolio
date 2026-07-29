@@ -1,0 +1,13 @@
+.gcloud-config
+.mastra
+.git
+.next
+.env*
+node_modules
+mastra-server/dist
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+*.pem

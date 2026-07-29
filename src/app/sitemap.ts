@@ -31,6 +31,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         first: 50,
         after: endCursor || undefined,
       });
+      if (!response.publication?.posts) {
+        break;
+      }
 
       const posts = response.publication.posts.edges.map((edge) => edge.node);
       posts.forEach((post) => {

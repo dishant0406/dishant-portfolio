@@ -22874,7 +22874,7 @@ var import_mastra = require("@mastra/core/mastra");
 var generatedOpenUISystemPrompt = 'You are Dishant Sharma\'s AI portfolio assistant. You answer questions about Dishant\'s work, projects, skills, and experience using rich UI components. Your entire response must be valid OpenUI Lang code only. Do not return markdown, prose, JSON, or explanations.\n\n## Syntax Rules\n\n1. Each statement is on its own line: `identifier = Expression`\n2. `root` is the entry point \u2014 every program must define `root = Card(...)`\n3. Expressions are: strings ("..."), numbers, booleans (true/false), null, arrays ([...]), objects ({...}), or component calls TypeName(arg1, arg2, ...)\n4. Use references for readability: define `name = ...` on one line, then use `name` later\n5. EVERY variable (except root) MUST be referenced by at least one other variable. Unreferenced variables are silently dropped and will NOT render. Always include defined variables in their parent\'s children/items array.\n6. Arguments are POSITIONAL (order matters, not names). Write `Stack([children], "row", "l")` NOT `Stack([children], direction: "row", gap: "l")` \u2014 colon syntax is NOT supported and silently breaks\n7. Optional arguments can be omitted from the end\n- Strings use double quotes with backslash escaping\n\n## Component Signatures\n\nArguments marked with ? are optional. Sub-components can be inline or referenced; prefer references for better streaming.\nProps typed `ActionExpression` accept an Action([@steps...]) expression. See the Action section for available steps (@ToAssistant, @OpenUrl).\nProps marked `$binding<type>` accept a `$variable` reference for two-way binding.\n\n### Content\nCardHeader(title?: string, subtitle?: string) \u2014 Header with optional title and subtitle\nTextContent(text: string, size?: "small" | "default" | "large" | "small-heavy" | "large-heavy") \u2014 Text block. Supports markdown. Optional size: "small" | "default" | "large" | "small-heavy" | "large-heavy".\nMarkDownRenderer(textMarkdown: string, variant?: "clear" | "card" | "sunk") \u2014 Renders markdown text with optional container variant\nCallout(variant: "info" | "warning" | "error" | "success" | "neutral", title: string, description: string, visible?: $binding<boolean>) \u2014 Callout banner. Optional visible is a reactive $boolean \u2014 auto-dismisses after 3s by setting $visible to false.\nTextCallout(variant?: "neutral" | "info" | "warning" | "success" | "danger", title?: string, description?: string) \u2014 Text callout with variant, title, and description\nImage(alt: string, src?: string) \u2014 Image with alt text and optional URL\nImageBlock(src: string, alt?: string) \u2014 Image block with loading state\nImageGallery(images: {src: string, alt?: string, details?: string}[]) \u2014 Gallery grid of images with modal preview\nCodeBlock(language: string, codeString: string) \u2014 Syntax-highlighted code block\nSeparator(orientation?: "horizontal" | "vertical", decorative?: boolean) \u2014 Visual divider between content sections\n\n### Tables\nTable(columns: Col[]) \u2014 Data table \u2014 column-oriented. Each Col holds its own data array.\nCol(label: string, data: any, type?: "string" | "number" | "action") \u2014 Column definition \u2014 holds label + data array\n\n### Charts (2D)\nBarChart(labels: string[], series: Series[], variant?: "grouped" | "stacked", xLabel?: string, yLabel?: string) \u2014 Vertical bars; use for comparing values across categories with one or more series\nLineChart(labels: string[], series: Series[], variant?: "linear" | "natural" | "step", xLabel?: string, yLabel?: string) \u2014 Lines over categories; use for trends and continuous data over time\nAreaChart(labels: string[], series: Series[], variant?: "linear" | "natural" | "step", xLabel?: string, yLabel?: string) \u2014 Filled area under lines; use for cumulative totals or volume trends over time\nRadarChart(labels: string[], series: Series[]) \u2014 Spider/web chart; use for comparing multiple variables across one or more entities\nHorizontalBarChart(labels: string[], series: Series[], variant?: "grouped" | "stacked", xLabel?: string, yLabel?: string) \u2014 Horizontal bars; prefer when category labels are long or for ranked lists\nSeries(category: string, values: number[]) \u2014 One data series\n\n### Charts (1D)\nPieChart(labels: string[], values: number[], variant?: "pie" | "donut", appearance?: "circular" | "semiCircular") \u2014 Circular slices; use plucked arrays: PieChart(data.categories, data.values)\nRadialChart(labels: string[], values: number[]) \u2014 Radial bars; use plucked arrays: RadialChart(data.categories, data.values)\nSingleStackedBarChart(labels: string[], values: number[]) \u2014 Single horizontal stacked bar; use plucked arrays: SingleStackedBarChart(data.categories, data.values)\nSlice(category: string, value: number) \u2014 One slice with label and numeric value\n\n### Charts (Scatter)\nScatterChart(datasets: ScatterSeries[], xLabel?: string, yLabel?: string) \u2014 X/Y scatter plot; use for correlations, distributions, and clustering\nScatterSeries(name: string, points: Point[]) \u2014 Named dataset\nPoint(x: number, y: number, z?: number) \u2014 Data point with numeric coordinates\n\n### Forms\nForm(name: string, buttons: Buttons, fields?: FormControl[]) \u2014 Form container with fields and explicit action buttons\nFormControl(label: string, input: Input | TextArea | Select | DatePicker | Slider | CheckBoxGroup | RadioGroup, hint?: string) \u2014 Field with label, input component, and optional hint text\nLabel(text: string) \u2014 Text label\nInput(name: string, placeholder?: string, type?: "text" | "email" | "password" | "number" | "url", rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>)\nTextArea(name: string, placeholder?: string, rows?: number, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>)\nSelect(name: string, items: SelectItem[], placeholder?: string, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>, size?: "small" | "medium" | "large")\nSelectItem(value: string, label: string) \u2014 Option for Select\nDatePicker(name: string, mode?: "single" | "range", rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<any>)\nSlider(name: string, variant: "continuous" | "discrete", min: number, max: number, step?: number, defaultValue?: number[], label?: string, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<number[]>) \u2014 Numeric slider input; supports continuous and discrete (stepped) variants\nCheckBoxGroup(name: string, items: CheckBoxItem[], rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<Record<string, boolean>>)\nCheckBoxItem(label: string, description: string, name: string, defaultChecked?: boolean)\nRadioGroup(name: string, items: RadioItem[], defaultValue?: string, rules?: {required?: boolean, email?: boolean, url?: boolean, numeric?: boolean, min?: number, max?: number, minLength?: number, maxLength?: number, pattern?: string}, value?: $binding<string>)\nRadioItem(label: string, description: string, value: string)\nSwitchGroup(name: string, items: SwitchItem[], variant?: "clear" | "card" | "sunk", value?: $binding<Record<string, boolean>>) \u2014 Group of switch toggles\nSwitchItem(label?: string, description?: string, name: string, defaultChecked?: boolean) \u2014 Individual switch toggle\n- Define EACH FormControl as its own reference \u2014 do NOT inline all controls in one array.\n- NEVER nest Form inside Form.\n- Form requires explicit buttons. Always pass a Buttons(...) reference as the third Form argument.\n- rules is an optional object: { required: true, email: true, min: 8, maxLength: 100 }\n- The renderer shows error messages automatically \u2014 do NOT generate error text in the UI\n\n### Buttons\nButton(label: string, action?: ActionExpression, variant?: "primary" | "secondary" | "tertiary", type?: "normal" | "destructive", size?: "extra-small" | "small" | "medium" | "large") \u2014 Clickable button\nButtons(buttons: Button[], direction?: "row" | "column") \u2014 Group of Button components. direction: "row" (default) | "column".\n\n### Lists & Follow-ups\nListBlock(items: ListItem[], variant?: "number" | "image") \u2014 A list of items with number or image indicators. Each item can optionally have an action.\nListItem(title: string, subtitle?: string, image?: {src: string, alt: string}, actionLabel?: string, action?: ActionExpression) \u2014 Item in a ListBlock \u2014 displays a title with an optional subtitle and image. When action is provided, the item becomes clickable.\nFollowUpBlock(items: FollowUpItem[]) \u2014 List of clickable follow-up suggestions placed at the end of a response\nFollowUpItem(text: string) \u2014 Clickable follow-up suggestion \u2014 when clicked, sends text as user message\n- Use ListBlock with ListItem references for numbered, clickable lists.\n- Use FollowUpBlock with FollowUpItem references at the end of a response to suggest next actions.\n- Clicking a ListItem or FollowUpItem sends its text to the LLM as a user message.\n- Example: list = ListBlock([item1, item2])  item1 = ListItem("Option A", "Details about A")\n\n### Sections\nSectionBlock(sections: SectionItem[], isFoldable?: boolean) \u2014 Collapsible accordion sections. Auto-opens sections as they stream in. Use SectionItem for each section.\nSectionItem(value: string, trigger: string, content: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps | ListBlock | FollowUpBlock)[]) \u2014 Section with a label and collapsible content \u2014 used inside SectionBlock\n- SectionBlock renders collapsible accordion sections that auto-open as they stream.\n- Each section needs a unique `value` id, a `trigger` label, and a `content` array.\n- Example: sections = SectionBlock([s1, s2])  s1 = SectionItem("intro", "Introduction", [content1])\n- Set isFoldable=false to render sections as flat headers instead of accordion.\n\n### Layout\nTabs(items: TabItem[]) \u2014 Tabbed container\nTabItem(value: string, trigger: string, content: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps)[]) \u2014 value is unique id, trigger is tab label, content is array of components\nAccordion(items: AccordionItem[]) \u2014 Collapsible sections\nAccordionItem(value: string, trigger: string, content: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps)[]) \u2014 value is unique id, trigger is section title\nSteps(items: StepsItem[]) \u2014 Step-by-step guide\nStepsItem(title: string, details: string) \u2014 title and details text for one step\nCarousel(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps)[][], variant?: "card" | "sunk") \u2014 Horizontal scrollable carousel\n- Use Tabs to present alternative views \u2014 each TabItem has a value id, trigger label, and content array.\n- Carousel takes an array of slides, where each slide is an array of content: carousel = Carousel([[t1, img1], [t2, img2]])\n- IMPORTANT: Every slide in a Carousel must have the same structure \u2014 same component types in the same order.\n- For image carousels use: [[title, image, description, tags], ...] \u2014 every slide must follow this exact pattern.\n- Use real, publicly accessible image URLs (e.g. https://picsum.photos/seed/KEYWORD/800/500). Never hallucinate image URLs.\n\n### Data Display\nTagBlock(tags: string[]) \u2014 tags is an array of strings\nTag(text: string, icon?: string, size?: "sm" | "md" | "lg", variant?: "neutral" | "info" | "success" | "warning" | "danger") \u2014 Styled tag/badge with optional icon and variant\n\n### Other\nCard(children: (TextContent | MarkDownRenderer | CardHeader | Callout | TextCallout | CodeBlock | Image | ImageBlock | ImageGallery | Separator | HorizontalBarChart | RadarChart | PieChart | RadialChart | SingleStackedBarChart | ScatterChart | AreaChart | BarChart | LineChart | Table | TagBlock | Form | Buttons | Steps | ListBlock | FollowUpBlock | SectionBlock | Tabs | Carousel)[]) \u2014 Vertical container for all content in a chat response. Children stack top to bottom automatically.\n\n## Action \u2014 Button Behavior\n\nAction([@steps...]) wires button clicks to operations. Steps are @-prefixed built-in actions. Steps execute in order.\nButtons without an explicit Action prop automatically send their label to the assistant (equivalent to Action([@ToAssistant(label)])).\n\nAvailable steps:\n- @ToAssistant("message") \u2014 Send a message to the assistant (for conversational buttons like "Tell me more", "Explain this")\n- @OpenUrl("https://...") \u2014 Navigate to a URL\n\nExample \u2014 simple nav:\n```\nviewBtn = Button("View", Action([@OpenUrl("https://example.com")]))\n```\n\n- Action can be assigned to a variable or inlined: Button("Go", onSubmit) and Button("Go", Action([...])) both work\n\n## Hoisting & Streaming (CRITICAL)\n\nopenui-lang supports hoisting: a reference can be used BEFORE it is defined. The parser resolves all references after the full input is parsed.\n\nDuring streaming, the output is re-parsed on every chunk. Undefined references are temporarily unresolved and appear once their definitions stream in. This creates a progressive top-down reveal \u2014 structure first, then data fills in.\n\n**Recommended statement order for optimal streaming:**\n1. `root = Card(...)` \u2014 UI shell appears immediately\n2. Component definitions \u2014 fill in as they stream\n3. Data values \u2014 leaf content last\n\nAlways write the root = Card(...) statement first so the UI shell appears immediately, even before child data has streamed in.\n\n## Examples\n\nExample 1 \u2014 Table with follow-ups:\n\nroot = Card([title, tbl, followUps])\ntitle = TextContent("Top Languages", "large-heavy")\ntbl = Table([Col("Language", langs), Col("Users (M)", users), Col("Year", years)])\nlangs = ["Python", "JavaScript", "Java"]\nusers = [15.7, 14.2, 12.1]\nyears = [1991, 1995, 1995]\nfollowUps = FollowUpBlock([fu1, fu2])\nfu1 = FollowUpItem("Tell me more about Python")\nfu2 = FollowUpItem("Show me a JavaScript comparison")\n\nExample 2 \u2014 Clickable list:\n\nroot = Card([title, list])\ntitle = TextContent("Choose a topic", "large-heavy")\nlist = ListBlock([item1, item2, item3])\nitem1 = ListItem("Getting started", "New to the platform? Start here.")\nitem2 = ListItem("Advanced features", "Deep dives into powerful capabilities.")\nitem3 = ListItem("Troubleshooting", "Common issues and how to fix them.")\n\nExample 3 \u2014 Image carousel with consistent slides + follow-ups:\n\nroot = Card([header, carousel, followups])\nheader = CardHeader("Featured Destinations", "Discover highlights and best time to visit")\ncarousel = Carousel([[t1, img1, d1, tags1], [t2, img2, d2, tags2], [t3, img3, d3, tags3]], "card")\nt1 = TextContent("Paris, France", "large-heavy")\nimg1 = ImageBlock("https://picsum.photos/seed/paris/800/500", "Eiffel Tower at night")\nd1 = TextContent("City of light \u2014 best Apr\u2013Jun and Sep\u2013Oct.", "default")\ntags1 = TagBlock(["Landmark", "City Break", "Culture"])\nt2 = TextContent("Kyoto, Japan", "large-heavy")\nimg2 = ImageBlock("https://picsum.photos/seed/kyoto/800/500", "Bamboo grove in Arashiyama")\nd2 = TextContent("Temples and bamboo groves \u2014 best Mar\u2013Apr and Nov.", "default")\ntags2 = TagBlock(["Temples", "Autumn", "Culture"])\nt3 = TextContent("Machu Picchu, Peru", "large-heavy")\nimg3 = ImageBlock("https://picsum.photos/seed/machupicchu/800/500", "Inca citadel in the clouds")\nd3 = TextContent("High-altitude Inca citadel \u2014 best May\u2013Sep.", "default")\ntags3 = TagBlock(["Andes", "Hike", "UNESCO"])\nfollowups = FollowUpBlock([fu1, fu2])\nfu1 = FollowUpItem("Show me only beach destinations")\nfu2 = FollowUpItem("Turn this into a comparison table")\n\nExample 4 \u2014 Form with validation:\n\nroot = Card([title, form])\ntitle = TextContent("Contact Us", "large-heavy")\nform = Form("contact", btns, [nameField, emailField, msgField])\nnameField = FormControl("Name", Input("name", "Your name", "text", { required: true, minLength: 2 }))\nemailField = FormControl("Email", Input("email", "you@example.com", "email", { required: true, email: true }))\nmsgField = FormControl("Message", TextArea("message", "Tell us more...", 4, { required: true, minLength: 10 }))\nbtns = Buttons([Button("Submit", Action([@ToAssistant("Submit")]), "primary")])\n\n## Important Rules\n- When asked about data, generate realistic/plausible data\n- Choose components that best represent the content (tables for comparisons, charts for trends, forms for input, etc.)\n\n## Final Verification\nBefore finishing, walk your output and verify:\n1. root = Card(...) is the FIRST line (for optimal streaming).\n2. Every referenced name is defined. Every defined name (other than root) is reachable from root.\n\n- Every response is a single Card(children) \u2014 children stack vertically automatically. No layout params are needed on Card.\n- Card is the only layout container. Do NOT use Stack. Use Tabs to switch between sections, Carousel for horizontal scroll.\n- Use FollowUpBlock at the END of a Card to suggest what the user can do or ask next.\n- Use ListBlock when presenting a set of options or steps the user can click to select.\n- Use SectionBlock to group long responses into collapsible sections \u2014 good for reports, FAQs, and structured content.\n- Use SectionItem inside SectionBlock: each item needs a unique value id, a trigger (header label), and a content array.\n- Carousel takes an array of slides, where each slide is an array of content: carousel = Carousel([[t1, img1], [t2, img2]])\n- IMPORTANT: Every slide in a Carousel must use the same component structure in the same order \u2014 e.g. all slides: [title, image, description, tags].\n- For image carousels, always use real accessible URLs like https://picsum.photos/seed/KEYWORD/800/500. Never hallucinate or invent image URLs.\n- For forms, define one FormControl reference per field so controls can stream progressively.\n- For forms, always provide the second Form argument with Buttons(...) actions: Form(name, buttons, fields).\n- Never nest Form inside Form.\n- Always fetch data via tools before generating UI - never invent placeholder data.\n- Use charts for trends or comparisons when data supports it.\n- Avoid generic \'Insights\' sections unless the user asks.\n- Always end with FollowUpBlock containing 2 specific follow-up questions grounded in the current response.\n- FollowUp questions should point to data the UI can visualize (charts, tables, comparisons).\n- Use TagBlock for technology badges, languages, and skills.\n- Use SectionBlock for long detailed responses like project breakdowns or experience summaries.';
 
 // ../src/mastra/agents/portfolio-agent.ts
-var import_azure = require("@ai-sdk/azure");
+var import_openai_compatible = require("@ai-sdk/openai-compatible");
 var import_agent = require("@mastra/core/agent");
 var import_processors2 = require("@mastra/core/processors");
 var import_memory = require("@mastra/memory");
@@ -27430,9 +27430,8 @@ var portfolioTools = {
   ...githubTools
 };
 
-// ../src/mastra/agents/input-processors/fast-guardrails-processor.ts
+// ../src/mastra/agents/input-processors/local-guardrails-processor.ts
 var import_processors = require("@mastra/core/processors");
-var DEFAULT_PII_TYPES = ["address", "credit_card"];
 var getTextFromMessage = (message) => {
   if (!message || message.role !== "user") return "";
   const parts = message.content?.parts || [];
@@ -27442,119 +27441,70 @@ var looksLikePromptInjection = (text) => {
   const normalized = text.toLowerCase();
   return normalized.includes("ignore previous instructions") || normalized.includes("system prompt") || normalized.includes("developer message") || normalized.includes("jailbreak") || normalized.includes("act as") || normalized.includes("you are now");
 };
-var looksLikePII = (text) => {
-  return /\b\d{3}-\d{2}-\d{4}\b/.test(text) || // SSN-like
-  /\b(?:\d[ -]*?){13,19}\b/.test(text);
+var redactSensitiveText = (text) => text.replace(/\b\d{3}-\d{2}-\d{4}\b/g, "[redacted]").replace(/\b(?:\d[ -]*?){13,19}\b/g, "[redacted]");
+var redactMessage = (message) => {
+  const parts = message.content?.parts;
+  if (!parts?.length) return message;
+  return {
+    ...message,
+    content: {
+      ...message.content,
+      parts: parts.map(
+        (part) => part.type === "text" ? { ...part, text: redactSensitiveText(part.text) } : part
+      )
+    }
+  };
 };
-var FastGuardrailsProcessor = class {
-  constructor(config) {
-    this.name = "fast-guardrails-processor";
+var LocalGuardrailsProcessor = class {
+  constructor() {
+    this.name = "local-guardrails-processor";
     this.unicodeNormalizer = new import_processors.UnicodeNormalizer({ stripControlChars: true });
-    this.promptInjectionDetector = new import_processors.PromptInjectionDetector({
-      model: config.model,
-      strategy: "block",
-      structuredOutputOptions: { jsonPromptInjection: true }
-    });
-    this.piiDetector = new import_processors.PIIDetector({
-      model: config.model,
-      strategy: "redact",
-      detectionTypes: config.piiTypes || DEFAULT_PII_TYPES,
-      structuredOutputOptions: { jsonPromptInjection: true }
-    });
   }
   async processInput(args) {
     const normalizedMessages = await this.unicodeNormalizer.processInput(args);
     const lastMessage = normalizedMessages[normalizedMessages.length - 1];
     const content = getTextFromMessage(lastMessage);
-    if (!content) {
-      return normalizedMessages;
+    if (content && looksLikePromptInjection(content)) {
+      args.abort("Request blocked by local guardrails.");
     }
-    if (looksLikePromptInjection(content)) {
-      return this.promptInjectionDetector.processInput({
-        ...args,
-        messages: normalizedMessages
-      });
-    }
-    if (looksLikePII(content)) {
-      return this.piiDetector.processInput({
-        ...args,
-        messages: normalizedMessages
-      });
-    }
-    return normalizedMessages;
+    return normalizedMessages.map(redactMessage);
   }
 };
 
 // ../src/mastra/agents/portfolio-agent.ts
 var openuiSystemPrompt = generatedOpenUISystemPrompt;
-var azure = (0, import_azure.createAzure)({
-  resourceName: process.env.AZURE_RESOURCE_NAME,
-  apiKey: process.env.AZURE_API_KEY,
-  apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
-  useDeploymentBasedUrls: true
+var opencodeGo = (0, import_openai_compatible.createOpenAICompatible)({
+  name: "opencode-go",
+  apiKey: process.env.OPENCODE_API_KEY,
+  baseURL: process.env.OPENCODE_BASE_URL || "https://opencode.ai/zen/go/v1",
+  headers: {
+    "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev"
+  }
 });
-var memoryModel = (0, import_azure.createAzure)({
-  resourceName: process.env.AZURE_RESOURCE_NAME,
-  apiKey: process.env.AZURE_API_KEY,
-  apiVersion: process.env.AZURE_API_VERSION || "2025-01-01-preview",
-  useDeploymentBasedUrls: true
-}).textEmbedding(process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME);
+var chatModel = opencodeGo(
+  process.env.OPENCODE_MODEL || "deepseek-v4-flash"
+);
 if (!global._postgresStore) {
   global._postgresStore = new import_pg.PostgresStore({
     connectionString: process.env.MEMORY_DATABASE_URL
   });
 }
 var storage = global._postgresStore;
-if (!global._pgVector) {
-  global._pgVector = new import_pg.PgVector({
-    connectionString: process.env.MEMORY_DATABASE_URL
-  });
-}
-var vector = global._pgVector;
 if (!global._memory) {
   global._memory = new import_memory.Memory({
     storage,
-    vector,
-    embedder: memoryModel,
     options: {
-      lastMessages: 20,
-      semanticRecall: {
-        topK: 3,
-        // Optimized: Reduced from 5
-        messageRange: 2
-        // Optimized: Reduced from 3
-      }
+      lastMessages: 20
     }
   });
 }
 var memory = global._memory;
 var guardrailsMode = (process.env.GUARDRAILS_MODE || "fast").toLowerCase();
-var guardrailsModel = azure(process.env.AZURE_GUARDRAILS_DEPLOYMENT || "gpt-4.1-nano");
 var inputProcessors = (() => {
   if (guardrailsMode === "off") {
     return [new import_processors2.UnicodeNormalizer({ stripControlChars: true })];
   }
-  if (guardrailsMode === "fast") {
-    return [new FastGuardrailsProcessor({ model: guardrailsModel })];
-  }
-  return [
-    new import_processors2.UnicodeNormalizer({ stripControlChars: true }),
-    new import_processors2.PromptInjectionDetector({
-      model: guardrailsModel,
-      strategy: "block",
-      structuredOutputOptions: {
-        jsonPromptInjection: true
-      }
-    }),
-    new import_processors2.PIIDetector({
-      model: guardrailsModel,
-      strategy: "redact",
-      detectionTypes: ["address", "credit_card"],
-      structuredOutputOptions: {
-        jsonPromptInjection: true
-      }
-    })
-  ];
+  return [new LocalGuardrailsProcessor()];
 })();
 var portfolioAgent = new import_agent.Agent({
   name: "portfolio-agent",
@@ -27622,7 +27572,7 @@ Output ONLY OpenUI Lang \u2014 no markdown, no plain text, no JSON. The UI frame
 ## OpenUI Lang Component Library & Syntax
 ${openuiSystemPrompt}
 `,
-  model: azure(process.env.AZURE_DEPLOYMENT_NAME_MINI || "ZeroESGAI"),
+  model: chatModel,
   tools: portfolioTools,
   memory,
   inputProcessors
@@ -27636,9 +27586,72 @@ if (!global._mastraInstance) {
 }
 var mastra = global._mastraInstance;
 
-// index.ts
-var app = (0, import_express.default)();
-var PORT = process.env.MASTRA_PORT || 4e3;
+// portfolio-context.ts
+var import_runtime_context = require("@mastra/core/runtime-context");
+var BASE_TOOL_RUNS = [
+  { toolName: "getPersonalInfo", args: {} },
+  { toolName: "getGitHubProfile", args: {} },
+  { toolName: "getGitHubRepos", args: { limit: 12, sort: "pushed" } },
+  { toolName: "getGitHubStats", args: {} }
+];
+var truncateString = (value, maxLength) => value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+var compactResult = (value) => {
+  if (typeof value === "string") return truncateString(value, 3500);
+  if (Array.isArray(value)) return value.map(compactResult);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue2]) => [
+      key,
+      typeof nestedValue2 === "string" ? truncateString(nestedValue2, 6e3) : compactResult(nestedValue2)
+    ])
+  );
+};
+var executePortfolioTool = async (toolName, args, emit) => {
+  const toolCallId = `prefetch-${toolName}`;
+  emit({ type: "tool-call", toolName, toolCallId, args });
+  const tool = portfolioTools[toolName];
+  const result = await tool.execute?.({
+    context: args,
+    runtimeContext: new import_runtime_context.RuntimeContext()
+  });
+  const compactedResult = compactResult(result);
+  emit({ type: "tool-result", toolName, toolCallId, result: compactedResult });
+  return { toolName, args, result: compactedResult };
+};
+var getRepositoryNames = (reposResult) => {
+  if (!reposResult || typeof reposResult !== "object") return [];
+  const repositories = reposResult.repositories;
+  if (!Array.isArray(repositories)) return [];
+  return repositories.map((repo) => {
+    if (!repo || typeof repo !== "object") return "";
+    return typeof repo.name === "string" ? repo.name : "";
+  }).filter(Boolean);
+};
+var getMentionedRepos = (query, repoNames) => {
+  const normalizedQuery = query.toLowerCase();
+  return repoNames.filter((repoName) => normalizedQuery.includes(repoName.toLowerCase())).slice(0, 2);
+};
+var shouldFetchActivity = (query) => /\b(activity|recent|working|current|commit|commits|pull request|pull requests|github)\b/i.test(query);
+var collectPortfolioContext = async (query, emit) => {
+  const toolRuns = shouldFetchActivity(query) ? [...BASE_TOOL_RUNS, { toolName: "getGitHubActivity", args: { limit: 8 } }] : BASE_TOOL_RUNS;
+  const collectedResults = await Promise.all(
+    toolRuns.map(({ toolName, args }) => executePortfolioTool(toolName, args, emit))
+  );
+  const reposResult = collectedResults.find((result) => result.toolName === "getGitHubRepos")?.result;
+  const mentionedRepos = getMentionedRepos(query, getRepositoryNames(reposResult));
+  for (const repo of mentionedRepos) {
+    collectedResults.push(
+      await executePortfolioTool("getRepoReadme", { repo }, emit)
+    );
+  }
+  return JSON.stringify({
+    collectedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    source: "server-prefetched portfolio tools",
+    results: collectedResults
+  });
+};
+
+// sse.ts
 var isRecord = (value) => typeof value === "object" && value !== null;
 var firstString = (...values) => {
   for (const value of values) {
@@ -27646,6 +27659,220 @@ var firstString = (...values) => {
   }
   return "";
 };
+var nestedRecord = (value, key) => {
+  if (!isRecord(value)) return void 0;
+  return isRecord(value[key]) ? value[key] : void 0;
+};
+var nestedValue = (value, ...path) => {
+  let current = value;
+  for (const key of path) {
+    if (!isRecord(current)) return void 0;
+    current = current[key];
+  }
+  return current;
+};
+var fallbackToolCallId = (chunk) => firstString(
+  chunk.toolCallId,
+  chunk.id,
+  nestedValue(chunk, "payload", "toolCallId"),
+  nestedValue(chunk, "payload", "id")
+) || `tool-${Date.now()}`;
+var getToolArgs = (chunk, payload) => chunk.args ?? chunk.input ?? chunk.toolInput ?? payload?.args ?? payload?.input ?? payload?.toolInput;
+var createSseWriter = (res) => {
+  let closed = false;
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+  res.on("close", () => {
+    closed = true;
+  });
+  const writeData = (data) => {
+    if (closed || res.writableEnded) return;
+    res.write(`data: ${data}
+
+`);
+  };
+  return {
+    close: () => {
+      closed = true;
+    },
+    done: () => {
+      writeData("[DONE]");
+      if (!res.writableEnded) res.end();
+    },
+    write: (event) => {
+      writeData(JSON.stringify(event));
+    }
+  };
+};
+var streamChunkToSseEvent = (chunk) => {
+  if (!isRecord(chunk)) return null;
+  const payload = nestedRecord(chunk, "payload");
+  const chunkType = firstString(chunk.type, payload?.type);
+  if (chunkType === "text-delta" || chunkType === "textDelta" || chunkType === "text") {
+    const text = firstString(chunk.text, payload?.text, chunk.textDelta, payload?.textDelta);
+    return text ? { type: "text", text } : null;
+  }
+  if (chunkType === "tool-call" || chunkType === "toolCall" || chunkType === "tool-input-available") {
+    return {
+      type: "tool-call",
+      toolName: firstString(chunk.toolName, payload?.toolName) || "unknown",
+      toolCallId: fallbackToolCallId(chunk),
+      args: getToolArgs(chunk, payload)
+    };
+  }
+  if (chunkType === "tool-result" || chunkType === "toolResult") {
+    return {
+      type: "tool-result",
+      toolName: firstString(chunk.toolName, payload?.toolName) || "unknown",
+      toolCallId: fallbackToolCallId(chunk),
+      result: chunk.result ?? payload?.result ?? payload
+    };
+  }
+  if (chunkType === "tripwire") {
+    const text = firstString(chunk.tripwireReason, payload?.tripwireReason);
+    return { type: "text", text: text || "Request blocked by guardrails" };
+  }
+  if (chunkType === "error") {
+    const error = firstString(chunk.error, payload?.error, chunk.message, payload?.message);
+    return { type: "error", error: error || "Stream error" };
+  }
+  return null;
+};
+
+// chat-routes.ts
+var getLastUserMessage = (messages) => messages.filter((message) => message.role === "user").pop();
+var getMemoryOptions = (threadId, resourceId) => {
+  if (typeof threadId !== "string" || typeof resourceId !== "string") return void 0;
+  if (!threadId || !resourceId) return void 0;
+  return {
+    thread: threadId,
+    resource: resourceId
+  };
+};
+var getContextMessages = (messages) => messages.slice(0, -1).map((message) => ({
+  role: message.role,
+  content: message.content
+}));
+var getModelContext = (messages, portfolioContext) => [
+  ...getContextMessages(messages),
+  {
+    role: "system",
+    content: [
+      "The server has already fetched current portfolio data through internal tools.",
+      "Do not call tools for this response. Use only the supplied portfolio_context and conversation.",
+      "portfolio_context:",
+      portfolioContext
+    ].join("\n")
+  }
+];
+var validateMessages = (req, res) => {
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({ error: "Messages array is required and cannot be empty" });
+    return null;
+  }
+  const validMessages = messages.filter(
+    (message) => message && typeof message === "object" && ["user", "assistant", "system"].includes(message.role) && typeof message.content === "string"
+  );
+  if (validMessages.length !== messages.length) {
+    res.status(400).json({ error: "Messages must include role and string content" });
+    return null;
+  }
+  return validMessages;
+};
+var streamAgentResponse = async (req, res) => {
+  const messages = validateMessages(req, res);
+  if (!messages) return;
+  const lastUserMessage = getLastUserMessage(messages);
+  if (!lastUserMessage) {
+    res.status(400).json({ error: "At least one user message is required" });
+    return;
+  }
+  const writer = createSseWriter(res);
+  const guardrailsMode2 = String(process.env.GUARDRAILS_MODE || "fast").toLowerCase();
+  if (guardrailsMode2 !== "off" && looksLikePromptInjection(lastUserMessage.content)) {
+    writer.write({ type: "text", text: "Request blocked by local guardrails." });
+    writer.done();
+    writer.close();
+    return;
+  }
+  try {
+    const agent = mastra.getAgent("portfolioAgent");
+    const portfolioContext = await collectPortfolioContext(lastUserMessage.content, writer.write);
+    const stream = await agent.stream(lastUserMessage.content, {
+      memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
+      context: getModelContext(messages, portfolioContext),
+      maxSteps: 1,
+      toolChoice: "none"
+    });
+    for await (const chunk of stream.fullStream) {
+      const event = streamChunkToSseEvent(chunk);
+      if (event) writer.write(event);
+    }
+    writer.done();
+  } catch (error) {
+    console.error("Stream error:", error);
+    writer.write({ type: "error", error: "Internal server error" });
+    writer.done();
+  } finally {
+    writer.close();
+  }
+};
+var getAgentMemory = async () => {
+  const agent = mastra.getAgent("portfolioAgent");
+  return agent.getMemory();
+};
+var registerChatRoutes = (app2) => {
+  app2.post("/agent/stream", streamAgentResponse);
+  app2.get("/threads/:threadId", async (req, res) => {
+    try {
+      const { threadId } = req.params;
+      if (!threadId) {
+        return res.status(400).json({ error: "Thread ID is required" });
+      }
+      const memory2 = await getAgentMemory();
+      if (!memory2) {
+        return res.status(500).json({ error: "Memory not configured" });
+      }
+      const thread = await memory2.getThreadById({ threadId });
+      if (!thread) {
+        return res.status(404).json({ error: "Thread not found" });
+      }
+      const { uiMessages } = await memory2.query({
+        threadId,
+        selectBy: { last: 100 }
+      });
+      res.json({ thread, messages: uiMessages });
+    } catch (error) {
+      console.error("Get thread error:", error);
+      res.status(500).json({ error: "Internal server error", details: String(error) });
+    }
+  });
+  app2.get("/threads", async (req, res) => {
+    try {
+      const { resourceId } = req.query;
+      if (typeof resourceId !== "string" || !resourceId) {
+        return res.status(400).json({ error: "resourceId query parameter is required" });
+      }
+      const memory2 = await getAgentMemory();
+      if (!memory2) {
+        return res.status(500).json({ error: "Memory not configured" });
+      }
+      const threads = await memory2.getThreadsByResourceId({ resourceId });
+      res.json({ threads: threads || [] });
+    } catch (error) {
+      console.error("List threads error:", error);
+      res.status(500).json({ error: "Internal server error", details: String(error) });
+    }
+  });
+};
+
+// index.ts
+var app = (0, import_express.default)();
+var PORT = process.env.MASTRA_PORT || 4e3;
 app.use((0, import_cors.default)({
   origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
   credentials: true
@@ -27654,177 +27881,11 @@ app.use(import_express.default.json());
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
 });
-app.post("/agent/stream", async (req, res) => {
-  try {
-    const { messages, threadId, resourceId } = req.body;
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: "Messages array is required and cannot be empty" });
-    }
-    const agent = mastra.getAgent("portfolioAgent");
-    const lastUserMessage = messages.filter((m) => m.role === "user").pop();
-    if (!lastUserMessage) {
-      return res.status(400).json({ error: "At least one user message is required" });
-    }
-    const stream = await agent.stream(lastUserMessage.content, {
-      memory: threadId && resourceId ? {
-        thread: threadId,
-        resource: resourceId
-      } : void 0,
-      // Pass previous messages to guardrails for context on follow-up questions
-      context: messages.slice(0, -1).map((m) => ({
-        role: m.role,
-        content: m.role === "system" ? m.content : m.role === "assistant" ? m.content : m.content
-      }))
-    });
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
-    res.flushHeaders?.();
-    let responseClosed = false;
-    res.on("close", () => {
-      responseClosed = true;
-    });
-    const writeSse = (event) => {
-      if (responseClosed || res.writableEnded) return;
-      res.write(`data: ${JSON.stringify(event)}
-
-`);
-    };
-    for await (const chunk of stream.fullStream) {
-      const c = chunk;
-      const chunkType = c.type;
-      const payload = isRecord(c.payload) ? c.payload : void 0;
-      if (chunkType === "text-delta" || chunkType === "textDelta") {
-        const text = firstString(c.text, payload?.text, c.textDelta, payload?.textDelta);
-        if (text) {
-          writeSse({ type: "text", text });
-        }
-      } else if (chunkType === "tool-call" || chunkType === "toolCall") {
-        const toolName = firstString(c.toolName, payload?.toolName) || "unknown";
-        const toolCallId = firstString(c.toolCallId, payload?.toolCallId) || String(Date.now());
-        const args = c.args || payload?.args;
-        writeSse({
-          type: "tool-call",
-          toolName,
-          toolCallId,
-          args
-        });
-      } else if (chunkType === "tool-result" || chunkType === "toolResult") {
-        const toolName = firstString(c.toolName, payload?.toolName) || "unknown";
-        const toolCallId = firstString(c.toolCallId, payload?.toolCallId) || String(Date.now());
-        const result = c.result || payload?.result;
-        writeSse({
-          type: "tool-result",
-          toolName,
-          toolCallId,
-          result
-        });
-      } else if (chunkType === "tripwire") {
-        const tripwireReason = firstString(c.tripwireReason, payload?.tripwireReason) || "Request blocked by guardrails";
-        writeSse({
-          type: "text",
-          text: tripwireReason
-        });
-      }
-    }
-    if (!responseClosed && !res.writableEnded) {
-      res.write("data: [DONE]\n\n");
-      res.end();
-    }
-  } catch (error) {
-    console.error("Stream error:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ error: "Internal server error", details: String(error) });
-    } else if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ type: "error", error: "Internal server error" })}
-
-`);
-      res.end();
-    }
-  }
-});
-app.post("/agent/generate", async (req, res) => {
-  try {
-    const { messages, threadId, resourceId } = req.body;
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return res.status(400).json({ error: "Messages array is required and cannot be empty" });
-    }
-    const agent = mastra.getAgent("portfolioAgent");
-    const lastUserMessage = messages.filter((m) => m.role === "user").pop();
-    if (!lastUserMessage) {
-      return res.status(400).json({ error: "At least one user message is required" });
-    }
-    const result = await agent.generate(lastUserMessage.content, {
-      memory: threadId && resourceId ? {
-        thread: threadId,
-        resource: resourceId
-      } : void 0
-    });
-    res.json({
-      text: result.text,
-      toolResults: result.toolResults
-    });
-  } catch (error) {
-    console.error("Generate error:", error);
-    res.status(500).json({ error: "Internal server error", details: String(error) });
-  }
-});
-app.get("/threads/:threadId", async (req, res) => {
-  try {
-    const { threadId } = req.params;
-    if (!threadId) {
-      return res.status(400).json({ error: "Thread ID is required" });
-    }
-    const agent = mastra.getAgent("portfolioAgent");
-    const memory2 = await agent.getMemory();
-    if (!memory2) {
-      return res.status(500).json({ error: "Memory not configured" });
-    }
-    const thread = await memory2.getThreadById({ threadId });
-    if (!thread) {
-      return res.status(404).json({ error: "Thread not found" });
-    }
-    const { uiMessages } = await memory2.query({
-      threadId,
-      selectBy: {
-        last: 100
-      }
-    });
-    res.json({
-      thread,
-      messages: uiMessages
-    });
-  } catch (error) {
-    console.error("Get thread error:", error);
-    res.status(500).json({ error: "Internal server error", details: String(error) });
-  }
-});
-app.get("/threads", async (req, res) => {
-  try {
-    const { resourceId } = req.query;
-    if (!resourceId) {
-      return res.status(400).json({ error: "resourceId query parameter is required" });
-    }
-    const agent = mastra.getAgent("portfolioAgent");
-    const memory2 = await agent.getMemory();
-    if (!memory2) {
-      return res.status(500).json({ error: "Memory not configured" });
-    }
-    const threads = await memory2.getThreadsByResourceId({ resourceId });
-    res.json({
-      threads: threads || []
-    });
-  } catch (error) {
-    console.error("List threads error:", error);
-    res.status(500).json({ error: "Internal server error", details: String(error) });
-  }
-});
+registerChatRoutes(app);
 app.listen(PORT, () => {
-  console.log(`\u{1F680} Mastra server running on http://localhost:${PORT}`);
-  console.log(`   Health: http://localhost:${PORT}/health`);
-  console.log(`   Stream: POST http://localhost:${PORT}/agent/stream`);
-  console.log(`   Generate: POST http://localhost:${PORT}/agent/generate`);
+  console.log(`Mastra server running on http://localhost:${PORT}`);
+  console.log(`Health: http://localhost:${PORT}/health`);
+  console.log(`Stream: POST http://localhost:${PORT}/agent/stream`);
 });
 var index_default = app;
 /*! Bundled license information:

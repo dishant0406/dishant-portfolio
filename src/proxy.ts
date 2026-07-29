@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
-  // Get client IP from Azure Container Apps x-forwarded-for header
+  // Get client IP from the standard proxy x-forwarded-for header
   const forwardedFor = request.headers.get('x-forwarded-for');
   const clientIP = forwardedFor?.split(',')[0]?.trim() || '127.0.0.1';
 

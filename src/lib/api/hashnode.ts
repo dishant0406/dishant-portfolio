@@ -102,6 +102,9 @@ export async function fetchBlogPostsForPage(
   try {
     if (page === 1) {
       const response = await fetchBlogPosts(host, { first: postsPerPage });
+      if (!response.publication?.posts) {
+        throw new Error(`Hashnode publication unavailable for ${host}. Check publication host and API access.`);
+      }
       const posts = response.publication.posts.edges.map((edge) => edge.node);
       const totalPosts = response.publication.posts.totalDocuments || posts.length;
       const totalPages = Math.ceil(totalPosts / postsPerPage);
@@ -118,6 +121,9 @@ export async function fetchBlogPostsForPage(
 
     const postsToFetch = page * postsPerPage;
     const response = await fetchBlogPosts(host, { first: postsToFetch });
+    if (!response.publication?.posts) {
+      throw new Error(`Hashnode publication unavailable for ${host}. Check publication host and API access.`);
+    }
     const allPosts = response.publication.posts.edges.map((edge) => edge.node);
     const totalPosts = response.publication.posts.totalDocuments || allPosts.length;
 
