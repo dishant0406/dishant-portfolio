@@ -51,7 +51,7 @@ export interface InputProps {
 // Feature Card Types
 export interface FeatureCardData {
   id: string;
-  icon: 'campaign' | 'spend' | 'ads';
+  icon: 'projects' | 'skills' | 'resume';
   title: string;
   description: string;
   buttonText: string;
@@ -123,7 +123,6 @@ export interface AppState {
   currentChatId: string | null;
   message: string;
   isLoading: boolean;
-  isStreaming: boolean;
   
   // Feature cards
   featureCards: FeatureCardData[];
@@ -139,11 +138,13 @@ export interface AppState {
   setCurrentChatId: (id: string | null) => void;
   
   // Chat actions
-  createNewChat: () => string;
-  sendMessage: () => void;
-  handleCardAction: (cardId: string) => void;
+  createNewChat: (title?: string) => string;
+  startChatWithMessage: (content: string, options?: { forceNew?: boolean; title?: string }) => string | null;
+  sendMessage: () => string | null;
+  handleCardAction: (cardId: string) => string | null;
+  cancelActiveStream: () => void;
+  resetToNewChat: () => void;
   deleteChat: (chatId: string) => void;
-  clearMessage: () => void;
   
   // Computed
   getCurrentChat: () => Chat | undefined;

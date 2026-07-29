@@ -1,7 +1,6 @@
 'use client';
 
 import { portfolioLibrary } from '@/openui/library';
-import { useAppStore } from '@/store/useAppStore';
 import { Chat, ChatMessage, ToolCall } from '@/types';
 import { Renderer } from '@openuidev/react-lang';
 import { Check, ChevronDown, Loader2, Sparkles, User, Wrench } from 'lucide-react';
@@ -104,15 +103,14 @@ interface MessageBubbleProps {
   message: ChatMessage;
   isLastInGroup?: boolean;
   isLatestAssistant?: boolean;
+  onContinueConversation?: (message: string) => void;
 }
 
 
-function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
+function MessageBubble({ message, isLastInGroup = true, onContinueConversation }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
   const hasActiveToolCalls = message.toolCalls?.some(t => t.status === 'running');
-  const setMessage = useAppStore((state) => state.setMessage);
-  const sendMessage = useAppStore((state) => state.sendMessage);
 
   return (
     <div
@@ -188,8 +186,7 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
                       isStreaming={!!message.isStreaming}
                       onAction={(event) => {
                         if (event.type === 'continue_conversation') {
-                          setMessage(event.humanFriendlyMessage);
-                          sendMessage();
+                          onContinueConversation?.(event.humanFriendlyMessage);
                         } else if (event.type === 'open_url' && event.params?.url) {
                           window.open(event.params.url as string, '_blank', 'noopener,noreferrer');
                         }
@@ -216,10 +213,11 @@ function MessageBubble({ message, isLastInGroup = true }: MessageBubbleProps) {
 interface ChatViewProps {
   chat?: Chat;
   isLoading?: boolean;
+  onContinueConversation?: (message: string) => void;
   className?: string;
 }
 
-export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
+export function ChatView({ chat, isLoading, onContinueConversation, className = '' }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -262,6 +260,7 @@ export function ChatView({ chat, isLoading, className = '' }: ChatViewProps) {
                   message={message}
                   isLastInGroup={isLastInGroup}
                   isLatestAssistant={isLatestAssistant}
+                  onContinueConversation={onContinueConversation}
                 />
               );
             });

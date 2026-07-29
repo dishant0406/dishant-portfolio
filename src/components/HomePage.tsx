@@ -35,6 +35,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   const lastProcessedChatId = useRef<string | null>(null);
   const isUserNavigating = useRef(false);
   const expectedChatIdInUrl = useRef<string | null>(null);
+  const pendingLocalChatIds = useRef(new Set<string>());
   
   const {
     user,
@@ -54,8 +55,10 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     setChatSearchQuery,
     setMessage,
     setCurrentChatId,
+    startChatWithMessage,
     sendMessage,
-    handleCardAction,
+    handleCardAction: runCardAction,
+    resetToNewChat,
     deleteChat,
     loadChatFromApi,
   } = useAppStore();
@@ -73,12 +76,34 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   // Get hydration state
   const hasHydrated = useAppStore((state) => state._hasHydrated);
 
+  const navigateToChat = useCallback((chatId: string) => {
+    pendingLocalChatIds.current.add(chatId);
+    isUserNavigating.current = true;
+    expectedChatIdInUrl.current = chatId;
+    lastProcessedChatId.current = chatId;
+    setCurrentChatId(chatId);
+    setCurrentView('chat');
+    router.push(`/?chat=${encodeURIComponent(chatId)}`, { scroll: false });
+  }, [router, setCurrentChatId, setCurrentView]);
+
+  const navigateHome = useCallback(() => {
+    pendingLocalChatIds.current.clear();
+    isUserNavigating.current = true;
+    expectedChatIdInUrl.current = null;
+    lastProcessedChatId.current = null;
+    resetToNewChat();
+    router.push('/', { scroll: false });
+  }, [resetToNewChat, router]);
+
   // Load shared chat from API - wrapped in queueMicrotask to avoid React compiler warning
   const loadSharedChat = useCallback((chatId: string) => {
     queueMicrotask(() => {
       setIsLoadingSharedChat(true);
       loadChatFromApi(chatId).then((chat) => {
         setIsLoadingSharedChat(false);
+        const urlChatId = new URLSearchParams(window.location.search).get('chat');
+        if (urlChatId !== chatId) return;
+
         if (chat) {
           setCurrentChatId(chatId);
           setCurrentView('chat');
@@ -94,68 +119,50 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   useEffect(() => {
     if (!hasHydrated) return;
     if (isLoadingSharedChat) return;
-    if (isUserNavigating.current) return;
     
     const chatIdFromUrl = searchParams.get('chat');
-    
-    // Skip if we already processed this URL
-    if (chatIdFromUrl === lastProcessedChatId.current) return;
-    
-    if (chatIdFromUrl) {
-      lastProcessedChatId.current = chatIdFromUrl;
-      const localChat = chats.find(c => c.id === chatIdFromUrl);
 
-      
-      if (localChat) {
-        setCurrentChatId(chatIdFromUrl);
-        setCurrentView('chat');
-      } else {
-        // Try to load from API (valid pattern for URL-based data loading)
-        loadSharedChat(chatIdFromUrl);
-      }
-    } else if (lastProcessedChatId.current !== null) {
-      // URL changed to no chat - only process if we had a chat before
-      lastProcessedChatId.current = null;
-      if (currentView === 'chat') {
-        setCurrentChatId(null);
-        setCurrentView('home');
-      }
+    if (isUserNavigating.current && chatIdFromUrl !== expectedChatIdInUrl.current) {
+      return;
     }
-  }, [searchParams, hasHydrated, chats, setCurrentChatId, setCurrentView, loadSharedChat, currentView, isLoadingSharedChat]);
-
-  // Sync URL when store's currentChatId changes (from internal actions like sendMessage)
-  useEffect(() => {
-    if (!hasHydrated) return;
-    
-    const chatIdFromUrl = searchParams.get('chat');
 
     if (isUserNavigating.current) {
-      if (expectedChatIdInUrl.current === null && currentChatId) {
-        isUserNavigating.current = false;
-      } else {
-        const isSettled = chatIdFromUrl === expectedChatIdInUrl.current;
-        if (isSettled) {
-          isUserNavigating.current = false;
+      isUserNavigating.current = false;
+    }
+    
+    if (chatIdFromUrl) {
+      const localChat = chats.find(c => c.id === chatIdFromUrl);
+
+      if (localChat) {
+        pendingLocalChatIds.current.delete(chatIdFromUrl);
+        lastProcessedChatId.current = chatIdFromUrl;
+        if (currentChatId !== chatIdFromUrl) {
+          setCurrentChatId(chatIdFromUrl);
+        }
+        if (currentView === 'home' || currentChatId !== chatIdFromUrl) {
+          setCurrentView('chat');
         }
         return;
       }
+
+      if (pendingLocalChatIds.current.has(chatIdFromUrl)) return;
+      if (chatIdFromUrl === lastProcessedChatId.current) return;
+
+      lastProcessedChatId.current = chatIdFromUrl;
+      loadSharedChat(chatIdFromUrl);
+      return;
     }
-    
-    // If store has a chat but URL doesn't match, update URL
-    if (currentChatId && currentChatId !== chatIdFromUrl) {
-      lastProcessedChatId.current = currentChatId;
-      router.push(`/?chat=${currentChatId}`, { scroll: false });
+
+    if (lastProcessedChatId.current !== null || currentChatId || currentView === 'chat') {
+      lastProcessedChatId.current = null;
+      pendingLocalChatIds.current.clear();
+      resetToNewChat();
     }
-  }, [currentChatId, hasHydrated, searchParams, router]);
+  }, [searchParams, hasHydrated, chats, currentChatId, currentView, setCurrentChatId, setCurrentView, loadSharedChat, isLoadingSharedChat, resetToNewChat]);
 
 
   const handleNewChat = () => {
-    isUserNavigating.current = true;
-    expectedChatIdInUrl.current = null;
-    lastProcessedChatId.current = null;
-    setCurrentChatId(null);
-    setCurrentView('home');
-    router.push('/', { scroll: false });
+    navigateHome();
   };
 
   const handleSearch = () => {
@@ -163,8 +170,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   };
 
   const handleGrid = () => {
-    isUserNavigating.current = true;
-    expectedChatIdInUrl.current = currentChatId;
     setCurrentView('chats');
   };
 
@@ -179,21 +184,11 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     : '';
 
   const handleBack = () => {
-    isUserNavigating.current = true;
-    expectedChatIdInUrl.current = null;
-    lastProcessedChatId.current = null;
-    setCurrentChatId(null);
-    setCurrentView('home');
-    router.push('/', { scroll: false });
+    navigateHome();
   };
 
   const handleSelectChat = (chatId: string) => {
-    isUserNavigating.current = true;
-    expectedChatIdInUrl.current = chatId;
-    lastProcessedChatId.current = chatId;
-    setCurrentChatId(chatId);
-    setCurrentView('chat');
-    router.push(`/?chat=${chatId}`, { scroll: false });
+    navigateToChat(chatId);
   };
 
   const handleAddClick = () => {
@@ -201,9 +196,28 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   };
 
   const handleHistoryClick = () => {
-    isUserNavigating.current = true;
-    expectedChatIdInUrl.current = currentChatId;
     setCurrentView('chats');
+  };
+
+  const handleSendMessage = () => {
+    const chatId = sendMessage();
+    if (chatId) {
+      navigateToChat(chatId);
+    }
+  };
+
+  const handleCardAction = (cardId: string) => {
+    const chatId = runCardAction(cardId);
+    if (chatId) {
+      navigateToChat(chatId);
+    }
+  };
+
+  const handleContinueConversation = (content: string) => {
+    const chatId = startChatWithMessage(content);
+    if (chatId) {
+      navigateToChat(chatId);
+    }
   };
 
   // State for sharing from chat list
@@ -255,6 +269,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
           <ChatView
             chat={currentChat}
             isLoading={isLoading}
+            onContinueConversation={handleContinueConversation}
             className="flex-1 overflow-hidden"
           />
         );
@@ -315,7 +330,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
           <MessageInput
             value={message}
             onChange={setMessage}
-            onSend={sendMessage}
+            onSend={handleSendMessage}
             onAddClick={handleAddClick}
             onHistoryClick={handleHistoryClick}
             disabled={false}

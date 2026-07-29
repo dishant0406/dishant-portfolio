@@ -60,8 +60,11 @@ interface AppState {
   
   // Actions
   createNewChat: (title?: string) => string;
-  sendMessage: () => void;
-  handleCardAction: (cardId: string) => void;
+  startChatWithMessage: (content: string, options?: { forceNew?: boolean; title?: string }) => string | null;
+  sendMessage: () => string | null;
+  handleCardAction: (cardId: string) => string | null;
+  cancelActiveStream: () => void;
+  resetToNewChat: () => void;
   loadChatFromApi: (threadId: string) => Promise<Chat | null>;
   
   // Getters
@@ -134,6 +137,18 @@ const extractSseData = (event: string) => {
 
 const isAbortError = (error: unknown) =>
   error instanceof DOMException && error.name === 'AbortError';
+
+const stopStreamingMessages = (messages: ChatMessage[]) =>
+  messages.map((message) => (
+    message.isStreaming ? { ...message, isStreaming: false } : message
+  ));
+
+const cardMessages: Record<string, string> = {
+  projects: 'Tell me about your projects',
+  skills: 'What are your technical skills?',
+  screenshots: 'Show me some screenshots of your projects',
+  resume: 'Can you share your resume?',
+};
 
 // Stream response from the Mastra API
 const streamResponse = async (
@@ -307,8 +322,9 @@ const streamResponse = async (
       });
     }
   } catch (error) {
-    console.error('Streaming error:', error);
     if (!isCurrentStream() || isAbortError(error)) return;
+
+    console.error('Streaming error:', error);
 
     if (fullContent) {
       const chat = getChat();
@@ -471,134 +487,91 @@ export const useAppStore = create<AppState>()(
         return chatId;
       },
        
-      sendMessage: () => {
-        const { message, currentChatId, createNewChat, updateChat, isLoading, activeStreamId } = get();
-         
-        if (!message.trim()) return;
-        if (isLoading || activeStreamId) return;
-         
-        let chatId = currentChatId;
-        let existingMessages: Array<{ role: string; content: string }> = [];
-        
-        // Create new chat if none selected
-        if (!chatId) {
-          chatId = createNewChat(message.substring(0, 50));
-        }
-        
-        // Get existing messages from current chat - use get() to ensure fresh state
-        const chat = get().chats.find(c => c.id === chatId);
-        if (chat) {
-          existingMessages = chat.messages.map(m => ({ role: m.role, content: m.content }));
-        }
-        
-        // Add user message
-        const userMessage: ChatMessage = {
-          id: generateId(),
-          role: 'user',
-          content: message,
-          timestamp: new Date(),
-        };
-        
-        // Get current chat again to get latest state
-        const currentChat = get().chats.find(c => c.id === chatId);
-        if (currentChat) {
-          updateChat(chatId!, {
-            messages: [...currentChat.messages, userMessage],
-            title: currentChat.messages.length === 0 ? message.substring(0, 50) : currentChat.title,
-            updatedAt: new Date(),
-          });
-        } else {
-          console.error('Chat not found after creation:', chatId);
-        }
-        
-        // Clear input and set loading
-        set({ message: '', isLoading: true });
-        
-        // Track message sent
-        analytics.messageSent(chatId || undefined);
-        
-        // Build messages array for API - include new user message directly
-        const apiMessages = [
-          ...existingMessages,
-          { role: 'user', content: message }
-        ];
+      cancelActiveStream: () => {
+        const { activeStreamController } = get();
+        activeStreamController?.abort();
 
-        const streamId = generateId();
-        const abortController = new AbortController();
-        const isCurrentStream = () => get().activeStreamId === streamId;
-        const finishStream = () => {
-          if (get().activeStreamId === streamId) {
-            set({
-              isLoading: false,
-              activeStreamId: null,
-              activeStreamController: null,
-            });
-          }
-        };
+        set((state) => ({
+          isLoading: false,
+          activeStreamId: null,
+          activeStreamController: null,
+          chats: state.chats.map((chat) => {
+            const hasStreamingMessage = chat.messages.some((message) => message.isStreaming);
+            if (!hasStreamingMessage) return chat;
 
-        set({ activeStreamId: streamId, activeStreamController: abortController });
-         
-        // Call the Mastra API
-        streamResponse(
-          chatId!, 
-          apiMessages, 
-          updateChat, 
-          () => get().chats.find(c => c.id === chatId),
-          abortController.signal,
-          isCurrentStream,
-          finishStream
-        );
+            return {
+              ...chat,
+              messages: stopStreamingMessages(chat.messages),
+              updatedAt: new Date(),
+            };
+          }),
+        }));
       },
-       
-      handleCardAction: (cardId) => {
-        const { updateChat, isLoading, activeStreamId } = get();
-        if (isLoading || activeStreamId) return;
-         
-        // Track feature card click
-        analytics.featureCardClicked(cardId);
-        
-        const cardMessages: Record<string, string> = {
-          projects: 'Tell me about your projects',
-          skills: 'What are your technical skills?',
-          screenshots: 'Show me some screenshots of your projects',
-          resume: 'Can you share your resume?',
-        };
-        
-        const userQuestion = cardMessages[cardId] || 'Tell me more';
-        
-        // Create user message
+
+      resetToNewChat: () => {
+        get().cancelActiveStream();
+        set({
+          currentChatId: null,
+          currentView: 'home',
+          message: '',
+        });
+      },
+
+      startChatWithMessage: (content, options = {}) => {
+        const userQuestion = content.trim();
+        if (!userQuestion) return null;
+
+        const state = get();
+        if (state.activeStreamId) {
+          if (!options.forceNew) return null;
+          state.cancelActiveStream();
+        }
+
+        let chatId = options.forceNew ? null : get().currentChatId;
+        let currentChat = chatId ? get().chats.find(c => c.id === chatId) : undefined;
+
+        if (!chatId || !currentChat) {
+          chatId = get().createNewChat(options.title || userQuestion.substring(0, 50));
+          currentChat = get().chats.find(c => c.id === chatId);
+        }
+
+        if (!currentChat) {
+          console.error('Chat not found after creation:', chatId);
+          return null;
+        }
+
+        const existingMessages = currentChat.messages.map(m => ({ role: m.role, content: m.content }));
         const userMessage: ChatMessage = {
           id: generateId(),
           role: 'user',
           content: userQuestion,
           timestamp: new Date(),
         };
-        
-        // Create new chat with the user message already included
-        const chatId = generateId();
-        const now = new Date();
-        const newChat: Chat = {
-          id: chatId,
-          title: userQuestion,
-          createdAt: now,
-          updatedAt: now,
-          messages: [userMessage],
-        };
-        
-        // Add chat and set state atomically
-        set((state) => ({
-          chats: [newChat, ...state.chats.filter(c => c.id !== chatId)],
-          currentChatId: chatId,
-          currentView: 'chat' as const,
-          isLoading: true,
-        }));
-        
-        // Build messages array for API
-        const apiMessages = [{ role: 'user', content: userQuestion }];
 
+        get().updateChat(chatId, {
+          messages: [...currentChat.messages, userMessage],
+          title: currentChat.messages.length === 0 ? userQuestion.substring(0, 50) : currentChat.title,
+          updatedAt: new Date(),
+        });
+
+        set({
+          message: '',
+          isLoading: true,
+          currentChatId: chatId,
+          currentView: 'chat',
+        });
+
+        analytics.messageSent(chatId);
+
+        const apiMessages = [
+          ...existingMessages,
+          { role: 'user', content: userQuestion },
+        ];
         const streamId = generateId();
         const abortController = new AbortController();
-        const isCurrentStream = () => get().activeStreamId === streamId;
+        const isCurrentStream = () => (
+          get().activeStreamId === streamId && get().chats.some(c => c.id === chatId)
+        );
         const finishStream = () => {
           if (get().activeStreamId === streamId) {
             set({
@@ -610,16 +583,30 @@ export const useAppStore = create<AppState>()(
         };
 
         set({ activeStreamId: streamId, activeStreamController: abortController });
-         
-        // Call the Mastra API
+
         streamResponse(
-          chatId, 
-          apiMessages, 
-          updateChat, 
+          chatId,
+          apiMessages,
+          get().updateChat,
           () => get().chats.find(c => c.id === chatId),
           abortController.signal,
           isCurrentStream,
           finishStream
+        );
+
+        return chatId;
+      },
+
+      sendMessage: () => {
+        return get().startChatWithMessage(get().message);
+      },
+
+      handleCardAction: (cardId) => {
+        analytics.featureCardClicked(cardId);
+
+        return get().startChatWithMessage(
+          cardMessages[cardId] || 'Tell me more',
+          { forceNew: true }
         );
       },
       
