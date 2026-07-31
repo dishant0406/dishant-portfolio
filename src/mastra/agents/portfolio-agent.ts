@@ -14,6 +14,7 @@ declare global {
 }
 
 const openuiSystemPrompt = portfolioOpenUISystemPrompt
+const defaultModelId = "deepseek-v4-flash";
 
 const opencodeGo = createOpenAICompatible({
   name: "opencode-go",
@@ -24,9 +25,11 @@ const opencodeGo = createOpenAICompatible({
   },
 });
 
-const chatModel = opencodeGo(
-  process.env.OPENCODE_MODEL || "deepseek-v4-flash"
-);
+export const getPortfolioModelId = () =>
+  process.env.OPENCODE_MODEL || defaultModelId;
+
+const getChatModel = (modelId = getPortfolioModelId()) =>
+  opencodeGo(modelId);
 
 // Create or reuse PostgreSQL storage for memory (cached globally)
 if (!global._postgresStore) {
@@ -57,9 +60,7 @@ const inputProcessors = (() => {
   return [new LocalGuardrailsProcessor()];
 })();
 
-const portfolioAgent = new Agent({
-  name: "portfolio-agent",
-  instructions: `
+const portfolioInstructions = `
 You are Dishant Sharma's AI portfolio assistant. Your data comes from:
 1. GitHub profile (dishant0406) - projects, code, activity
 2. Personal Info Gist - education, experience, resume details
@@ -122,11 +123,17 @@ Output ONLY OpenUI Lang — no markdown, no plain text, no JSON. The UI framewor
 
 ## OpenUI Lang Component Library & Syntax
 ${openuiSystemPrompt}
-`,
-  model: chatModel,
+`;
+
+export const createPortfolioAgent = (modelId = getPortfolioModelId()) => new Agent({
+  name: "portfolio-agent",
+  instructions: portfolioInstructions,
+  model: getChatModel(modelId),
   tools: portfolioTools,
   memory,
   inputProcessors,
 });
+
+const portfolioAgent = createPortfolioAgent();
 
 export { portfolioAgent };

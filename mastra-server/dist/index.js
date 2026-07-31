@@ -27473,6 +27473,7 @@ var LocalGuardrailsProcessor = class {
 
 // ../src/mastra/agents/portfolio-agent.ts
 var openuiSystemPrompt = generatedOpenUISystemPrompt;
+var defaultModelId = "deepseek-v4-flash";
 var opencodeGo = (0, import_openai_compatible.createOpenAICompatible)({
   name: "opencode-go",
   apiKey: process.env.OPENCODE_API_KEY,
@@ -27481,9 +27482,8 @@ var opencodeGo = (0, import_openai_compatible.createOpenAICompatible)({
     "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev"
   }
 });
-var chatModel = opencodeGo(
-  process.env.OPENCODE_MODEL || "deepseek-v4-flash"
-);
+var getPortfolioModelId = () => process.env.OPENCODE_MODEL || defaultModelId;
+var getChatModel = (modelId = getPortfolioModelId()) => opencodeGo(modelId);
 if (!global._postgresStore) {
   global._postgresStore = new import_pg.PostgresStore({
     connectionString: process.env.MEMORY_DATABASE_URL
@@ -27506,9 +27506,7 @@ var inputProcessors = (() => {
   }
   return [new LocalGuardrailsProcessor()];
 })();
-var portfolioAgent = new import_agent.Agent({
-  name: "portfolio-agent",
-  instructions: `
+var portfolioInstructions = `
 You are Dishant Sharma's AI portfolio assistant. Your data comes from:
 1. GitHub profile (dishant0406) - projects, code, activity
 2. Personal Info Gist - education, experience, resume details
@@ -27571,12 +27569,16 @@ Output ONLY OpenUI Lang \u2014 no markdown, no plain text, no JSON. The UI frame
 
 ## OpenUI Lang Component Library & Syntax
 ${openuiSystemPrompt}
-`,
-  model: chatModel,
+`;
+var createPortfolioAgent = (modelId = getPortfolioModelId()) => new import_agent.Agent({
+  name: "portfolio-agent",
+  instructions: portfolioInstructions,
+  model: getChatModel(modelId),
   tools: portfolioTools,
   memory,
   inputProcessors
 });
+var portfolioAgent = createPortfolioAgent();
 
 // ../src/mastra/index.ts
 if (!global._mastraInstance) {
@@ -27586,105 +27588,46 @@ if (!global._mastraInstance) {
 }
 var mastra = global._mastraInstance;
 
-// opencode-thinking.ts
-var OPENCODE_PROVIDER_KEY = "opencode-go";
-var DISABLED_VALUES = /* @__PURE__ */ new Set(["disabled", "disable", "off", "false", "0", "none", "no"]);
-var ENABLED_VALUES = /* @__PURE__ */ new Set(["enabled", "enable", "on", "true", "1", "yes"]);
-var AUTO_VALUES = /* @__PURE__ */ new Set(["auto", "default", "provider"]);
-var getOpencodeThinkingMode = (value = process.env.OPENCODE_THINKING_MODE) => {
-  const normalized = String(value || "disabled").trim().toLowerCase();
-  if (ENABLED_VALUES.has(normalized)) return "enabled";
-  if (AUTO_VALUES.has(normalized)) return "auto";
-  if (DISABLED_VALUES.has(normalized)) return "disabled";
-  return "disabled";
-};
-var shouldForwardThinkingEvents = (mode = getOpencodeThinkingMode()) => mode !== "disabled";
-var getOpencodeProviderOptions = (mode = getOpencodeThinkingMode()) => {
-  if (mode === "auto") return void 0;
+// chat-request.ts
+var getLastUserMessage = (messages) => messages.filter((message) => message.role === "user").pop();
+var getMemoryOptions = (threadId, resourceId) => {
+  if (typeof threadId !== "string" || typeof resourceId !== "string") return void 0;
+  if (!threadId || !resourceId) return void 0;
   return {
-    [OPENCODE_PROVIDER_KEY]: {
-      thinking: {
-        type: mode
-      }
-    }
+    thread: threadId,
+    resource: resourceId
   };
 };
-
-// portfolio-context.ts
-var import_runtime_context = require("@mastra/core/runtime-context");
-var BASE_TOOL_RUNS = [
-  { toolName: "getPersonalInfo", args: {} },
-  { toolName: "getGitHubProfile", args: {} },
-  { toolName: "getGitHubRepos", args: { limit: 12, sort: "pushed" } },
-  { toolName: "getGitHubStats", args: {} }
-];
-var toolStatusLabels = {
-  getPersonalInfo: "Reading portfolio profile",
-  getGitHubProfile: "Fetching GitHub profile",
-  getGitHubRepos: "Loading recent repositories",
-  getGitHubStats: "Analyzing GitHub stats",
-  getGitHubActivity: "Checking recent GitHub activity",
-  getRepoReadme: "Reading project README",
-  searchRepos: "Searching repositories"
-};
-var truncateString = (value, maxLength) => value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
-var compactResult = (value) => {
-  if (typeof value === "string") return truncateString(value, 3500);
-  if (Array.isArray(value)) return value.map(compactResult);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, nestedValue2]) => [
-      key,
-      typeof nestedValue2 === "string" ? truncateString(nestedValue2, 6e3) : compactResult(nestedValue2)
-    ])
-  );
-};
-var executePortfolioTool = async (toolName, args, emit) => {
-  const toolCallId = `prefetch-${toolName}`;
-  const label = toolName === "getRepoReadme" && typeof args.repo === "string" ? `Reading ${args.repo} README` : toolStatusLabels[toolName];
-  emit({ type: "status", id: toolCallId, label, state: "running" });
-  emit({ type: "tool-call", toolName, toolCallId, args });
-  const tool = portfolioTools[toolName];
-  const result = await tool.execute?.({
-    context: args,
-    runtimeContext: new import_runtime_context.RuntimeContext()
-  });
-  const compactedResult = compactResult(result);
-  emit({ type: "tool-result", toolName, toolCallId, result: compactedResult });
-  emit({ type: "status", id: toolCallId, label, state: "completed" });
-  return { toolName, args, result: compactedResult };
-};
-var getRepositoryNames = (reposResult) => {
-  if (!reposResult || typeof reposResult !== "object") return [];
-  const repositories = reposResult.repositories;
-  if (!Array.isArray(repositories)) return [];
-  return repositories.map((repo) => {
-    if (!repo || typeof repo !== "object") return "";
-    return typeof repo.name === "string" ? repo.name : "";
-  }).filter(Boolean);
-};
-var getMentionedRepos = (query, repoNames) => {
-  const normalizedQuery = query.toLowerCase();
-  return repoNames.filter((repoName) => normalizedQuery.includes(repoName.toLowerCase())).slice(0, 2);
-};
-var shouldFetchActivity = (query) => /\b(activity|recent|working|current|commit|commits|pull request|pull requests|github)\b/i.test(query);
-var collectPortfolioContext = async (query, emit) => {
-  const toolRuns = shouldFetchActivity(query) ? [...BASE_TOOL_RUNS, { toolName: "getGitHubActivity", args: { limit: 8 } }] : BASE_TOOL_RUNS;
-  const collectedResults = await Promise.all(
-    toolRuns.map(({ toolName, args }) => executePortfolioTool(toolName, args, emit))
-  );
-  const reposResult = collectedResults.find((result) => result.toolName === "getGitHubRepos")?.result;
-  const mentionedRepos = getMentionedRepos(query, getRepositoryNames(reposResult));
-  for (const repo of mentionedRepos) {
-    collectedResults.push(
-      await executePortfolioTool("getRepoReadme", { repo }, emit)
-    );
+var getContextMessages = (messages) => messages.slice(0, -1).map((message) => ({
+  role: message.role,
+  content: message.content
+}));
+var getModelContext = (messages, portfolioContext) => [
+  ...getContextMessages(messages),
+  {
+    role: "system",
+    content: [
+      "The server has already fetched current portfolio data through internal tools.",
+      "Do not call tools for this response. Use only the supplied portfolio_context and conversation.",
+      "portfolio_context:",
+      portfolioContext
+    ].join("\n")
   }
-  return JSON.stringify({
-    collectedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    source: "server-prefetched portfolio tools",
-    results: collectedResults
-  });
+];
+var validateMessages = (req, res) => {
+  const { messages } = req.body;
+  if (!Array.isArray(messages) || messages.length === 0) {
+    res.status(400).json({ error: "Messages array is required and cannot be empty" });
+    return null;
+  }
+  const validMessages = messages.filter(
+    (message) => message && typeof message === "object" && ["user", "assistant", "system"].includes(message.role) && typeof message.content === "string"
+  );
+  if (validMessages.length !== messages.length) {
+    res.status(400).json({ error: "Messages must include role and string content" });
+    return null;
+  }
+  return validMessages;
 };
 
 // sse.ts
@@ -27797,47 +27740,147 @@ var streamChunkToSseEvent = (chunk, options = {}) => {
   return null;
 };
 
-// chat-stream-handler.ts
-var getLastUserMessage = (messages) => messages.filter((message) => message.role === "user").pop();
-var getMemoryOptions = (threadId, resourceId) => {
-  if (typeof threadId !== "string" || typeof resourceId !== "string") return void 0;
-  if (!threadId || !resourceId) return void 0;
+// model-stream.ts
+var streamModelOutput = async ({
+  agent,
+  prompt,
+  streamOptions,
+  includeThinking,
+  hasStartedOutput,
+  onFirstOutput,
+  write
+}) => {
+  const stream = await agent.stream(prompt, streamOptions);
+  for await (const chunk of stream.fullStream) {
+    const event = streamChunkToSseEvent(chunk, { includeThinking });
+    if (!event) continue;
+    if (event.type === "error" && !hasStartedOutput()) {
+      throw new Error(event.error);
+    }
+    onFirstOutput(event.type);
+    write(event);
+  }
+};
+
+// opencode-model-fallback.ts
+var DEFAULT_FALLBACK_MODEL = "deepseek-v4-pro";
+var getOpencodeFallbackModelId = (value = process.env.OPENCODE_FALLBACK_MODEL) => {
+  const modelId = String(value || DEFAULT_FALLBACK_MODEL).trim();
+  return modelId || DEFAULT_FALLBACK_MODEL;
+};
+var shouldRetryWithFallbackModel = ({
+  primaryModel,
+  fallbackModel = getOpencodeFallbackModelId(),
+  startedModelOutput
+}) => !startedModelOutput && Boolean(fallbackModel) && fallbackModel !== primaryModel;
+var getStreamErrorMessage = (error) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "Stream error";
+};
+
+// opencode-thinking.ts
+var OPENCODE_PROVIDER_KEY = "opencode-go";
+var DISABLED_VALUES = /* @__PURE__ */ new Set(["disabled", "disable", "off", "false", "0", "none", "no"]);
+var ENABLED_VALUES = /* @__PURE__ */ new Set(["enabled", "enable", "on", "true", "1", "yes"]);
+var AUTO_VALUES = /* @__PURE__ */ new Set(["auto", "default", "provider"]);
+var getOpencodeThinkingMode = (value = process.env.OPENCODE_THINKING_MODE) => {
+  const normalized = String(value || "disabled").trim().toLowerCase();
+  if (ENABLED_VALUES.has(normalized)) return "enabled";
+  if (AUTO_VALUES.has(normalized)) return "auto";
+  if (DISABLED_VALUES.has(normalized)) return "disabled";
+  return "disabled";
+};
+var shouldForwardThinkingEvents = (mode = getOpencodeThinkingMode()) => mode !== "disabled";
+var getOpencodeProviderOptions = (mode = getOpencodeThinkingMode()) => {
+  if (mode === "auto") return void 0;
   return {
-    thread: threadId,
-    resource: resourceId
+    [OPENCODE_PROVIDER_KEY]: {
+      thinking: {
+        type: mode
+      }
+    }
   };
 };
-var getContextMessages = (messages) => messages.slice(0, -1).map((message) => ({
-  role: message.role,
-  content: message.content
-}));
-var getModelContext = (messages, portfolioContext) => [
-  ...getContextMessages(messages),
-  {
-    role: "system",
-    content: [
-      "The server has already fetched current portfolio data through internal tools.",
-      "Do not call tools for this response. Use only the supplied portfolio_context and conversation.",
-      "portfolio_context:",
-      portfolioContext
-    ].join("\n")
-  }
+
+// portfolio-context.ts
+var import_runtime_context = require("@mastra/core/runtime-context");
+var BASE_TOOL_RUNS = [
+  { toolName: "getPersonalInfo", args: {} },
+  { toolName: "getGitHubProfile", args: {} },
+  { toolName: "getGitHubRepos", args: { limit: 12, sort: "pushed" } },
+  { toolName: "getGitHubStats", args: {} }
 ];
-var validateMessages = (req, res) => {
-  const { messages } = req.body;
-  if (!Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({ error: "Messages array is required and cannot be empty" });
-    return null;
-  }
-  const validMessages = messages.filter(
-    (message) => message && typeof message === "object" && ["user", "assistant", "system"].includes(message.role) && typeof message.content === "string"
-  );
-  if (validMessages.length !== messages.length) {
-    res.status(400).json({ error: "Messages must include role and string content" });
-    return null;
-  }
-  return validMessages;
+var toolStatusLabels = {
+  getPersonalInfo: "Reading portfolio profile",
+  getGitHubProfile: "Fetching GitHub profile",
+  getGitHubRepos: "Loading recent repositories",
+  getGitHubStats: "Analyzing GitHub stats",
+  getGitHubActivity: "Checking recent GitHub activity",
+  getRepoReadme: "Reading project README",
+  searchRepos: "Searching repositories"
 };
+var truncateString = (value, maxLength) => value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+var compactResult = (value) => {
+  if (typeof value === "string") return truncateString(value, 3500);
+  if (Array.isArray(value)) return value.map(compactResult);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue2]) => [
+      key,
+      typeof nestedValue2 === "string" ? truncateString(nestedValue2, 6e3) : compactResult(nestedValue2)
+    ])
+  );
+};
+var executePortfolioTool = async (toolName, args, emit) => {
+  const toolCallId = `prefetch-${toolName}`;
+  const label = toolName === "getRepoReadme" && typeof args.repo === "string" ? `Reading ${args.repo} README` : toolStatusLabels[toolName];
+  emit({ type: "status", id: toolCallId, label, state: "running" });
+  emit({ type: "tool-call", toolName, toolCallId, args });
+  const tool = portfolioTools[toolName];
+  const result = await tool.execute?.({
+    context: args,
+    runtimeContext: new import_runtime_context.RuntimeContext()
+  });
+  const compactedResult = compactResult(result);
+  emit({ type: "tool-result", toolName, toolCallId, result: compactedResult });
+  emit({ type: "status", id: toolCallId, label, state: "completed" });
+  return { toolName, args, result: compactedResult };
+};
+var getRepositoryNames = (reposResult) => {
+  if (!reposResult || typeof reposResult !== "object") return [];
+  const repositories = reposResult.repositories;
+  if (!Array.isArray(repositories)) return [];
+  return repositories.map((repo) => {
+    if (!repo || typeof repo !== "object") return "";
+    return typeof repo.name === "string" ? repo.name : "";
+  }).filter(Boolean);
+};
+var getMentionedRepos = (query, repoNames) => {
+  const normalizedQuery = query.toLowerCase();
+  return repoNames.filter((repoName) => normalizedQuery.includes(repoName.toLowerCase())).slice(0, 2);
+};
+var shouldFetchActivity = (query) => /\b(activity|recent|working|current|commit|commits|pull request|pull requests|github)\b/i.test(query);
+var collectPortfolioContext = async (query, emit) => {
+  const toolRuns = shouldFetchActivity(query) ? [...BASE_TOOL_RUNS, { toolName: "getGitHubActivity", args: { limit: 8 } }] : BASE_TOOL_RUNS;
+  const collectedResults = await Promise.all(
+    toolRuns.map(({ toolName, args }) => executePortfolioTool(toolName, args, emit))
+  );
+  const reposResult = collectedResults.find((result) => result.toolName === "getGitHubRepos")?.result;
+  const mentionedRepos = getMentionedRepos(query, getRepositoryNames(reposResult));
+  for (const repo of mentionedRepos) {
+    collectedResults.push(
+      await executePortfolioTool("getRepoReadme", { repo }, emit)
+    );
+  }
+  return JSON.stringify({
+    collectedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    source: "server-prefetched portfolio tools",
+    results: collectedResults
+  });
+};
+
+// chat-stream-handler.ts
 var completeComposeOnFirstOutput = (eventType, completeCompose) => {
   if (eventType !== "text" && eventType !== "thinking-start" && eventType !== "thinking-delta") {
     return false;
@@ -27883,13 +27926,6 @@ var streamAgentResponse = async (req, res) => {
       label: "Composing response",
       state: "running"
     });
-    const stream = await agent.stream(lastUserMessage.content, {
-      memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
-      context: getModelContext(messages, portfolioContext),
-      maxSteps: 1,
-      providerOptions: getOpencodeProviderOptions(thinkingMode),
-      toolChoice: "none"
-    });
     let startedModelOutput = false;
     const completeCompose = () => {
       if (startedModelOutput) return;
@@ -27901,13 +27937,41 @@ var streamAgentResponse = async (req, res) => {
         state: "completed"
       });
     };
-    for await (const chunk of stream.fullStream) {
-      const event = streamChunkToSseEvent(chunk, {
-        includeThinking: shouldForwardThinkingEvents(thinkingMode)
+    const streamFromAgent = async (streamAgent) => {
+      const streamOptions = {
+        memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
+        context: getModelContext(messages, portfolioContext),
+        maxSteps: 1,
+        providerOptions: getOpencodeProviderOptions(thinkingMode),
+        toolChoice: "none"
+      };
+      await streamModelOutput({
+        agent: streamAgent,
+        prompt: lastUserMessage.content,
+        includeThinking: shouldForwardThinkingEvents(thinkingMode),
+        hasStartedOutput: () => startedModelOutput,
+        onFirstOutput: (eventType) => completeComposeOnFirstOutput(eventType, completeCompose),
+        write: writer.write,
+        streamOptions
       });
-      if (!event) continue;
-      completeComposeOnFirstOutput(event.type, completeCompose);
-      writer.write(event);
+    };
+    try {
+      await streamFromAgent(agent);
+    } catch (error) {
+      const primaryModel = getPortfolioModelId();
+      const fallbackModel = getOpencodeFallbackModelId();
+      const shouldRetry = shouldRetryWithFallbackModel({
+        primaryModel,
+        fallbackModel,
+        startedModelOutput
+      });
+      if (!shouldRetry) throw error;
+      console.warn("Primary model stream failed, retrying fallback model", {
+        primaryModel,
+        fallbackModel,
+        error: getStreamErrorMessage(error)
+      });
+      await streamFromAgent(createPortfolioAgent(fallbackModel));
     }
     completeCompose();
     writer.done();

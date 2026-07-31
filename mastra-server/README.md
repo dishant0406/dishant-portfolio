@@ -55,6 +55,7 @@ ALLOWED_ORIGINS=https://app1.com,https://app2.com
 MEMORY_DATABASE_URL=postgresql://...
 OPENCODE_API_KEY=...
 OPENCODE_MODEL=deepseek-v4-flash
+OPENCODE_FALLBACK_MODEL=deepseek-v4-pro
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
 ```

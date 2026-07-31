@@ -2,72 +2,41 @@ import type { Request, Response } from 'express';
 import { mastra } from '../src/mastra';
 import { looksLikePromptInjection } from '../src/mastra/agents/input-processors/local-guardrails-processor';
 import {
+  createPortfolioAgent,
+  getPortfolioModelId,
+} from '../src/mastra/agents/portfolio-agent';
+import {
+  getLastUserMessage,
+  getMemoryOptions,
+  getModelContext,
+  validateMessages,
+} from './chat-request';
+import { streamModelOutput } from './model-stream';
+import {
+  getOpencodeFallbackModelId,
+  getStreamErrorMessage,
+  shouldRetryWithFallbackModel,
+} from './opencode-model-fallback';
+import {
   getOpencodeProviderOptions,
   getOpencodeThinkingMode,
   shouldForwardThinkingEvents,
 } from './opencode-thinking';
 import { collectPortfolioContext } from './portfolio-context';
-import { createSseWriter, streamChunkToSseEvent } from './sse';
+import { createSseWriter } from './sse';
 
-type ChatMessage = {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
+type AgentStreamOptions = {
+  memory: ReturnType<typeof getMemoryOptions>;
+  context: ReturnType<typeof getModelContext>;
+  maxSteps: number;
+  providerOptions: ReturnType<typeof getOpencodeProviderOptions>;
+  toolChoice: 'none';
 };
 
-const getLastUserMessage = (messages: ChatMessage[]) =>
-  messages.filter((message) => message.role === 'user').pop();
-
-const getMemoryOptions = (threadId: unknown, resourceId: unknown) => {
-  if (typeof threadId !== 'string' || typeof resourceId !== 'string') return undefined;
-  if (!threadId || !resourceId) return undefined;
-
-  return {
-    thread: threadId,
-    resource: resourceId,
-  };
-};
-
-const getContextMessages = (messages: ChatMessage[]) =>
-  messages.slice(0, -1).map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
-
-const getModelContext = (messages: ChatMessage[], portfolioContext: string) => [
-  ...getContextMessages(messages),
-  {
-    role: 'system' as const,
-    content: [
-      'The server has already fetched current portfolio data through internal tools.',
-      'Do not call tools for this response. Use only the supplied portfolio_context and conversation.',
-      'portfolio_context:',
-      portfolioContext,
-    ].join('\n'),
-  },
-];
-
-const validateMessages = (req: Request, res: Response): ChatMessage[] | null => {
-  const { messages } = req.body;
-
-  if (!Array.isArray(messages) || messages.length === 0) {
-    res.status(400).json({ error: 'Messages array is required and cannot be empty' });
-    return null;
-  }
-
-  const validMessages = messages.filter(
-    (message): message is ChatMessage =>
-      message &&
-      typeof message === 'object' &&
-      ['user', 'assistant', 'system'].includes(message.role) &&
-      typeof message.content === 'string',
-  );
-
-  if (validMessages.length !== messages.length) {
-    res.status(400).json({ error: 'Messages must include role and string content' });
-    return null;
-  }
-
-  return validMessages;
+type StreamAgent = {
+  stream: (message: string, options: AgentStreamOptions) => Promise<{
+    fullStream: AsyncIterable<unknown>;
+  }>;
 };
 
 const completeComposeOnFirstOutput = (
@@ -125,14 +94,6 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
       state: 'running',
     });
 
-    const stream = await agent.stream(lastUserMessage.content, {
-      memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
-      context: getModelContext(messages, portfolioContext),
-      maxSteps: 1,
-      providerOptions: getOpencodeProviderOptions(thinkingMode),
-      toolChoice: 'none',
-    });
-
     let startedModelOutput = false;
     const completeCompose = () => {
       if (startedModelOutput) return;
@@ -145,14 +106,45 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
       });
     };
 
-    for await (const chunk of stream.fullStream) {
-      const event = streamChunkToSseEvent(chunk, {
-        includeThinking: shouldForwardThinkingEvents(thinkingMode),
-      });
-      if (!event) continue;
+    const streamFromAgent = async (streamAgent: StreamAgent) => {
+      const streamOptions: AgentStreamOptions = {
+        memory: getMemoryOptions(req.body.threadId, req.body.resourceId),
+        context: getModelContext(messages, portfolioContext),
+        maxSteps: 1,
+        providerOptions: getOpencodeProviderOptions(thinkingMode),
+        toolChoice: 'none',
+      };
 
-      completeComposeOnFirstOutput(event.type, completeCompose);
-      writer.write(event);
+      await streamModelOutput({
+        agent: streamAgent,
+        prompt: lastUserMessage.content,
+        includeThinking: shouldForwardThinkingEvents(thinkingMode),
+        hasStartedOutput: () => startedModelOutput,
+        onFirstOutput: (eventType) => completeComposeOnFirstOutput(eventType, completeCompose),
+        write: writer.write,
+        streamOptions,
+      });
+    };
+
+    try {
+      await streamFromAgent(agent);
+    } catch (error) {
+      const primaryModel = getPortfolioModelId();
+      const fallbackModel = getOpencodeFallbackModelId();
+      const shouldRetry = shouldRetryWithFallbackModel({
+        primaryModel,
+        fallbackModel,
+        startedModelOutput,
+      });
+
+      if (!shouldRetry) throw error;
+
+      console.warn('Primary model stream failed, retrying fallback model', {
+        primaryModel,
+        fallbackModel,
+        error: getStreamErrorMessage(error),
+      });
+      await streamFromAgent(createPortfolioAgent(fallbackModel));
     }
 
     completeCompose();

@@ -97,6 +97,7 @@ Create a `.env.local` file in the project root:
 # OpenCode Go Configuration
 OPENCODE_API_KEY=your-opencode-key
 OPENCODE_MODEL=deepseek-v4-flash
+OPENCODE_FALLBACK_MODEL=deepseek-v4-pro
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
 
