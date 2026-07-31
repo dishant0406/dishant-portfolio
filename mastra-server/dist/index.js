@@ -27763,7 +27763,7 @@ var streamModelOutput = async ({
 };
 
 // opencode-model-fallback.ts
-var DEFAULT_FALLBACK_MODEL = "deepseek-v4-pro";
+var DEFAULT_FALLBACK_MODEL = "mimo-v2.5";
 var getOpencodeFallbackModelId = (value = process.env.OPENCODE_FALLBACK_MODEL) => {
   const modelId = String(value || DEFAULT_FALLBACK_MODEL).trim();
   return modelId || DEFAULT_FALLBACK_MODEL;
@@ -27880,6 +27880,128 @@ var collectPortfolioContext = async (query, emit) => {
   });
 };
 
+// model-config-source.ts
+var import_promises = require("node:fs/promises");
+
+// gcs-json-config.ts
+var METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
+var isRecord2 = (value) => typeof value === "object" && value !== null;
+var parseGcsUri = (uri) => {
+  if (!uri.startsWith("gs://")) {
+    throw new Error("MODEL_CONFIG_GCS_URI must start with gs://");
+  }
+  const withoutScheme = uri.slice("gs://".length);
+  const slashIndex = withoutScheme.indexOf("/");
+  const bucket = slashIndex === -1 ? withoutScheme : withoutScheme.slice(0, slashIndex);
+  const object = slashIndex === -1 ? "" : withoutScheme.slice(slashIndex + 1);
+  if (!bucket || !object) {
+    throw new Error("MODEL_CONFIG_GCS_URI must include bucket and object path");
+  }
+  return { bucket, object };
+};
+var getMetadataAccessToken = async () => {
+  const response = await fetch(METADATA_TOKEN_URL, {
+    headers: { "Metadata-Flavor": "Google" }
+  });
+  if (!response.ok) {
+    throw new Error(`Metadata token request failed with ${response.status}`);
+  }
+  const tokenPayload = await response.json();
+  const accessToken = isRecord2(tokenPayload) ? tokenPayload.access_token : void 0;
+  if (typeof accessToken !== "string" || !accessToken.trim()) {
+    throw new Error("Metadata token response did not include access_token");
+  }
+  return accessToken;
+};
+var readGcsJsonConfig = async (gcsUri) => {
+  const { bucket, object } = parseGcsUri(gcsUri);
+  const accessToken = await getMetadataAccessToken();
+  const url = new URL(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}`
+  );
+  url.searchParams.set("alt", "media");
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) {
+    throw new Error(`GCS model config request failed with ${response.status}`);
+  }
+  return response.json();
+};
+
+// model-config-source.ts
+var readRawModelConfig = async () => {
+  const inlineJson = process.env.MODEL_CONFIG_JSON?.trim();
+  if (inlineJson) return JSON.parse(inlineJson);
+  const filePath = process.env.MODEL_CONFIG_FILE?.trim();
+  if (filePath) return JSON.parse(await (0, import_promises.readFile)(filePath, "utf8"));
+  const gcsUri = process.env.MODEL_CONFIG_GCS_URI?.trim();
+  if (gcsUri) return readGcsJsonConfig(gcsUri);
+  return void 0;
+};
+
+// runtime-model-config.ts
+var DEFAULT_CACHE_TTL_SECONDS = 60;
+var MIN_CACHE_TTL_SECONDS = 5;
+var MAX_CACHE_TTL_SECONDS = 3600;
+var cachedModelConfig;
+var isRecord3 = (value) => typeof value === "object" && value !== null;
+var nonEmptyString = (value, fallback) => {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
+};
+var clampTtl = (value) => {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numericValue)) return DEFAULT_CACHE_TTL_SECONDS;
+  return Math.min(
+    MAX_CACHE_TTL_SECONDS,
+    Math.max(MIN_CACHE_TTL_SECONDS, Math.floor(numericValue))
+  );
+};
+var envModelConfig = () => ({
+  model: getPortfolioModelId(),
+  fallbackModel: getOpencodeFallbackModelId(),
+  thinkingMode: getOpencodeThinkingMode(),
+  cacheTtlSeconds: clampTtl(process.env.MODEL_CONFIG_CACHE_TTL_SECONDS)
+});
+var normalizeModelConfig = (rawConfig) => {
+  const fallback = envModelConfig();
+  if (!isRecord3(rawConfig)) return fallback;
+  return {
+    model: nonEmptyString(rawConfig.model, fallback.model),
+    fallbackModel: nonEmptyString(rawConfig.fallbackModel, fallback.fallbackModel),
+    thinkingMode: getOpencodeThinkingMode(rawConfig.thinkingMode ?? fallback.thinkingMode),
+    cacheTtlSeconds: clampTtl(rawConfig.cacheTtlSeconds ?? fallback.cacheTtlSeconds)
+  };
+};
+var cacheConfig = (config, nowMs) => {
+  cachedModelConfig = {
+    config,
+    expiresAtMs: nowMs + config.cacheTtlSeconds * 1e3
+  };
+};
+var getRuntimeModelConfig = async () => {
+  const nowMs = Date.now();
+  if (cachedModelConfig && cachedModelConfig.expiresAtMs > nowMs) {
+    return cachedModelConfig.config;
+  }
+  try {
+    const rawConfig = await readRawModelConfig();
+    const config = normalizeModelConfig(rawConfig);
+    cacheConfig(config, nowMs);
+    return config;
+  } catch (error) {
+    console.warn("Model config fetch failed; using stale or env config", error);
+    if (cachedModelConfig) {
+      cacheConfig(cachedModelConfig.config, nowMs);
+      return cachedModelConfig.config;
+    }
+    const config = envModelConfig();
+    cacheConfig(config, nowMs);
+    return config;
+  }
+};
+
 // chat-stream-handler.ts
 var completeComposeOnFirstOutput = (eventType, completeCompose) => {
   if (eventType !== "text" && eventType !== "thinking-start" && eventType !== "thinking-delta") {
@@ -27898,7 +28020,6 @@ var streamAgentResponse = async (req, res) => {
   }
   const writer = createSseWriter(res);
   const guardrailsMode2 = String(process.env.GUARDRAILS_MODE || "fast").toLowerCase();
-  const thinkingMode = getOpencodeThinkingMode();
   if (guardrailsMode2 !== "off" && looksLikePromptInjection(lastUserMessage.content)) {
     writer.write({ type: "text", text: "Request blocked by local guardrails." });
     writer.done();
@@ -27906,7 +28027,9 @@ var streamAgentResponse = async (req, res) => {
     return;
   }
   try {
-    const agent = mastra.getAgent("portfolioAgent");
+    const modelConfig = await getRuntimeModelConfig();
+    const thinkingMode = modelConfig.thinkingMode;
+    const agent = createPortfolioAgent(modelConfig.model);
     writer.write({
       type: "status",
       id: "portfolio-context",
@@ -27958,20 +28081,18 @@ var streamAgentResponse = async (req, res) => {
     try {
       await streamFromAgent(agent);
     } catch (error) {
-      const primaryModel = getPortfolioModelId();
-      const fallbackModel = getOpencodeFallbackModelId();
       const shouldRetry = shouldRetryWithFallbackModel({
-        primaryModel,
-        fallbackModel,
+        primaryModel: modelConfig.model,
+        fallbackModel: modelConfig.fallbackModel,
         startedModelOutput
       });
       if (!shouldRetry) throw error;
       console.warn("Primary model stream failed, retrying fallback model", {
-        primaryModel,
-        fallbackModel,
+        primaryModel: modelConfig.model,
+        fallbackModel: modelConfig.fallbackModel,
         error: getStreamErrorMessage(error)
       });
-      await streamFromAgent(createPortfolioAgent(fallbackModel));
+      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel));
     }
     completeCompose();
     writer.done();

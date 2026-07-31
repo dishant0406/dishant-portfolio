@@ -1,10 +1,6 @@
 import type { Request, Response } from 'express';
-import { mastra } from '../src/mastra';
 import { looksLikePromptInjection } from '../src/mastra/agents/input-processors/local-guardrails-processor';
-import {
-  createPortfolioAgent,
-  getPortfolioModelId,
-} from '../src/mastra/agents/portfolio-agent';
+import { createPortfolioAgent } from '../src/mastra/agents/portfolio-agent';
 import {
   getLastUserMessage,
   getMemoryOptions,
@@ -13,16 +9,15 @@ import {
 } from './chat-request';
 import { streamModelOutput } from './model-stream';
 import {
-  getOpencodeFallbackModelId,
   getStreamErrorMessage,
   shouldRetryWithFallbackModel,
 } from './opencode-model-fallback';
 import {
   getOpencodeProviderOptions,
-  getOpencodeThinkingMode,
   shouldForwardThinkingEvents,
 } from './opencode-thinking';
 import { collectPortfolioContext } from './portfolio-context';
+import { getRuntimeModelConfig } from './runtime-model-config';
 import { createSseWriter } from './sse';
 
 type AgentStreamOptions = {
@@ -63,7 +58,6 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
 
   const writer = createSseWriter(res);
   const guardrailsMode = String(process.env.GUARDRAILS_MODE || 'fast').toLowerCase();
-  const thinkingMode = getOpencodeThinkingMode();
 
   if (guardrailsMode !== 'off' && looksLikePromptInjection(lastUserMessage.content)) {
     writer.write({ type: 'text', text: 'Request blocked by local guardrails.' });
@@ -73,7 +67,10 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
   }
 
   try {
-    const agent = mastra.getAgent('portfolioAgent');
+    const modelConfig = await getRuntimeModelConfig();
+    const thinkingMode = modelConfig.thinkingMode;
+    const agent = createPortfolioAgent(modelConfig.model);
+
     writer.write({
       type: 'status',
       id: 'portfolio-context',
@@ -129,22 +126,20 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
     try {
       await streamFromAgent(agent);
     } catch (error) {
-      const primaryModel = getPortfolioModelId();
-      const fallbackModel = getOpencodeFallbackModelId();
       const shouldRetry = shouldRetryWithFallbackModel({
-        primaryModel,
-        fallbackModel,
+        primaryModel: modelConfig.model,
+        fallbackModel: modelConfig.fallbackModel,
         startedModelOutput,
       });
 
       if (!shouldRetry) throw error;
 
       console.warn('Primary model stream failed, retrying fallback model', {
-        primaryModel,
-        fallbackModel,
+        primaryModel: modelConfig.model,
+        fallbackModel: modelConfig.fallbackModel,
         error: getStreamErrorMessage(error),
       });
-      await streamFromAgent(createPortfolioAgent(fallbackModel));
+      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel));
     }
 
     completeCompose();

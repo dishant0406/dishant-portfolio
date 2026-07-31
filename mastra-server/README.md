@@ -55,9 +55,25 @@ ALLOWED_ORIGINS=https://app1.com,https://app2.com
 MEMORY_DATABASE_URL=postgresql://...
 OPENCODE_API_KEY=...
 OPENCODE_MODEL=deepseek-v4-flash
-OPENCODE_FALLBACK_MODEL=deepseek-v4-pro
+OPENCODE_FALLBACK_MODEL=mimo-v2.5
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
+MODEL_CONFIG_GCS_URI=gs://your-config-bucket/ai-model-config.json
+```
+
+## Runtime Model Config
+
+For production, set `MODEL_CONFIG_GCS_URI` to a private GCS object. The server reads it before streaming a response, caches it for `cacheTtlSeconds`, and keeps the last good config if GCS has a transient failure.
+
+```json
+{
+  "version": 1,
+  "provider": "opencode-go",
+  "model": "deepseek-v4-pro",
+  "fallbackModel": "mimo-v2.5",
+  "thinkingMode": "disabled",
+  "cacheTtlSeconds": 60
+}
 ```
 
 ## Deployment

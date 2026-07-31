@@ -97,9 +97,10 @@ Create a `.env.local` file in the project root:
 # OpenCode Go Configuration
 OPENCODE_API_KEY=your-opencode-key
 OPENCODE_MODEL=deepseek-v4-flash
-OPENCODE_FALLBACK_MODEL=deepseek-v4-pro
+OPENCODE_FALLBACK_MODEL=mimo-v2.5
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
+MODEL_CONFIG_GCS_URI=gs://your-config-bucket/ai-model-config.json
 
 # Database
 MEMORY_DATABASE_URL=postgresql://user:password@host:port/database
@@ -114,6 +115,23 @@ ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 MASTRA_PORT=4000
 MASTRA_API_URL=http://localhost:4000
 ```
+
+### Runtime Model Config
+
+The Mastra chat server can load model settings from a private GCS JSON file on each cache refresh. The browser never receives this config; it is used only server-side when creating the OpenCode model client.
+
+```json
+{
+  "version": 1,
+  "provider": "opencode-go",
+  "model": "deepseek-v4-pro",
+  "fallbackModel": "mimo-v2.5",
+  "thinkingMode": "disabled",
+  "cacheTtlSeconds": 60
+}
+```
+
+Set `MODEL_CONFIG_GCS_URI` to the object path and grant the Cloud Run service account `roles/storage.objectViewer` on the bucket. If the file is missing or temporarily unavailable, the server uses the last good config, then falls back to `OPENCODE_MODEL` and `OPENCODE_FALLBACK_MODEL`.
 
 ### Installation
 

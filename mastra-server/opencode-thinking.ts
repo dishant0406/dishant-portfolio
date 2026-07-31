@@ -1,4 +1,4 @@
-type ThinkingMode = 'disabled' | 'enabled' | 'auto';
+export type ThinkingMode = 'disabled' | 'enabled' | 'auto';
 
 const OPENCODE_PROVIDER_KEY = 'opencode-go';
 
@@ -7,7 +7,7 @@ const ENABLED_VALUES = new Set(['enabled', 'enable', 'on', 'true', '1', 'yes']);
 const AUTO_VALUES = new Set(['auto', 'default', 'provider']);
 
 export const getOpencodeThinkingMode = (
-  value = process.env.OPENCODE_THINKING_MODE,
+  value: unknown = process.env.OPENCODE_THINKING_MODE,
 ): ThinkingMode => {
   const normalized = String(value || 'disabled').trim().toLowerCase();
 

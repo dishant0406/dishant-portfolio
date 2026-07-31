@@ -1,4 +1,4 @@
-const DEFAULT_FALLBACK_MODEL = 'deepseek-v4-pro';
+const DEFAULT_FALLBACK_MODEL = 'mimo-v2.5';
 
 type RetryOptions = {
   primaryModel: string;
