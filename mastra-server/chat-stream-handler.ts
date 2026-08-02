@@ -1,5 +1,4 @@
 import type { Request, Response } from 'express';
-import { looksLikePromptInjection } from '../src/mastra/agents/input-processors/local-guardrails-processor';
 import { createPortfolioAgent } from '../src/mastra/agents/portfolio-agent';
 import {
   getLastUserMessage,
@@ -17,6 +16,12 @@ import {
   shouldForwardThinkingEvents,
 } from './opencode-thinking';
 import { collectPortfolioContext } from './portfolio-context';
+import {
+  evaluatePortfolioGuardrail,
+  isThreadMessageLimitExceeded,
+  portfolioGuardrailBlockMessage,
+  threadLimitBlockMessage,
+} from './portfolio-guardrail';
 import { getRuntimeModelConfig } from './runtime-model-config';
 import { createSseWriter } from './sse';
 
@@ -59,16 +64,33 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
   const writer = createSseWriter(res);
   const guardrailsMode = String(process.env.GUARDRAILS_MODE || 'fast').toLowerCase();
 
-  if (guardrailsMode !== 'off' && looksLikePromptInjection(lastUserMessage.content)) {
-    writer.write({ type: 'text', text: 'Request blocked by local guardrails.' });
-    writer.done();
-    writer.close();
-    return;
-  }
-
   try {
     const modelConfig = await getRuntimeModelConfig();
     const thinkingMode = modelConfig.thinkingMode;
+
+    if (guardrailsMode !== 'off') {
+      if (isThreadMessageLimitExceeded(messages)) {
+        writer.write({ type: 'text', text: threadLimitBlockMessage() });
+        writer.done();
+        return;
+      }
+
+      const decision = await evaluatePortfolioGuardrail(messages, modelConfig.guardrailModel).catch((error) => {
+        console.error('Portfolio guardrail failed:', error);
+        return {
+          allowed: false,
+          reason: 'I could not verify that this request belongs in the portfolio assistant.',
+          category: 'unsafe' as const,
+        };
+      });
+
+      if (!decision.allowed) {
+        writer.write({ type: 'text', text: portfolioGuardrailBlockMessage(decision.reason) });
+        writer.done();
+        return;
+      }
+    }
+
     const agent = createPortfolioAgent(modelConfig.model);
 
     writer.write({

@@ -28,7 +28,7 @@ An intelligent, conversational portfolio application that leverages AI to provid
 ### 🔒 Security & Performance
 - **Rate Limiting**: API protection with request rate limiting
 - **CORS Protection**: Secure cross-origin request handling
-- **Input Sanitization**: PII detection and prompt injection protection
+- **Input Guardrails**: Structured-output LLM scope checks before portfolio responses
 - **Optimized Performance**: Edge-ready deployment with efficient caching
 
 ## 🏗️ Architecture
@@ -98,6 +98,7 @@ Create a `.env.local` file in the project root:
 OPENCODE_API_KEY=your-opencode-key
 OPENCODE_MODEL=deepseek-v4-flash
 OPENCODE_FALLBACK_MODEL=mimo-v2.5
+OPENCODE_GUARDRAIL_MODEL=mimo-v2.5
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
 MODEL_CONFIG_GCS_URI=gs://your-config-bucket/ai-model-config.json
@@ -126,6 +127,7 @@ The Mastra chat server can load model settings from a private GCS JSON file on e
   "provider": "opencode-go",
   "model": "deepseek-v4-pro",
   "fallbackModel": "mimo-v2.5",
+  "guardrailModel": "mimo-v2.5",
   "thinkingMode": "disabled",
   "cacheTtlSeconds": 60
 }
@@ -188,7 +190,7 @@ Set `MODEL_CONFIG_GCS_URI` to the object path and grant the Cloud Run service ac
 - **OpenCode Go Integration**: OpenAI-compatible model provider for chat
 - **Memory System**: PostgreSQL for persistent conversation context
 - **Tool Integration**: Server-prefetched GitHub API data streamed as tool events
-- **Input Processing**: Local guardrails for prompt-injection blocking and sensitive text redaction
+- **Input Processing**: LLM guardrail checks for portfolio scope plus a 10-user-message thread limit
 
 ### Chat System (`ChatView.tsx`)
 - **Real-time Streaming**: Server-sent events for live AI responses

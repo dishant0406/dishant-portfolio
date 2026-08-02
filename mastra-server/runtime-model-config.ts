@@ -1,4 +1,7 @@
-import { getPortfolioModelId } from '../src/mastra/agents/portfolio-agent';
+import {
+  getGuardrailModelId,
+  getPortfolioModelId,
+} from '../src/mastra/agents/opencode-chat-model';
 import { getOpencodeFallbackModelId } from './opencode-model-fallback';
 import { getOpencodeThinkingMode, type ThinkingMode } from './opencode-thinking';
 import { readRawModelConfig } from './model-config-source';
@@ -6,6 +9,7 @@ import { readRawModelConfig } from './model-config-source';
 export type RuntimeModelConfig = {
   model: string;
   fallbackModel: string;
+  guardrailModel: string;
   thinkingMode: ThinkingMode;
   cacheTtlSeconds: number;
 };
@@ -42,6 +46,7 @@ const clampTtl = (value: unknown) => {
 const envModelConfig = (): RuntimeModelConfig => ({
   model: getPortfolioModelId(),
   fallbackModel: getOpencodeFallbackModelId(),
+  guardrailModel: getGuardrailModelId(),
   thinkingMode: getOpencodeThinkingMode(),
   cacheTtlSeconds: clampTtl(process.env.MODEL_CONFIG_CACHE_TTL_SECONDS),
 });
@@ -53,6 +58,7 @@ const normalizeModelConfig = (rawConfig: unknown): RuntimeModelConfig => {
   return {
     model: nonEmptyString(rawConfig.model, fallback.model),
     fallbackModel: nonEmptyString(rawConfig.fallbackModel, fallback.fallbackModel),
+    guardrailModel: nonEmptyString(rawConfig.guardrailModel, fallback.guardrailModel),
     thinkingMode: getOpencodeThinkingMode(rawConfig.thinkingMode ?? fallback.thinkingMode),
     cacheTtlSeconds: clampTtl(rawConfig.cacheTtlSeconds ?? fallback.cacheTtlSeconds),
   };

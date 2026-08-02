@@ -1,11 +1,10 @@
 import { portfolioOpenUISystemPrompt } from "@/openui/system-prompt";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { Agent } from "@mastra/core/agent";
 import { UnicodeNormalizer } from "@mastra/core/processors";
 import { Memory } from "@mastra/memory";
 import { PostgresStore } from "@mastra/pg";
 import { portfolioTools } from "../tools/portfolio-tools";
-import { LocalGuardrailsProcessor } from "./input-processors/local-guardrails-processor";
+import { getChatModel, getPortfolioModelId } from "./opencode-chat-model";
 
 // Cache expensive instances across serverless invocations
 declare global {
@@ -14,22 +13,6 @@ declare global {
 }
 
 const openuiSystemPrompt = portfolioOpenUISystemPrompt
-const defaultModelId = "deepseek-v4-flash";
-
-const opencodeGo = createOpenAICompatible({
-  name: "opencode-go",
-  apiKey: process.env.OPENCODE_API_KEY,
-  baseURL: process.env.OPENCODE_BASE_URL || "https://opencode.ai/zen/go/v1",
-  headers: {
-    "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev",
-  },
-});
-
-export const getPortfolioModelId = () =>
-  process.env.OPENCODE_MODEL || defaultModelId;
-
-const getChatModel = (modelId = getPortfolioModelId()) =>
-  opencodeGo(modelId);
 
 // Create or reuse PostgreSQL storage for memory (cached globally)
 if (!global._postgresStore) {
@@ -50,15 +33,7 @@ if (!global._memory) {
 }
 const memory = global._memory;
 
-const guardrailsMode = (process.env.GUARDRAILS_MODE || "fast").toLowerCase();
-
-const inputProcessors = (() => {
-  if (guardrailsMode === "off") {
-    return [new UnicodeNormalizer({ stripControlChars: true })];
-  }
-
-  return [new LocalGuardrailsProcessor()];
-})();
+const inputProcessors = [new UnicodeNormalizer({ stripControlChars: true })];
 
 const portfolioInstructions = `
 You are Dishant Sharma's AI portfolio assistant. Your data comes from:
