@@ -4,6 +4,7 @@ import { portfolioLibrary } from '@/openui/library';
 import { ChatMessage } from '@/types';
 import { Renderer } from '@openuidev/react-lang';
 import { Loader2, Sparkles, User } from 'lucide-react';
+import { Markdown } from './ui/Markdown';
 import { ThinkingTrace } from './ThinkingTrace';
 
 interface MessageBubbleProps {
@@ -11,6 +12,9 @@ interface MessageBubbleProps {
   isLastInGroup?: boolean;
   onContinueConversation?: (message: string) => void;
 }
+
+const isOpenUIResponse = (content: string) =>
+  /(^|\n)\s*root\s*=/.test(content);
 
 export function MessageBubble({
   message,
@@ -74,18 +78,24 @@ export function MessageBubble({
                   </div>
                 ) : message.content ? (
                   <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground overflow-hidden wrap-break-word" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    <Renderer
-                      library={portfolioLibrary}
-                      response={message.content}
-                      isStreaming={!!message.isStreaming}
-                      onAction={(event) => {
-                        if (event.type === 'continue_conversation') {
-                          onContinueConversation?.(event.humanFriendlyMessage);
-                        } else if (event.type === 'open_url' && event.params?.url) {
-                          window.open(event.params.url as string, '_blank', 'noopener,noreferrer');
-                        }
-                      }}
-                    />
+                    {isOpenUIResponse(message.content) ? (
+                      <Renderer
+                        library={portfolioLibrary}
+                        response={message.content}
+                        isStreaming={!!message.isStreaming}
+                        onAction={(event) => {
+                          if (event.type === 'continue_conversation') {
+                            onContinueConversation?.(event.humanFriendlyMessage);
+                          } else if (event.type === 'open_url' && event.params?.url) {
+                            window.open(event.params.url as string, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Markdown className="text-muted-foreground">
+                        {message.content}
+                      </Markdown>
+                    )}
                   </div>
                 ) : null}
               </div>
