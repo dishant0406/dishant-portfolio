@@ -75,7 +75,11 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
         return;
       }
 
-      const decision = await evaluatePortfolioGuardrail(messages, modelConfig.guardrailModel).catch((error) => {
+      const decision = await evaluatePortfolioGuardrail(
+        messages,
+        modelConfig.guardrailModel,
+        modelConfig.guardrailBaseURL,
+      ).catch((error) => {
         console.error('Portfolio guardrail failed:', error);
         return {
           allowed: false,

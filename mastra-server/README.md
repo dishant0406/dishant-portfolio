@@ -56,7 +56,8 @@ MEMORY_DATABASE_URL=postgresql://...
 OPENCODE_API_KEY=...
 OPENCODE_MODEL=deepseek-v4-flash
 OPENCODE_FALLBACK_MODEL=mimo-v2.5
-OPENCODE_GUARDRAIL_MODEL=mimo-v2.5
+OPENCODE_GUARDRAIL_MODEL=deepseek-v4-flash
+OPENCODE_GUARDRAIL_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
 MODEL_CONFIG_GCS_URI=gs://your-config-bucket/ai-model-config.json
@@ -65,7 +66,7 @@ MODEL_CONFIG_GCS_URI=gs://your-config-bucket/ai-model-config.json
 ## Runtime Model Config
 
 For production, set `MODEL_CONFIG_GCS_URI` to a private GCS object. The server reads it before streaming a response, caches it for `cacheTtlSeconds`, and keeps the last good config if GCS has a transient failure.
-`guardrailModel` is used only for the structured-output portfolio-scope classifier. Threads are blocked after 10 user messages.
+`guardrailModel` and `guardrailBaseURL` are used only for the structured-output portfolio-scope classifier. Threads are blocked after 10 user messages. For Big Pickle guardrail tests, use `big-pickle` with `https://opencode.ai/zen/v1`.
 
 ```json
 {
@@ -73,7 +74,8 @@ For production, set `MODEL_CONFIG_GCS_URI` to a private GCS object. The server r
   "provider": "opencode-go",
   "model": "deepseek-v4-pro",
   "fallbackModel": "mimo-v2.5",
-  "guardrailModel": "mimo-v2.5",
+  "guardrailModel": "deepseek-v4-flash",
+  "guardrailBaseURL": "https://opencode.ai/zen/go/v1",
   "thinkingMode": "disabled",
   "cacheTtlSeconds": 60
 }
