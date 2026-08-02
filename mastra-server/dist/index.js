@@ -28152,6 +28152,76 @@ var streamAgentResponse = async (req, res) => {
   }
 };
 
+// local-chat-prepare.ts
+var prepareLocalChatResponse = async (req, res) => {
+  const messages = validateMessages(req, res);
+  if (!messages) return;
+  const lastUserMessage = getLastUserMessage(messages);
+  if (!lastUserMessage) {
+    res.status(400).json({ error: "At least one user message is required" });
+    return;
+  }
+  const events = [];
+  const emit = (event) => {
+    events.push(event);
+  };
+  try {
+    const modelConfig = await getRuntimeModelConfig();
+    const guardrailsMode = String(process.env.GUARDRAILS_MODE || "fast").toLowerCase();
+    if (guardrailsMode !== "off") {
+      if (isThreadMessageLimitExceeded(messages)) {
+        res.json({
+          allowed: false,
+          message: threadLimitBlockMessage(),
+          events
+        });
+        return;
+      }
+      const decision = await evaluatePortfolioGuardrail(
+        messages,
+        modelConfig.guardrailModel,
+        modelConfig.guardrailBaseURL
+      ).catch((error) => {
+        console.error("Portfolio guardrail failed:", error);
+        return {
+          allowed: false,
+          reason: "I could not verify that this request belongs in the portfolio assistant.",
+          category: "unsafe"
+        };
+      });
+      if (!decision.allowed) {
+        res.json({
+          allowed: false,
+          message: portfolioGuardrailBlockMessage(decision.reason),
+          events
+        });
+        return;
+      }
+    }
+    emit({
+      type: "status",
+      id: "portfolio-context",
+      label: "Preparing portfolio context",
+      state: "running"
+    });
+    const portfolioContext = await collectPortfolioContext(lastUserMessage.content, emit);
+    emit({
+      type: "status",
+      id: "portfolio-context",
+      label: "Preparing portfolio context",
+      state: "completed"
+    });
+    res.json({
+      allowed: true,
+      portfolioContext,
+      events
+    });
+  } catch (error) {
+    console.error("Local chat preparation failed:", error);
+    res.status(500).json({ error: "Internal server error", details: String(error) });
+  }
+};
+
 // chat-routes.ts
 var getAgentMemory = async () => {
   const agent = mastra.getAgent("portfolioAgent");
@@ -28159,6 +28229,7 @@ var getAgentMemory = async () => {
 };
 var registerChatRoutes = (app2) => {
   app2.post("/agent/stream", streamAgentResponse);
+  app2.post("/agent/prepare-local", prepareLocalChatResponse);
   app2.get("/threads/:threadId", async (req, res) => {
     try {
       const { threadId } = req.params;

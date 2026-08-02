@@ -3,6 +3,7 @@
 import {
   ChatView,
   ChatsListView,
+  ChatProviderSelector,
   FeatureCards,
   GlassContainer,
   GreetingSection,
@@ -48,6 +49,8 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     message,
     isLoading,
     isChatLoading,
+    chatProvider,
+    localModelId,
     featureCards,
     setCurrentView,
     setIsSearchOpen,
@@ -55,6 +58,8 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     setChatSearchQuery,
     setMessage,
     setCurrentChatId,
+    setChatProvider,
+    setLocalModelId,
     startChatWithMessage,
     sendMessage,
     handleCardAction: runCardAction,
@@ -307,7 +312,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
             onShare={handleShare}
             onBack={handleBack}
             showBackButton={currentView !== 'home'}
-            showShareButton={!!currentChatId}
+            showShareButton={!!currentChatId && currentChat?.provider !== 'webllm'}
             isSearchOpen={isSearchOpen}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
@@ -327,6 +332,13 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
       {/* Hide message input on chats list view */}
       {currentView !== 'chats' && (
         <div className="fixed bottom-0 left-0 right-0 lg:bottom-4 lg:left-4 lg:right-4 px-3 sm:px-4 lg:px-6 pb-safe sm:pb-4 lg:pb-6 pt-2 z-50 safe-area-bottom">
+          <ChatProviderSelector
+            provider={chatProvider}
+            modelId={localModelId}
+            disabled={isLoading}
+            onProviderChange={setChatProvider}
+            onModelChange={setLocalModelId}
+          />
           <MessageInput
             value={message}
             onChange={setMessage}

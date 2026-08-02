@@ -96,6 +96,8 @@ export interface StreamStatus {
   timestamp: Date;
 }
 
+export type ChatProvider = 'hosted' | 'webllm';
+
 // Chat Message Types
 export interface ChatMessage {
   id: string;
@@ -113,6 +115,8 @@ export interface Chat {
   id: string;
   title: string;
   description?: string;
+  provider?: ChatProvider;
+  localModelId?: string;
   messages: ChatMessage[];
   createdAt: Date;
   updatedAt: Date;
@@ -139,6 +143,8 @@ export interface AppState {
   currentChatId: string | null;
   message: string;
   isLoading: boolean;
+  chatProvider: ChatProvider;
+  localModelId: string;
   
   // Feature cards
   featureCards: FeatureCardData[];
@@ -152,6 +158,8 @@ export interface AppState {
   setMessage: (message: string) => void;
   setIsLoading: (loading: boolean) => void;
   setCurrentChatId: (id: string | null) => void;
+  setChatProvider: (provider: ChatProvider) => void;
+  setLocalModelId: (modelId: string) => void;
   
   // Chat actions
   createNewChat: (title?: string) => string;
