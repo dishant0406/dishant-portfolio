@@ -1,4 +1,4 @@
-import { Chat } from '@/types';
+import { Chat, LocalModelState } from '@/types';
 import { buildLocalWebLlmMessages } from '@/webllm/localPrompt';
 import { getWebLlmSupport } from '@/webllm/support';
 import { streamWebLlmCompletion } from '@/webllm/webllmClient';
@@ -15,6 +15,7 @@ type LocalStreamOptions = {
   signal: AbortSignal;
   isCurrentStream: () => boolean;
   finishStream: () => void;
+  setLocalModelState: (state: Partial<LocalModelState>) => void;
 };
 
 type LocalPrepareResponse =
@@ -43,13 +44,28 @@ export const streamLocalResponse = async ({
   signal,
   isCurrentStream,
   finishStream,
+  setLocalModelState,
 }: LocalStreamOptions) => {
   const streamState = new ChatStreamState({ chatId, updateChat, getChat, isCurrentStream });
 
   try {
+    setLocalModelState({
+      status: 'checking',
+      progress: 0,
+      message: 'Checking local model support',
+      error: undefined,
+      modelId,
+    });
     pushStatus(streamState, 'webllm-support', 'Checking local model support', 'running');
     const support = await getWebLlmSupport(modelId);
     if (!support.supported) {
+      setLocalModelState({
+        status: 'failed',
+        progress: 0,
+        message: 'Local model unavailable',
+        error: support.reason,
+        modelId,
+      });
       pushStatus(streamState, 'webllm-support', 'Checking local model support', 'cancelled');
       pushEvent(streamState, {
         type: 'text',
@@ -60,6 +76,13 @@ export const streamLocalResponse = async ({
     }
     pushStatus(streamState, 'webllm-support', 'Checking local model support', 'completed');
 
+    setLocalModelState({
+      status: 'preparing',
+      progress: 0,
+      message: 'Preparing portfolio context',
+      error: undefined,
+      modelId,
+    });
     pushStatus(streamState, 'local-context', 'Preparing local context', 'running');
     const response = await fetch('/api/chat/prepare-local', {
       method: 'POST',
@@ -75,11 +98,25 @@ export const streamLocalResponse = async ({
     pushStatus(streamState, 'local-context', 'Preparing local context', 'completed');
 
     if (!payload.allowed) {
+      setLocalModelState({
+        status: 'ready',
+        progress: 100,
+        message: 'Local model ready',
+        error: undefined,
+        modelId,
+      });
       pushEvent(streamState, { type: 'text', text: payload.message });
       streamState.finish();
       return;
     }
 
+    setLocalModelState({
+      status: 'loading',
+      progress: 1,
+      message: 'Loading local model',
+      error: undefined,
+      modelId,
+    });
     pushStatus(streamState, 'webllm-model', 'Loading local model', 'running');
     await streamWebLlmCompletion({
       requestId: generateId(),
@@ -88,9 +125,23 @@ export const streamLocalResponse = async ({
       signal,
       onLoading: (progress, text) => {
         const percent = Math.max(0, Math.min(100, Math.round(progress * 100)));
+        setLocalModelState({
+          status: 'loading',
+          progress: percent,
+          message: text || `Loading local model ${percent}%`,
+          error: undefined,
+          modelId,
+        });
         pushStatus(streamState, 'webllm-model', text || `Loading local model ${percent}%`, 'running');
       },
       onReady: () => {
+        setLocalModelState({
+          status: 'generating',
+          progress: 100,
+          message: 'Composing local response',
+          error: undefined,
+          modelId,
+        });
         pushStatus(streamState, 'webllm-model', 'Loading local model', 'completed');
         pushStatus(streamState, 'compose-response', 'Composing local response', 'running');
       },
@@ -100,15 +151,29 @@ export const streamLocalResponse = async ({
       },
     });
 
+    setLocalModelState({
+      status: 'ready',
+      progress: 100,
+      message: 'Local model ready',
+      error: undefined,
+      modelId,
+    });
     streamState.finish();
   } catch (error) {
     if (!isCurrentStream() || isAbortError(error)) return;
 
     console.error('Local streaming error:', error);
+    setLocalModelState({
+      status: 'failed',
+      progress: 0,
+      message: 'Local model failed',
+      error: error instanceof Error ? error.message : String(error),
+      modelId,
+    });
     if (!streamState.hasContent) {
       pushEvent(streamState, {
         type: 'text',
-        text: `Local WebLLM failed before it could answer. ${error instanceof Error ? error.message : String(error)}`,
+        text: 'Local WebLLM could not start on this device. Switch to Hosted and try again.',
       });
     }
     streamState.finish();

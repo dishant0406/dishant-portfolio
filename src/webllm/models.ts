@@ -14,6 +14,12 @@ export const WEBLLM_MODEL_OPTIONS: WebLlmModelOption[] = [
     vramMb: 711,
   },
   {
+    id: 'Qwen3.5-0.8B-q4f16_1-MLC',
+    label: 'Qwen3.5 0.8B',
+    detail: 'Tiny Qwen',
+    vramMb: 447,
+  },
+  {
     id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
     label: 'Llama 3.2 1B',
     detail: 'Balanced',

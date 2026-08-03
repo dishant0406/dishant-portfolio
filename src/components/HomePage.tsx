@@ -51,6 +51,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     isChatLoading,
     chatProvider,
     localModelId,
+    localModel,
     featureCards,
     setCurrentView,
     setIsSearchOpen,
@@ -335,6 +336,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
           <ChatProviderSelector
             provider={chatProvider}
             modelId={localModelId}
+            localModel={localModel}
             disabled={isLoading}
             onProviderChange={setChatProvider}
             onModelChange={setLocalModelId}

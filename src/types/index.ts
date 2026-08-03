@@ -98,6 +98,23 @@ export interface StreamStatus {
 
 export type ChatProvider = 'hosted' | 'webllm';
 
+export type LocalModelStatus =
+  | 'idle'
+  | 'checking'
+  | 'preparing'
+  | 'loading'
+  | 'generating'
+  | 'ready'
+  | 'failed';
+
+export interface LocalModelState {
+  status: LocalModelStatus;
+  progress: number;
+  message: string;
+  error?: string;
+  modelId?: string;
+}
+
 // Chat Message Types
 export interface ChatMessage {
   id: string;
@@ -145,6 +162,7 @@ export interface AppState {
   isLoading: boolean;
   chatProvider: ChatProvider;
   localModelId: string;
+  localModel: LocalModelState;
   
   // Feature cards
   featureCards: FeatureCardData[];
@@ -160,6 +178,7 @@ export interface AppState {
   setCurrentChatId: (id: string | null) => void;
   setChatProvider: (provider: ChatProvider) => void;
   setLocalModelId: (modelId: string) => void;
+  setLocalModelState: (state: Partial<LocalModelState>) => void;
   
   // Chat actions
   createNewChat: (title?: string) => string;

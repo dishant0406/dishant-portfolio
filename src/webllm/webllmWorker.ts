@@ -1,8 +1,8 @@
 import {
   CreateMLCEngine,
-  prebuiltAppConfig,
   type MLCEngine,
 } from '@mlc-ai/web-llm';
+import { createWebLlmAppConfig } from './appConfig';
 import type { WebLlmWorkerRequest, WebLlmWorkerResponse } from './workerMessages';
 
 let engine: MLCEngine | undefined;
@@ -13,10 +13,7 @@ const post = (message: WebLlmWorkerResponse) => {
   self.postMessage(message);
 };
 
-const appConfig = {
-  ...prebuiltAppConfig,
-  cacheBackend: 'indexeddb' as const,
-};
+const appConfig = createWebLlmAppConfig();
 
 const loadEngine = async (modelId: string, requestId: string) => {
   if (engine && loadedModelId === modelId) return engine;

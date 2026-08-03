@@ -4,6 +4,7 @@ import {
   validateMessages,
 } from './chat-request';
 import { collectPortfolioContext } from './portfolio-context';
+import { toLocalPortfolioContext } from './local-context-summary';
 import {
   evaluatePortfolioGuardrail,
   isThreadMessageLimitExceeded,
@@ -75,7 +76,9 @@ export const prepareLocalChatResponse = async (req: Request, res: Response) => {
       label: 'Preparing portfolio context',
       state: 'running',
     });
-    const portfolioContext = await collectPortfolioContext(lastUserMessage.content, emit);
+    const portfolioContext = toLocalPortfolioContext(
+      await collectPortfolioContext(lastUserMessage.content, emit),
+    );
     emit({
       type: 'status',
       id: 'portfolio-context',

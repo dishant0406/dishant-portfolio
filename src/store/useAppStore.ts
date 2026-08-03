@@ -1,5 +1,12 @@
 import { analytics } from '@/lib/analytics';
-import { Chat, ChatMessage, ChatProvider, ToolCall, User } from '@/types';
+import {
+  Chat,
+  ChatMessage,
+  ChatProvider,
+  LocalModelState,
+  ToolCall,
+  User,
+} from '@/types';
 import { DEFAULT_WEBLLM_MODEL_ID } from '@/webllm/models';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -47,8 +54,10 @@ interface AppState {
   activeStreamController: AbortController | null;
   chatProvider: ChatProvider;
   localModelId: string;
+  localModel: LocalModelState;
   setChatProvider: (provider: ChatProvider) => void;
   setLocalModelId: (modelId: string) => void;
+  setLocalModelState: (state: Partial<LocalModelState>) => void;
   
   // Message state
   message: string;
@@ -187,8 +196,34 @@ export const useAppStore = create<AppState>()(
       activeStreamController: null,
       chatProvider: 'hosted',
       localModelId: DEFAULT_WEBLLM_MODEL_ID,
-      setChatProvider: (chatProvider) => set({ chatProvider }),
-      setLocalModelId: (localModelId) => set({ localModelId }),
+      localModel: {
+        status: 'idle',
+        progress: 0,
+        message: '',
+        modelId: DEFAULT_WEBLLM_MODEL_ID,
+      },
+      setChatProvider: (chatProvider) => set((state) => ({
+        chatProvider,
+        localModel: chatProvider === 'hosted'
+          ? { ...state.localModel, status: 'idle', progress: 0, message: '', error: undefined }
+          : state.localModel,
+      })),
+      setLocalModelId: (localModelId) => set({
+        localModelId,
+        localModel: {
+          status: 'idle',
+          progress: 0,
+          message: '',
+          error: undefined,
+          modelId: localModelId,
+        },
+      }),
+      setLocalModelState: (localModel) => set((state) => ({
+        localModel: {
+          ...state.localModel,
+          ...localModel,
+        },
+      })),
       
       // Message state
       message: '',
@@ -371,7 +406,11 @@ export const useAppStore = create<AppState>()(
         };
 
         if (provider === 'webllm') {
-          streamLocalResponse({ ...streamOptions, modelId: selectedLocalModelId });
+          streamLocalResponse({
+            ...streamOptions,
+            modelId: selectedLocalModelId,
+            setLocalModelState: get().setLocalModelState,
+          });
         } else {
           streamResponse(streamOptions);
         }
