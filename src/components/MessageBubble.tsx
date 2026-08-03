@@ -1,6 +1,7 @@
 'use client';
 
 import { portfolioLibrary } from '@/openui/library';
+import { isOpenUiResponse } from '@/openui/response';
 import { ChatMessage } from '@/types';
 import { Renderer } from '@openuidev/react-lang';
 import { Loader2, Sparkles, User } from 'lucide-react';
@@ -12,9 +13,6 @@ interface MessageBubbleProps {
   isLastInGroup?: boolean;
   onContinueConversation?: (message: string) => void;
 }
-
-const isOpenUIResponse = (content: string) =>
-  /(^|\n)\s*root\s*=/.test(content);
 
 export function MessageBubble({
   message,
@@ -78,7 +76,7 @@ export function MessageBubble({
                   </div>
                 ) : message.content ? (
                   <div className="text-[14px] sm:text-[15px] leading-relaxed text-foreground overflow-hidden wrap-break-word" style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {isOpenUIResponse(message.content) ? (
+                    {isOpenUiResponse(message.content) ? (
                       <Renderer
                         library={portfolioLibrary}
                         response={message.content}

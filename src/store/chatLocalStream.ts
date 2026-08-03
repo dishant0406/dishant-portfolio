@@ -1,3 +1,4 @@
+import { isOpenUiResponse, normalizeOpenUiResponse } from '@/openui/response';
 import { Chat, LocalModelState } from '@/types';
 import { buildLocalWebLlmMessages } from '@/webllm/localPrompt';
 import { getWebLlmSupport } from '@/webllm/support';
@@ -35,6 +36,9 @@ const pushStatus = (
   pushEvent(streamState, { type: 'status', id, label, state });
 };
 
+const pushOpenUiText = (streamState: ChatStreamState, text: string) =>
+  pushEvent(streamState, { type: 'text', text: normalizeOpenUiResponse(text) });
+
 export const streamLocalResponse = async ({
   chatId,
   modelId,
@@ -67,10 +71,7 @@ export const streamLocalResponse = async ({
         modelId,
       });
       pushStatus(streamState, 'webllm-support', 'Checking local model support', 'cancelled');
-      pushEvent(streamState, {
-        type: 'text',
-        text: `Local WebLLM is not available here. ${support.reason || 'Use hosted mode to continue.'}`,
-      });
+      pushOpenUiText(streamState, `Local WebLLM is not available here. ${support.reason || 'Use hosted mode to continue.'}`);
       streamState.finish();
       return;
     }
@@ -105,10 +106,13 @@ export const streamLocalResponse = async ({
         error: undefined,
         modelId,
       });
-      pushEvent(streamState, { type: 'text', text: payload.message });
+      pushOpenUiText(streamState, payload.message);
       streamState.finish();
       return;
     }
+
+    let rawLocalContent = '';
+    let streamedOpenUi = false;
 
     setLocalModelState({
       status: 'loading',
@@ -146,11 +150,21 @@ export const streamLocalResponse = async ({
         pushStatus(streamState, 'compose-response', 'Composing local response', 'running');
       },
       onText: (text) => {
+        rawLocalContent += text;
         pushStatus(streamState, 'compose-response', 'Composing local response', 'completed');
-        pushEvent(streamState, { type: 'text', text });
+        if (streamedOpenUi) {
+          pushEvent(streamState, { type: 'text', text });
+          return;
+        }
+
+        if (isOpenUiResponse(rawLocalContent)) {
+          streamedOpenUi = true;
+          streamState.replaceContent(normalizeOpenUiResponse(rawLocalContent));
+        }
       },
     });
 
+    streamState.replaceContent(normalizeOpenUiResponse(rawLocalContent));
     setLocalModelState({
       status: 'ready',
       progress: 100,
@@ -171,10 +185,7 @@ export const streamLocalResponse = async ({
       modelId,
     });
     if (!streamState.hasContent) {
-      pushEvent(streamState, {
-        type: 'text',
-        text: 'Local WebLLM could not start on this device. Switch to Hosted and try again.',
-      });
+      pushOpenUiText(streamState, 'Local WebLLM could not start on this device. Switch to Hosted and try again.');
     }
     streamState.finish();
   } finally {

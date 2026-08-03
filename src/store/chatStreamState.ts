@@ -178,6 +178,11 @@ export class ChatStreamState {
     }
   }
 
+  replaceContent(content: string, isStreaming = true) {
+    this.fullContent = content;
+    this.updateMessage(isStreaming);
+  }
+
   finish() {
     this.thinking = finishThinking(this.thinking);
     this.statusEvents = this.statusEvents.map((event) => (
@@ -187,9 +192,7 @@ export class ChatStreamState {
   }
 
   fail() {
-    if (!this.fullContent) {
-      this.fullContent = 'Sorry, the stream failed before a response started. Please try again.';
-    }
+    if (!this.fullContent) this.fullContent = 'Sorry, the stream failed before a response started. Please try again.';
     this.thinking = finishThinking(this.thinking);
     this.updateMessage(false);
   }

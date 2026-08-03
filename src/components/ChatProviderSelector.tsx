@@ -1,5 +1,12 @@
 'use client';
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shadcn/select';
 import type { ChatProvider, LocalModelState } from '@/types';
 import { WEBLLM_MODEL_OPTIONS } from '@/webllm/models';
 import { getWebLlmSupport, type WebLlmSupportResult } from '@/webllm/support';
@@ -61,7 +68,7 @@ export function ChatProviderSelector({
     : localModel.message;
 
   return (
-    <div className="md:max-w-[50vw] mx-auto mb-2 space-y-1.5">
+    <div className="mx-auto mb-2 w-full max-w-full space-y-1.5 md:max-w-[50vw]">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center overflow-hidden rounded-lg border border-border bg-card/70">
           <button
@@ -86,21 +93,35 @@ export function ChatProviderSelector({
 
         {provider === 'webllm' && (
           <div className="flex min-w-0 items-center gap-2">
-            <select
+            <Select
               value={modelId}
               disabled={disabled}
-              onChange={(event) => onModelChange(event.target.value)}
-              className="
-                h-8 max-w-[44vw] rounded-lg border border-border bg-card/80 px-2
-                text-xs text-foreground outline-none focus:ring-2 focus:ring-ring/40
-              "
+              onValueChange={onModelChange}
             >
-              {WEBLLM_MODEL_OPTIONS.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.label} - {Math.round(model.vramMb)} MB
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                size="sm"
+                className="
+                  h-8 w-[min(44vw,19rem)] max-w-[44vw] rounded-lg border-border
+                  bg-card/80 px-2 text-xs text-foreground shadow-none
+                  focus-visible:ring-2 focus-visible:ring-ring/40
+                "
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end" className="w-[19rem] max-w-[calc(100vw-2rem)]">
+                {WEBLLM_MODEL_OPTIONS.map((model) => (
+                  <SelectItem
+                    key={model.id}
+                    value={model.id}
+                    textValue={`${model.label} - ${Math.round(model.vramMb)} MB`}
+                  >
+                    <span className="truncate">
+                      {model.label} - {Math.round(model.vramMb)} MB
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {support && !support.supported && !isActiveLocalStatus && (
               <span className="hidden sm:block max-w-48 truncate text-xs text-muted-foreground">
                 {support.reason}
@@ -112,8 +133,10 @@ export function ChatProviderSelector({
 
       {provider === 'webllm' && isActiveLocalStatus && (
         <div className="grid gap-1">
-          <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span className="truncate">{statusText || 'Preparing local model'}</span>
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-xs text-muted-foreground">
+            <span className="min-w-0 truncate" title={statusText || 'Preparing local model'}>
+              {statusText || 'Preparing local model'}
+            </span>
             {localModel.status === 'loading' && (
               <span className="shrink-0 tabular-nums">{localModel.progress}%</span>
             )}
