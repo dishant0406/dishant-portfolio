@@ -3,7 +3,7 @@
 import {
   ChatView,
   ChatsListView,
-  ChatProviderSelector,
+  ChatModelFloatingControl,
   FeatureCards,
   GlassContainer,
   GreetingSection,
@@ -333,14 +333,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
       {/* Hide message input on chats list view */}
       {currentView !== 'chats' && (
         <div className="fixed bottom-0 left-0 right-0 lg:bottom-4 lg:left-4 lg:right-4 px-3 sm:px-4 lg:px-6 pb-safe sm:pb-4 lg:pb-6 pt-2 z-50 safe-area-bottom">
-          <ChatProviderSelector
-            provider={chatProvider}
-            modelId={localModelId}
-            localModel={localModel}
-            disabled={isLoading}
-            onProviderChange={setChatProvider}
-            onModelChange={setLocalModelId}
-          />
           <MessageInput
             value={message}
             onChange={setMessage}
@@ -350,6 +342,14 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
             disabled={false}
             isStreaming={isLoading}
             className="md:max-w-[50vw] mx-auto"
+          />
+          <ChatModelFloatingControl
+            provider={chatProvider}
+            modelId={localModelId}
+            localModel={localModel}
+            disabled={isLoading}
+            onProviderChange={setChatProvider}
+            onModelChange={setLocalModelId}
           />
         </div>
       )}

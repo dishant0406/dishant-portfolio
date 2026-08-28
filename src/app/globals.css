@@ -348,6 +348,48 @@ body {
   animation: blink 1s infinite;
 }
 
+/* Popover entrance animations (dependency-free, no tailwindcss-animate needed) */
+@keyframes popover-in {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  60% {
+    transform: translateY(0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes popover-item-in {
+  0% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-popover-in {
+  animation: popover-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: bottom right;
+}
+
+.animate-popover-in [data-popover-item] {
+  opacity: 0;
+  animation: popover-item-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-popover-in [data-popover-item]:nth-child(1) { animation-delay: 0.04s; }
+.animate-popover-in [data-popover-item]:nth-child(2) { animation-delay: 0.08s; }
+.animate-popover-in [data-popover-item]:nth-child(3) { animation-delay: 0.12s; }
+.animate-popover-in [data-popover-item]:nth-child(4) { animation-delay: 0.16s; }
+.animate-popover-in [data-popover-item]:nth-child(5) { animation-delay: 0.20s; }
+
 /* No global transitions - prevents flickering during theme switch */
 
 /* Hide scrollbars globally while maintaining scroll functionality */
