@@ -6,8 +6,16 @@ import { cache } from 'react';
 import { env } from '@/lib/env';
 import type { BlogPost, BlogPostDetail } from '@/lib/types/blog';
 
-/** dev.to's maximum `per_page`, and how many pages we are willing to walk. */
-const PER_PAGE = 1000;
+/**
+ * Page size, and how many pages we are willing to walk.
+ *
+ * This is deliberately 100, not dev.to's maximum of 1000. Fastly caches the
+ * public list endpoint by URL for two days, and the cached entry for
+ * `per_page=1000` on this account is an empty array that never expires into
+ * real data. A smaller page size reads a different cache entry and always
+ * returns the real posts.
+ */
+const PER_PAGE = 100;
 const MAX_PAGES = 5;
 
 /**
