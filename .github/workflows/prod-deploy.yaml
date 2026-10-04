@@ -23,7 +23,6 @@ jobs:
       GAR_LOCATION: ${{ secrets.GAR_LOCATION }}
       GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
       CLOUD_RUN_SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
-      NEXT_PUBLIC_HASHNODE_HOST: ${{ secrets.NEXT_PUBLIC_HASHNODE_HOST }}
       NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
 
     steps:
@@ -55,7 +54,6 @@ jobs:
 
           image="${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${CLOUD_RUN_SERVICE}:${image_tag}"
           docker build \
-            --build-arg "NEXT_PUBLIC_HASHNODE_HOST=${NEXT_PUBLIC_HASHNODE_HOST}" \
             --build-arg "NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}" \
             -t "$image" \
             .
@@ -64,10 +62,17 @@ jobs:
           echo "image=$image" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Cloud Run
+        # `--update-env-vars` (not `--set-env-vars`) so the env vars already
+        # configured on the service are preserved.
+        #
+        # DEVTO_API_KEY is injected here, at runtime. It must never be passed as
+        # a `--build-arg`: build args are recorded in the image history and are
+        # readable by anyone who can pull the image.
         run: |
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --image "${{ steps.image.outputs.image }}" \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_ID" \
             --platform managed \
+            --update-env-vars "DEVTO_USERNAME=${{ vars.DEVTO_USERNAME }},DEVTO_API_KEY=${{ secrets.DEVTO_API_KEY }}" \
             --quiet

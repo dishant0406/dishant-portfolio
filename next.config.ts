@@ -14,19 +14,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'cdn.hashnode.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.hashnode.dev',
-      },
-      {
-        protocol: 'https',
-        hostname: 'cdn.hashnode.dev',
-      },
-      {
-        protocol: 'https',
-        hostname: 'hashnode.com',
+        hostname: 'media2.dev.to',
       },
       {
         protocol: 'https',

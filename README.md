@@ -113,6 +113,10 @@ PROFILE_G_TOKEN=your-github-personal-access-token
 # Security
 ALLOWED_ORIGINS=http://localhost:3000,https://yourdomain.com
 
+# Blog (dev.to). Reads are public; the API key is optional and server-only.
+DEVTO_USERNAME=dishant0406
+DEVTO_API_KEY=your_devto_api_key_here
+
 # Server Configuration
 MASTRA_PORT=4000
 MASTRA_API_URL=http://localhost:4000
@@ -180,10 +184,9 @@ Set `MODEL_CONFIG_GCS_URI` to the object path and grant the Cloud Run service ac
 
 3. **Docker deployment:**
    ```bash
-   docker build --build-arg NEXT_PUBLIC_HASHNODE_HOST=dishantsharma.hashnode.dev \
-                --build-arg NEXT_PUBLIC_SITE_URL=https://dishantsharma.dev \
+   docker build --build-arg NEXT_PUBLIC_SITE_URL=https://dishantsharma.dev \
                 -t portfolio-app .
-   docker run -p 3000:3000 portfolio-app
+   docker run -p 3000:3000 -e DEVTO_USERNAME=dishant0406 portfolio-app
    ```
 
 ## 🔧 Key Components

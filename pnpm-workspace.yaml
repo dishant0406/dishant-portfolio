@@ -9,3 +9,7 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   "@mastra/node-speaker": false
+  "@ffmpeg-installer/darwin-arm64": false
+
+minimumReleaseAgeExclude:
+  - '@dishant0406/dev-to@1.0.4'

@@ -5,9 +5,8 @@ import { notFound } from 'next/navigation';
 
 import { BlogPostContent } from '@/components/blog/BlogPostContent';
 import { RecentPosts } from '@/components/blog/RecentPosts';
-import { fetchBlogPostBySlug, fetchBlogPostMetadata } from '@/lib/api/hashnode';
+import { fetchBlogPostBySlug } from '@/lib/api/devto';
 import { env } from '@/lib/env';
-import type { BlogPostDetail } from '@/lib/types/blog';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,11 +32,9 @@ function formatDate(isoDate: string): string {
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const publicationHost = env.NEXT_PUBLIC_HASHNODE_HOST;
 
   try {
-    const response = await fetchBlogPostMetadata(publicationHost, slug);
-    const post = response.publication?.post;
+    const post = await fetchBlogPostBySlug(slug);
 
     if (!post) {
       return {
@@ -45,9 +42,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
         description: 'The requested blog post could not be found.',
       };
     }
-    const title = post.seo?.title || post.title;
-    const description = post.seo?.description || post.brief;
-    const image = post.ogMetaData?.image || post.coverImage?.url;
+    const title = post.title;
+    const description = post.brief;
+    const image = post.coverImage?.url;
     const canonicalUrl = `${env.NEXT_PUBLIC_SITE_URL}/blog/${slug}`;
     const keywords = post.tags?.map((tag) => tag.name).filter(Boolean);
 
@@ -95,21 +92,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 export default async function BlogPostPage({
   params,
 }: BlogPostPageProps): Promise<React.JSX.Element> {
-  const publicationHost = env.NEXT_PUBLIC_HASHNODE_HOST;
   const { slug } = await params;
 
-  let post: BlogPostDetail | null = null;
-  try {
-    const response = await fetchBlogPostBySlug(publicationHost, slug);
-    post = response.publication?.post || null;
-
-    if (!post) {
-      notFound();
-    }
-  } catch (error) {
-    console.error('Error fetching blog post:', error);
-    notFound();
-  }
+  const post = await fetchBlogPostBySlug(slug);
 
   if (!post) {
     notFound();

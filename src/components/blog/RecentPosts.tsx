@@ -1,7 +1,6 @@
 import Link from 'next/link';
 
-import { fetchBlogPosts } from '@/lib/api/hashnode';
-import { env } from '@/lib/env';
+import { fetchAllPosts } from '@/lib/api/devto';
 import type { BlogPost } from '@/lib/types/blog';
 
 interface RecentPostsProps {
@@ -12,15 +11,8 @@ export async function RecentPosts({ currentSlug }: RecentPostsProps): Promise<Re
   let posts: BlogPost[] = [];
 
   try {
-    const publicationHost = env.NEXT_PUBLIC_HASHNODE_HOST;
-    const response = await fetchBlogPosts(publicationHost, { first: 8 });
-    if (!response.publication?.posts) {
-      return null;
-    }
-    posts = response.publication.posts.edges
-      .map((edge) => edge.node)
-      .filter((post) => post.slug !== currentSlug)
-      .slice(0, 4);
+    const allPosts = await fetchAllPosts();
+    posts = allPosts.filter((post) => post.slug !== currentSlug).slice(0, 4);
   } catch (error) {
     console.error('Error fetching recent posts:', error);
     return null;

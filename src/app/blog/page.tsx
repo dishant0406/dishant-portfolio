@@ -2,9 +2,8 @@ import type { Metadata } from 'next';
 
 import { BlogList } from '@/components/blog/BlogList';
 import { BlogPagination } from '@/components/blog/BlogPagination';
-import { fetchBlogPostsForPage } from '@/lib/api/hashnode';
+import { fetchBlogPostsForPage } from '@/lib/api/devto';
 import { env } from '@/lib/env';
-import type { BlogPost } from '@/lib/types/blog';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,9 +15,15 @@ interface BlogPageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
+/** `?page=abc` or a missing page falls back to page 1 instead of an empty list. */
+function parsePage(value: string | string[] | undefined): number {
+  const page = Number.parseInt(Array.isArray(value) ? value[0] : value ?? '', 10);
+  return Number.isFinite(page) && page > 1 ? page : 1;
+}
+
 export async function generateMetadata({ searchParams }: BlogPageProps): Promise<Metadata> {
   const params = await searchParams;
-  const page = Math.max(1, parseInt((params.page as string) || '1', 10));
+  const page = parsePage(params.page);
   const baseUrl = `${env.NEXT_PUBLIC_SITE_URL}/blog`;
   const canonical = page > 1 ? `${baseUrl}?page=${page}` : baseUrl;
 
@@ -46,19 +51,12 @@ export default async function BlogPage({
   searchParams,
 }: BlogPageProps): Promise<React.JSX.Element> {
   const params = await searchParams;
-  const page = Math.max(1, parseInt((params.page as string) || '1', 10));
-  const publicationHost = env.NEXT_PUBLIC_HASHNODE_HOST;
+  const page = parsePage(params.page);
 
-  let posts: BlogPost[] = [];
-  let totalPages = 1;
-
-  try {
-    const paginationData = await fetchBlogPostsForPage(publicationHost, page, POSTS_PER_PAGE);
-    posts = paginationData.posts;
-    totalPages = paginationData.totalPages;
-  } catch (error) {
-    console.error('Error fetching blog posts:', error);
-  }
+  // Deliberately not swallowed: a fetch failure must surface as an error, not as
+  // an empty blog. Silently rendering "No posts yet" is what previously hid a
+  // broken feed for weeks.
+  const { posts, totalPages } = await fetchBlogPostsForPage(page, POSTS_PER_PAGE);
 
   return (
     <main className="blog-page blog-page-light">

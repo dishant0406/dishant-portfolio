@@ -1,52 +1,39 @@
 import type { MetadataRoute } from 'next';
 
-import { fetchBlogPostsForSitemap } from '@/lib/api/hashnode';
+import { fetchAllPosts } from '@/lib/api/devto';
 import { env } from '@/lib/env';
+
+// Posts change outside this app, so the sitemap must be built per request
+// instead of being frozen at build time.
+export const dynamic = 'force-dynamic';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = env.NEXT_PUBLIC_SITE_URL;
-  const publicationHost = env.NEXT_PUBLIC_HASHNODE_HOST;
-  const entries: MetadataRoute.Sitemap = [];
-
-  entries.push({
-    url: baseUrl,
-    lastModified: new Date(),
-    changeFrequency: 'weekly',
-    priority: 1,
-  });
-
-  entries.push({
-    url: `${baseUrl}/blog`,
-    lastModified: new Date(),
-    changeFrequency: 'weekly',
-    priority: 0.8,
-  });
+  const entries: MetadataRoute.Sitemap = [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 1,
+    },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+  ];
 
   try {
-    let hasNextPage = true;
-    let endCursor: string | null = null;
+    const posts = await fetchAllPosts();
 
-    while (hasNextPage) {
-      const response = await fetchBlogPostsForSitemap(publicationHost, {
-        first: 50,
-        after: endCursor || undefined,
+    for (const post of posts) {
+      entries.push({
+        url: `${baseUrl}/blog/${post.slug}`,
+        lastModified: new Date(post.publishedAt),
+        changeFrequency: 'weekly',
+        priority: 0.8,
       });
-      if (!response.publication?.posts) {
-        break;
-      }
-
-      const posts = response.publication.posts.edges.map((edge) => edge.node);
-      posts.forEach((post) => {
-        entries.push({
-          url: `${baseUrl}/blog/${post.slug}`,
-          lastModified: new Date(post.publishedAt),
-          changeFrequency: 'weekly',
-          priority: 0.8,
-        });
-      });
-
-      hasNextPage = response.publication.posts.pageInfo.hasNextPage;
-      endCursor = response.publication.posts.pageInfo.endCursor;
     }
   } catch (error) {
     console.error('Error generating blog sitemap:', error);
