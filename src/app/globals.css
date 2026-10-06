@@ -181,7 +181,9 @@
   --color-link: rgb(229, 229, 229);
   --color-link-hover: rgb(161, 161, 161);
   --color-overlay: rgb(0, 0, 0);
-  --color-code-bg: rgb(10, 10, 10);
+  /* Lighter than --color-background (rgb(10,10,10)) so code blocks stay
+     visible; a code block the same colour as the page reads as no block. */
+  --color-code-bg: rgb(23, 23, 23);
   --color-code-fg: rgb(250, 250, 250);
   --color-ring: rgb(115, 115, 115);
   
@@ -811,6 +813,7 @@ body {
   color: var(--color-muted-foreground);
   margin: 1.5rem 0;
   font-size: 0.98em;
+  font-style: italic;
 }
 
 .blog-content ul,
@@ -818,6 +821,106 @@ body {
   padding-left: 1.5rem;
   margin: 1.25rem 0;
   color: var(--color-foreground);
+}
+
+/* Preflight sets `list-style: none` on every list, so rendered article HTML has
+   to restore its markers explicitly. */
+.blog-content ul {
+  list-style: disc;
+}
+
+.blog-content ol {
+  list-style: decimal;
+}
+
+.blog-content li {
+  margin: 0.35rem 0;
+}
+
+.blog-content li::marker {
+  color: var(--color-muted-foreground);
+}
+
+/* dev.to wraps each list item's text in a <p>, whose bottom margin would
+   otherwise double the gap between items. */
+.blog-content li > p {
+  margin-bottom: 0;
+}
+
+/* dev.to emits `<div class="table-wrapper-paragraph"><table>`; the wrapper is
+   the scroll container so a wide table cannot overflow the article column. */
+.blog-content .table-wrapper-paragraph {
+  overflow-x: auto;
+  margin: 1.75rem 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+
+.blog-content th,
+.blog-content td {
+  padding: 0.65rem 0.9rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.blog-content th {
+  background: var(--color-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.blog-content tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Preflight leaves `hr` inheriting the foreground colour, which renders a
+   near-black rule instead of the subtle border used elsewhere. */
+.blog-content hr {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 2.5rem 0;
+}
+
+.blog-content code {
+  background: var(--color-muted);
+  border-radius: 0.35rem;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+}
+
+/* Code blocks arrive as `<div class="highlight"><pre><code>` with Prism token
+   classes, so only the container needs styling. */
+.blog-content pre {
+  background: var(--color-code-bg);
+  color: var(--color-code-fg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1rem 1.15rem;
+  margin: 1.75rem 0;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.blog-content pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* dev.to appends an overlay panel with fullscreen toggles to every code block.
+   It is only functional on dev.to itself, so it is hidden here. */
+.blog-content .highlight__panel {
+  display: none;
 }
 
 .blog-recent {
