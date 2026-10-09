@@ -68,6 +68,11 @@ jobs:
         # DEVTO_API_KEY is injected here, at runtime. It must never be passed as
         # a `--build-arg`: build args are recorded in the image history and are
         # readable by anyone who can pull the image.
+        #
+        # ADMIN_SESSION_SECRET and INTERNAL_API_TOKEN come from Secret Manager so
+        # their values stay out of the service definition. /admin signs its login
+        # cookie with the first and authenticates the config-reload call to the
+        # Mastra process with the second.
         run: |
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --image "${{ steps.image.outputs.image }}" \
@@ -75,4 +80,5 @@ jobs:
             --project "$GCP_PROJECT_ID" \
             --platform managed \
             --update-env-vars "DEVTO_USERNAME=${{ vars.DEVTO_USERNAME }},DEVTO_API_KEY=${{ secrets.DEVTO_API_KEY }}" \
+            --update-secrets "ADMIN_SESSION_SECRET=admin-session-secret:latest,INTERNAL_API_TOKEN=internal-api-token:latest" \
             --quiet
