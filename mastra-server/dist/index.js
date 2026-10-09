@@ -27430,23 +27430,110 @@ var portfolioTools = {
 };
 
 // ../src/mastra/agents/opencode-chat-model.ts
+var import_anthropic = require("@ai-sdk/anthropic");
+var import_openai = require("@ai-sdk/openai");
 var import_openai_compatible = require("@ai-sdk/openai-compatible");
+
+// ../src/mastra/agents/opencode-session.ts
+var OPENCODE_SESSION_HEADER = "x-opencode-session";
+var DEFAULT_SESSION_ID = "dishant-portfolio";
+var MAX_SESSION_ID_LENGTH = 128;
+var UNSAFE_SESSION_CHARS = /[^A-Za-z0-9._:-]/g;
+var getOpencodeSessionId = (threadId) => {
+  const rawValue = typeof threadId === "string" ? threadId.trim() : "";
+  const safeValue = rawValue.replace(UNSAFE_SESSION_CHARS, "").slice(0, MAX_SESSION_ID_LENGTH);
+  return safeValue || DEFAULT_SESSION_ID;
+};
+var getOpencodeSessionHeaders = (threadId) => ({
+  [OPENCODE_SESSION_HEADER]: getOpencodeSessionId(threadId)
+});
+
+// ../src/mastra/agents/opencode-model-catalog.ts
+var API_TYPE_PREFERENCE = [
+  "chat_completions",
+  "responses",
+  "anthropic_messages"
+];
+var MODEL_API_TYPES = {
+  "claude-haiku-5-5": ["anthropic_messages"],
+  "deepseek-flash": ["chat_completions", "responses", "anthropic_messages"],
+  "deepseek-v4-flash": ["chat_completions", "responses", "anthropic_messages"],
+  "deepseek-v4-flash-vision-exp": ["chat_completions", "responses", "anthropic_messages"],
+  "deepseek-v4-pro": ["chat_completions", "responses", "anthropic_messages"],
+  "deepseek-v4.1-flash": ["chat_completions", "responses", "anthropic_messages"],
+  "glm-5": [],
+  "glm-5.1": ["chat_completions"],
+  "glm-5.2": ["chat_completions"],
+  "glm-5.3": ["chat_completions"],
+  "glm-5.3-flash": ["chat_completions"],
+  "gpt-5.6-luna": ["responses"],
+  "gpt-6-luna": ["responses"],
+  "grok-4.5": [],
+  "grok-4.6": ["responses"],
+  "grok-4.7": ["responses"],
+  "hy3": ["chat_completions"],
+  "hy3-preview": [],
+  "hy4-preview": ["chat_completions"],
+  "kimi-k2.5": [],
+  "kimi-k2.6": ["chat_completions"],
+  "kimi-k2.7-code": ["chat_completions"],
+  "kimi-k3": ["chat_completions", "anthropic_messages"],
+  "longcat-2.0": ["chat_completions"],
+  "longcat-2.5-preview-free": ["chat_completions"],
+  "mimo-v2-omni": [],
+  "mimo-v2-pro": [],
+  "mimo-v2.5": ["chat_completions"],
+  "mimo-v2.5-pro": ["chat_completions"],
+  "mimo-v2.6-flash": ["chat_completions"],
+  "mimo-v2.6-pro": ["chat_completions"],
+  "minimax-m2.5": ["chat_completions", "anthropic_messages"],
+  "minimax-m2.7": ["anthropic_messages"],
+  "minimax-m3": ["chat_completions", "anthropic_messages"],
+  "muse-spark-1.2-contributor": ["responses"],
+  "muse-spark-1.3-contributor": ["responses"],
+  "omen-alpha": ["chat_completions"],
+  "qwen3.5-plus": [],
+  "qwen3.6-plus": ["chat_completions", "anthropic_messages"],
+  "qwen3.7-max": ["chat_completions", "anthropic_messages"],
+  "qwen3.7-plus": ["chat_completions", "anthropic_messages"],
+  "qwen3.8-flash": ["chat_completions", "anthropic_messages"],
+  "qwen3.8-max": ["chat_completions", "anthropic_messages"],
+  "space-bunny": ["chat_completions", "anthropic_messages"],
+  "step-5-preview-free": ["chat_completions"]
+};
+var DEFAULT_OPENCODE_API_TYPE = "chat_completions";
+var getModelApiTypes = (modelId) => MODEL_API_TYPES[modelId] ?? [];
+var isModelUsable = (modelId) => getModelApiTypes(modelId).length > 0;
+var getDefaultApiType = (modelId) => {
+  const supported = getModelApiTypes(modelId);
+  return API_TYPE_PREFERENCE.find((apiType) => supported.includes(apiType)) ?? DEFAULT_OPENCODE_API_TYPE;
+};
+
+// ../src/mastra/agents/opencode-chat-model.ts
 var defaultPortfolioModelId = "deepseek-v4-flash";
-var defaultGuardrailModelId = "deepseek-v4-flash";
 var defaultOpencodeBaseURL = "https://opencode.ai/zen/go/v1";
-var createOpencodeProvider = (baseURL = process.env.OPENCODE_BASE_URL || defaultOpencodeBaseURL) => (0, import_openai_compatible.createOpenAICompatible)({
-  name: "opencode-go",
-  apiKey: process.env.OPENCODE_API_KEY,
-  baseURL,
-  headers: {
-    "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev"
-  }
+var OPENCODE_PROVIDER_NAME = "opencode-go";
+var getOpencodeRequestHeaders = (sessionId) => ({
+  "User-Agent": process.env.OPENCODE_USER_AGENT || "dishant-portfolio/1.0",
+  "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev",
+  ...getOpencodeSessionHeaders(sessionId)
 });
 var getOpencodeBaseURL = () => process.env.OPENCODE_BASE_URL || defaultOpencodeBaseURL;
-var getGuardrailBaseURL = () => process.env.OPENCODE_GUARDRAIL_BASE_URL || getOpencodeBaseURL();
-var getPortfolioModelId = () => process.env.OPENCODE_MODEL || defaultPortfolioModelId;
-var getGuardrailModelId = () => process.env.OPENCODE_GUARDRAIL_MODEL || defaultGuardrailModelId;
-var getChatModel = (modelId = getPortfolioModelId(), baseURL = getOpencodeBaseURL()) => createOpencodeProvider(baseURL)(modelId);
+var buildProvider = (baseURL, apiType, sessionId) => {
+  const apiKey = process.env.OPENCODE_API_KEY;
+  const headers = getOpencodeRequestHeaders(sessionId);
+  if (apiType === "anthropic_messages") {
+    return (0, import_anthropic.createAnthropic)({ apiKey, baseURL, headers });
+  }
+  if (apiType === "responses") {
+    return (0, import_openai.createOpenAI)({ name: OPENCODE_PROVIDER_NAME, apiKey, baseURL, headers });
+  }
+  return (0, import_openai_compatible.createOpenAICompatible)({ name: OPENCODE_PROVIDER_NAME, apiKey, baseURL, headers });
+};
+var getChatModel = (modelId = defaultPortfolioModelId, baseURL = getOpencodeBaseURL(), sessionId) => {
+  const apiType = isModelUsable(modelId) ? getDefaultApiType(modelId) : "chat_completions";
+  return buildProvider(baseURL, apiType, sessionId)(modelId);
+};
 
 // ../src/mastra/agents/portfolio-agent.ts
 var openuiSystemPrompt = generatedOpenUISystemPrompt;
@@ -27530,10 +27617,10 @@ Output ONLY OpenUI Lang \u2014 no markdown, no plain text, no JSON. The UI frame
 ## OpenUI Lang Component Library & Syntax
 ${openuiSystemPrompt}
 `;
-var createPortfolioAgent = (modelId = getPortfolioModelId()) => new import_agent.Agent({
+var createPortfolioAgent = (modelId = process.env.OPENCODE_MODEL || defaultPortfolioModelId, sessionId) => new import_agent.Agent({
   name: "portfolio-agent",
   instructions: portfolioInstructions,
-  model: getChatModel(modelId),
+  model: getChatModel(modelId, getOpencodeBaseURL(), sessionId),
   tools: portfolioTools,
   memory,
   inputProcessors
@@ -27723,14 +27810,9 @@ var streamModelOutput = async ({
 };
 
 // opencode-model-fallback.ts
-var DEFAULT_FALLBACK_MODEL = "mimo-v2.5";
-var getOpencodeFallbackModelId = (value = process.env.OPENCODE_FALLBACK_MODEL) => {
-  const modelId = String(value || DEFAULT_FALLBACK_MODEL).trim();
-  return modelId || DEFAULT_FALLBACK_MODEL;
-};
 var shouldRetryWithFallbackModel = ({
   primaryModel,
-  fallbackModel = getOpencodeFallbackModelId(),
+  fallbackModel,
   startedModelOutput
 }) => !startedModelOutput && Boolean(fallbackModel) && fallbackModel !== primaryModel;
 var getStreamErrorMessage = (error) => {
@@ -27884,6 +27966,7 @@ var getUserMessageCount = (messages) => messages.filter((message) => message.rol
 var isThreadMessageLimitExceeded = (messages) => getUserMessageCount(messages) > MAX_USER_MESSAGES_PER_THREAD;
 var threadLimitBlockMessage = () => `This thread already has ${MAX_USER_MESSAGES_PER_THREAD} user messages. Please start a new chat to keep the portfolio assistant focused.`;
 var portfolioGuardrailBlockMessage = (reason) => `I'm Dishant Sharma's portfolio assistant. ${reason} Ask me about his projects, GitHub work, skills, experience, resume, education, or contact details.`;
+var guardrailUnavailableMessage = () => "I'm Dishant Sharma's portfolio assistant, but my scope check is temporarily unavailable. Please try again in a moment.";
 var normalizeDecision = (output) => {
   const decision = output.decision?.toLowerCase();
   const allowed = output.allowed ?? decision === "allow";
@@ -27893,11 +27976,11 @@ var normalizeDecision = (output) => {
     category: output.category ?? (allowed ? "portfolio" : "off_topic")
   };
 };
-var evaluatePortfolioGuardrail = async (messages, guardrailModel, guardrailBaseURL) => {
+var evaluatePortfolioGuardrail = async (messages, guardrailModel, guardrailBaseURL, sessionId) => {
   const agent = new import_agent2.Agent({
     name: "portfolio-guardrail",
     instructions: guardrailInstructions,
-    model: getChatModel(guardrailModel, guardrailBaseURL)
+    model: getChatModel(guardrailModel, guardrailBaseURL, sessionId)
   });
   const result = await agent.generate(buildGuardrailPrompt(messages), {
     output: decisionSchema
@@ -27905,12 +27988,79 @@ var evaluatePortfolioGuardrail = async (messages, guardrailModel, guardrailBaseU
   return normalizeDecision(result.object);
 };
 
-// model-config-source.ts
+// ../src/lib/model-config.ts
 var import_promises = require("node:fs/promises");
-
-// gcs-json-config.ts
-var METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
+var MODEL_CONFIG_VERSION = 2;
+var DEFAULT_CACHE_TTL_SECONDS = 60;
+var MIN_CACHE_TTL_SECONDS = 5;
+var MAX_CACHE_TTL_SECONDS = 3600;
+var DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1";
+var DEFAULT_FALLBACK_MODEL = "mimo-v2.5";
+var DEFAULT_GUARDRAIL_MODEL = "deepseek-v4-flash";
 var isRecord2 = (value) => typeof value === "object" && value !== null;
+var envValue = (value, fallback) => {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
+};
+var clampTtl = (value) => {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numericValue)) return DEFAULT_CACHE_TTL_SECONDS;
+  return Math.min(
+    MAX_CACHE_TTL_SECONDS,
+    Math.max(MIN_CACHE_TTL_SECONDS, Math.floor(numericValue))
+  );
+};
+var isHttpUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+var firstEnvValue = (...values) => {
+  for (const value of values) {
+    const text = value?.trim();
+    if (text) return text;
+  }
+  return "";
+};
+var getEnvModelConfig = () => {
+  const guardrailBaseURL = firstEnvValue(
+    process.env.OPENCODE_GUARDRAIL_BASE_URL,
+    process.env.OPENCODE_BASE_URL
+  );
+  return {
+    version: MODEL_CONFIG_VERSION,
+    model: envValue(process.env.OPENCODE_MODEL, "deepseek-v4-flash"),
+    fallbackModel: envValue(process.env.OPENCODE_FALLBACK_MODEL, DEFAULT_FALLBACK_MODEL),
+    guardrailModel: envValue(process.env.OPENCODE_GUARDRAIL_MODEL, DEFAULT_GUARDRAIL_MODEL),
+    guardrailBaseURL: isHttpUrl(guardrailBaseURL) ? guardrailBaseURL : DEFAULT_BASE_URL,
+    thinkingMode: getOpencodeThinkingMode(),
+    cacheTtlSeconds: clampTtl(process.env.MODEL_CONFIG_CACHE_TTL_SECONDS),
+    adminPassword: ""
+  };
+};
+var parseAdminPassword = (value, fallback) => {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
+};
+var normalizeModelConfig = (rawConfig) => {
+  const fallback = getEnvModelConfig();
+  if (!isRecord2(rawConfig)) return fallback;
+  const guardrailBaseURL = envValue(rawConfig.guardrailBaseURL, fallback.guardrailBaseURL);
+  return {
+    version: MODEL_CONFIG_VERSION,
+    model: envValue(rawConfig.model, fallback.model),
+    fallbackModel: envValue(rawConfig.fallbackModel, fallback.fallbackModel),
+    guardrailModel: envValue(rawConfig.guardrailModel, fallback.guardrailModel),
+    guardrailBaseURL: isHttpUrl(guardrailBaseURL) ? guardrailBaseURL : fallback.guardrailBaseURL,
+    thinkingMode: getOpencodeThinkingMode(rawConfig.thinkingMode ?? fallback.thinkingMode),
+    cacheTtlSeconds: clampTtl(rawConfig.cacheTtlSeconds ?? fallback.cacheTtlSeconds),
+    adminPassword: parseAdminPassword(rawConfig.adminPassword, fallback.adminPassword)
+  };
+};
+var METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
 var parseGcsUri = (uri) => {
   if (!uri.startsWith("gs://")) {
     throw new Error("MODEL_CONFIG_GCS_URI must start with gs://");
@@ -27924,90 +28074,51 @@ var parseGcsUri = (uri) => {
   }
   return { bucket, object };
 };
-var getMetadataAccessToken = async () => {
-  const response = await fetch(METADATA_TOKEN_URL, {
+var CONFIG_FETCH_TIMEOUT_MS = 5e3;
+var configFetch = (url, init = {}) => fetch(url, { ...init, signal: AbortSignal.timeout(CONFIG_FETCH_TIMEOUT_MS) });
+var getAccessToken = async () => {
+  const staticToken = process.env.MODEL_CONFIG_GCS_TOKEN?.trim();
+  if (staticToken) return staticToken;
+  const response = await configFetch(METADATA_TOKEN_URL, {
     headers: { "Metadata-Flavor": "Google" }
   });
   if (!response.ok) {
     throw new Error(`Metadata token request failed with ${response.status}`);
   }
-  const tokenPayload = await response.json();
-  const accessToken = isRecord2(tokenPayload) ? tokenPayload.access_token : void 0;
+  const payload = await response.json();
+  const accessToken = isRecord2(payload) ? payload.access_token : void 0;
   if (typeof accessToken !== "string" || !accessToken.trim()) {
     throw new Error("Metadata token response did not include access_token");
   }
   return accessToken;
 };
-var readGcsJsonConfig = async (gcsUri) => {
-  const { bucket, object } = parseGcsUri(gcsUri);
-  const accessToken = await getMetadataAccessToken();
-  const url = new URL(
-    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}`
-  );
+var gcsObjectUrl = ({ bucket, object }) => `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}`;
+var readModelConfig = async () => {
+  const filePath = process.env.MODEL_CONFIG_FILE?.trim();
+  if (filePath) return JSON.parse(await (0, import_promises.readFile)(filePath, "utf8"));
+  const gcsUri = process.env.MODEL_CONFIG_GCS_URI?.trim();
+  if (!gcsUri) return void 0;
+  const location = parseGcsUri(gcsUri);
+  const accessToken = await getAccessToken();
+  const url = new URL(gcsObjectUrl(location));
   url.searchParams.set("alt", "media");
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
+  const response = await configFetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!response.ok) {
     throw new Error(`GCS model config request failed with ${response.status}`);
   }
   return response.json();
 };
 
-// model-config-source.ts
-var readRawModelConfig = async () => {
-  const inlineJson = process.env.MODEL_CONFIG_JSON?.trim();
-  if (inlineJson) return JSON.parse(inlineJson);
-  const filePath = process.env.MODEL_CONFIG_FILE?.trim();
-  if (filePath) return JSON.parse(await (0, import_promises.readFile)(filePath, "utf8"));
-  const gcsUri = process.env.MODEL_CONFIG_GCS_URI?.trim();
-  if (gcsUri) return readGcsJsonConfig(gcsUri);
-  return void 0;
-};
-
 // runtime-model-config.ts
-var DEFAULT_CACHE_TTL_SECONDS = 60;
-var MIN_CACHE_TTL_SECONDS = 5;
-var MAX_CACHE_TTL_SECONDS = 3600;
 var cachedModelConfig;
-var isRecord3 = (value) => typeof value === "object" && value !== null;
-var nonEmptyString = (value, fallback) => {
-  const text = typeof value === "string" ? value.trim() : "";
-  return text || fallback;
-};
-var clampTtl = (value) => {
-  const numericValue = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numericValue)) return DEFAULT_CACHE_TTL_SECONDS;
-  return Math.min(
-    MAX_CACHE_TTL_SECONDS,
-    Math.max(MIN_CACHE_TTL_SECONDS, Math.floor(numericValue))
-  );
-};
-var envModelConfig = () => ({
-  model: getPortfolioModelId(),
-  fallbackModel: getOpencodeFallbackModelId(),
-  guardrailModel: getGuardrailModelId(),
-  guardrailBaseURL: getGuardrailBaseURL(),
-  thinkingMode: getOpencodeThinkingMode(),
-  cacheTtlSeconds: clampTtl(process.env.MODEL_CONFIG_CACHE_TTL_SECONDS)
-});
-var normalizeModelConfig = (rawConfig) => {
-  const fallback = envModelConfig();
-  if (!isRecord3(rawConfig)) return fallback;
-  return {
-    model: nonEmptyString(rawConfig.model, fallback.model),
-    fallbackModel: nonEmptyString(rawConfig.fallbackModel, fallback.fallbackModel),
-    guardrailModel: nonEmptyString(rawConfig.guardrailModel, fallback.guardrailModel),
-    guardrailBaseURL: nonEmptyString(rawConfig.guardrailBaseURL, fallback.guardrailBaseURL),
-    thinkingMode: getOpencodeThinkingMode(rawConfig.thinkingMode ?? fallback.thinkingMode),
-    cacheTtlSeconds: clampTtl(rawConfig.cacheTtlSeconds ?? fallback.cacheTtlSeconds)
-  };
-};
 var cacheConfig = (config, nowMs) => {
   cachedModelConfig = {
     config,
     expiresAtMs: nowMs + config.cacheTtlSeconds * 1e3
   };
+};
+var clearRuntimeModelConfigCache = () => {
+  cachedModelConfig = void 0;
 };
 var getRuntimeModelConfig = async () => {
   const nowMs = Date.now();
@@ -28015,19 +28126,14 @@ var getRuntimeModelConfig = async () => {
     return cachedModelConfig.config;
   }
   try {
-    const rawConfig = await readRawModelConfig();
-    const config = normalizeModelConfig(rawConfig);
+    const config = normalizeModelConfig(await readModelConfig());
     cacheConfig(config, nowMs);
     return config;
   } catch (error) {
     console.warn("Model config fetch failed; using stale or env config", error);
-    if (cachedModelConfig) {
-      cacheConfig(cachedModelConfig.config, nowMs);
-      return cachedModelConfig.config;
-    }
-    const config = envModelConfig();
-    cacheConfig(config, nowMs);
-    return config;
+    const fallback = cachedModelConfig?.config ?? getEnvModelConfig();
+    cacheConfig(fallback, nowMs);
+    return fallback;
   }
 };
 
@@ -28058,25 +28164,27 @@ var streamAgentResponse = async (req, res) => {
         writer.done();
         return;
       }
-      const decision = await evaluatePortfolioGuardrail(
-        messages,
-        modelConfig.guardrailModel,
-        modelConfig.guardrailBaseURL
-      ).catch((error) => {
-        console.error("Portfolio guardrail failed:", error);
-        return {
-          allowed: false,
-          reason: "I could not verify that this request belongs in the portfolio assistant.",
-          category: "unsafe"
-        };
-      });
+      let decision;
+      try {
+        decision = await evaluatePortfolioGuardrail(
+          messages,
+          modelConfig.guardrailModel,
+          modelConfig.guardrailBaseURL,
+          req.body.threadId
+        );
+      } catch (error) {
+        console.error("Portfolio guardrail unavailable:", error);
+        writer.write({ type: "text", text: guardrailUnavailableMessage() });
+        writer.done();
+        return;
+      }
       if (!decision.allowed) {
         writer.write({ type: "text", text: portfolioGuardrailBlockMessage(decision.reason) });
         writer.done();
         return;
       }
     }
-    const agent = createPortfolioAgent(modelConfig.model);
+    const agent = createPortfolioAgent(modelConfig.model, req.body.threadId);
     writer.write({
       type: "status",
       id: "portfolio-context",
@@ -28139,7 +28247,7 @@ var streamAgentResponse = async (req, res) => {
         fallbackModel: modelConfig.fallbackModel,
         error: getStreamErrorMessage(error)
       });
-      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel));
+      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel, req.body.threadId));
     }
     completeCompose();
     writer.done();
@@ -28154,20 +28262,20 @@ var streamAgentResponse = async (req, res) => {
 
 // local-context-summary.ts
 var MAX_CONTEXT_CHARS = 5800;
-var isRecord4 = (value) => typeof value === "object" && value !== null;
+var isRecord3 = (value) => typeof value === "object" && value !== null;
 var cleanText = (value) => value.replace(/\s+/g, " ").replace(/\s([,.;:])/g, "$1").trim();
 var truncate = (value, maxLength) => value.length > maxLength ? `${value.slice(0, maxLength).trim()}...` : value;
 var toolResult = (results, toolName) => results.find((entry) => entry.toolName === toolName)?.result;
 var stringifyCompact = (value, maxLength) => truncate(cleanText(JSON.stringify(value ?? {}, null, 2)), maxLength);
 var personalSummary = (value) => {
-  if (!isRecord4(value) || typeof value.content !== "string") return "";
+  if (!isRecord3(value) || typeof value.content !== "string") return "";
   return [
     "Personal profile:",
     truncate(cleanText(value.content), 2600)
   ].join("\n");
 };
 var githubProfileSummary = (value) => {
-  if (!isRecord4(value)) return "";
+  if (!isRecord3(value)) return "";
   return [
     "GitHub profile:",
     stringifyCompact({
@@ -28182,9 +28290,9 @@ var githubProfileSummary = (value) => {
   ].join("\n");
 };
 var repoSummary = (value) => {
-  if (!isRecord4(value) || !Array.isArray(value.repositories)) return "";
+  if (!isRecord3(value) || !Array.isArray(value.repositories)) return "";
   const repos = value.repositories.slice(0, 8).map((repo) => {
-    if (!isRecord4(repo)) return void 0;
+    if (!isRecord3(repo)) return void 0;
     return {
       name: repo.name,
       description: repo.description,
@@ -28206,7 +28314,7 @@ var statsSummary = (value) => [
 var toLocalPortfolioContext = (portfolioContext) => {
   try {
     const parsed = JSON.parse(portfolioContext);
-    const results = isRecord4(parsed) && Array.isArray(parsed.results) ? parsed.results.filter(isRecord4) : [];
+    const results = isRecord3(parsed) && Array.isArray(parsed.results) ? parsed.results.filter(isRecord3) : [];
     return truncate([
       personalSummary(toolResult(results, "getPersonalInfo")),
       githubProfileSummary(toolResult(results, "getGitHubProfile")),
@@ -28243,18 +28351,23 @@ var prepareLocalChatResponse = async (req, res) => {
         });
         return;
       }
-      const decision = await evaluatePortfolioGuardrail(
-        messages,
-        modelConfig.guardrailModel,
-        modelConfig.guardrailBaseURL
-      ).catch((error) => {
-        console.error("Portfolio guardrail failed:", error);
-        return {
+      let decision;
+      try {
+        decision = await evaluatePortfolioGuardrail(
+          messages,
+          modelConfig.guardrailModel,
+          modelConfig.guardrailBaseURL,
+          req.body.threadId
+        );
+      } catch (error) {
+        console.error("Portfolio guardrail unavailable:", error);
+        res.json({
           allowed: false,
-          reason: "I could not verify that this request belongs in the portfolio assistant.",
-          category: "unsafe"
-        };
-      });
+          message: guardrailUnavailableMessage(),
+          events
+        });
+        return;
+      }
       if (!decision.allowed) {
         res.json({
           allowed: false,
@@ -28341,6 +28454,35 @@ var registerChatRoutes = (app2) => {
   });
 };
 
+// model-config-reload-route.ts
+var import_node_crypto = require("node:crypto");
+var tokenMatches = (provided, expected) => {
+  const providedBuffer = Buffer.from(provided);
+  const expectedBuffer = Buffer.from(expected);
+  if (providedBuffer.length !== expectedBuffer.length) return false;
+  return (0, import_node_crypto.timingSafeEqual)(providedBuffer, expectedBuffer);
+};
+var reloadModelConfig = async (req, res) => {
+  const expectedToken = process.env.INTERNAL_API_TOKEN?.trim();
+  if (!expectedToken) {
+    res.status(503).json({ error: "Model config reload is not configured" });
+    return;
+  }
+  const providedToken = req.header("x-internal-token") ?? "";
+  if (!tokenMatches(providedToken, expectedToken)) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  clearRuntimeModelConfigCache();
+  const config = await getRuntimeModelConfig();
+  res.json({
+    reloaded: true,
+    model: config.model,
+    fallbackModel: config.fallbackModel,
+    guardrailModel: config.guardrailModel
+  });
+};
+
 // index.ts
 var app = (0, import_express.default)();
 var PORT = process.env.MASTRA_PORT || 4e3;
@@ -28352,6 +28494,7 @@ app.use(import_express.default.json());
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
 });
+app.post("/internal/model-config/reload", reloadModelConfig);
 registerChatRoutes(app);
 app.listen(PORT, () => {
   console.log(`Mastra server running on http://localhost:${PORT}`);

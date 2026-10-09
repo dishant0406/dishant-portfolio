@@ -1,4 +1,5 @@
 .gcloud-config
+.gcloud-local.env
 .mastra
 .git
 .next

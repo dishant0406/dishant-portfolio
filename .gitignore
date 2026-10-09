@@ -43,6 +43,10 @@ yarn-error.log*
 
 # local cloud auth/config
 .gcloud-config/
+.gcloud-local.env
+
+# local agent tooling state
+.kajicode/
 
 # typescript
 *.tsbuildinfo

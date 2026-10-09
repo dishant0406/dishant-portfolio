@@ -1,21 +1,12 @@
-const DEFAULT_FALLBACK_MODEL = 'mimo-v2.5';
-
 type RetryOptions = {
   primaryModel: string;
   fallbackModel?: string;
   startedModelOutput: boolean;
 };
 
-export const getOpencodeFallbackModelId = (
-  value = process.env.OPENCODE_FALLBACK_MODEL,
-) => {
-  const modelId = String(value || DEFAULT_FALLBACK_MODEL).trim();
-  return modelId || DEFAULT_FALLBACK_MODEL;
-};
-
 export const shouldRetryWithFallbackModel = ({
   primaryModel,
-  fallbackModel = getOpencodeFallbackModelId(),
+  fallbackModel,
   startedModelOutput,
 }: RetryOptions) =>
   !startedModelOutput &&

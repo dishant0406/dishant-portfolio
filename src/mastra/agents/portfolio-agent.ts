@@ -4,7 +4,7 @@ import { UnicodeNormalizer } from "@mastra/core/processors";
 import { Memory } from "@mastra/memory";
 import { PostgresStore } from "@mastra/pg";
 import { portfolioTools } from "../tools/portfolio-tools";
-import { getChatModel, getPortfolioModelId } from "./opencode-chat-model";
+import { getChatModel, getOpencodeBaseURL, defaultPortfolioModelId } from "./opencode-chat-model";
 
 // Cache expensive instances across serverless invocations
 declare global {
@@ -100,10 +100,13 @@ Output ONLY OpenUI Lang — no markdown, no plain text, no JSON. The UI framewor
 ${openuiSystemPrompt}
 `;
 
-export const createPortfolioAgent = (modelId = getPortfolioModelId()) => new Agent({
+export const createPortfolioAgent = (
+  modelId = process.env.OPENCODE_MODEL || defaultPortfolioModelId,
+  sessionId?: unknown,
+) => new Agent({
   name: "portfolio-agent",
   instructions: portfolioInstructions,
-  model: getChatModel(modelId),
+  model: getChatModel(modelId, getOpencodeBaseURL(), sessionId),
   tools: portfolioTools,
   memory,
   inputProcessors,

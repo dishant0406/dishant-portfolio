@@ -10,6 +10,7 @@
     "start:next": "next start",
     "lint": "eslint",
     "test:guardrail": "tsx --env-file=.env.local scripts/test-portfolio-guardrail.ts",
+    "check:models": "tsx --env-file=.env.local scripts/check-model-protocols.ts",
     "gen:openui-prompt": "node scripts/generate-openui-prompt.mjs",
     "mastra:dev": "cd mastra-server && tsx watch --env-file=../.env.local index.ts",
     "mastra:development": "mastra dev",
@@ -17,6 +18,7 @@
     "mastra:start": "node mastra-server/dist/index.js"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.33",
     "@ai-sdk/openai": "^2.0.86",
     "@ai-sdk/openai-compatible": "^1.0.22",
     "@dishant0406/dev-to": "^1.0.4",

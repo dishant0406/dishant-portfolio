@@ -7,6 +7,7 @@ import { collectPortfolioContext } from './portfolio-context';
 import { toLocalPortfolioContext } from './local-context-summary';
 import {
   evaluatePortfolioGuardrail,
+  guardrailUnavailableMessage,
   isThreadMessageLimitExceeded,
   portfolioGuardrailBlockMessage,
   threadLimitBlockMessage,
@@ -47,18 +48,23 @@ export const prepareLocalChatResponse = async (req: Request, res: Response) => {
         return;
       }
 
-      const decision = await evaluatePortfolioGuardrail(
-        messages,
-        modelConfig.guardrailModel,
-        modelConfig.guardrailBaseURL,
-      ).catch((error) => {
-        console.error('Portfolio guardrail failed:', error);
-        return {
+      let decision;
+      try {
+        decision = await evaluatePortfolioGuardrail(
+          messages,
+          modelConfig.guardrailModel,
+          modelConfig.guardrailBaseURL,
+          req.body.threadId,
+        );
+      } catch (error) {
+        console.error('Portfolio guardrail unavailable:', error);
+        res.json({
           allowed: false,
-          reason: 'I could not verify that this request belongs in the portfolio assistant.',
-          category: 'unsafe' as const,
-        };
-      });
+          message: guardrailUnavailableMessage(),
+          events,
+        } satisfies LocalChatPrepareResponse);
+        return;
+      }
 
       if (!decision.allowed) {
         res.json({

@@ -1,51 +1,49 @@
 # Mastra Server
 
-Standalone API server for Mastra agent - share across multiple applications.
-
-## Features
-
-- ✅ Always-running instance (no cold starts)
-- ✅ Streaming-only chat API
-- ✅ Server-Sent Events for live model/tool output
-- ✅ CORS enabled for multiple origins
-- ✅ Memory/thread management
+Standalone API server for the Mastra portfolio agent. It is started by `start.sh`
+alongside Next.js and listens on `MASTRA_PORT` (4000). Cloud Run only forwards to
+the Next.js port, so this server is reachable from the internet only through the
+`/api/chat/*` routes that proxy to it.
 
 ## Endpoints
 
 ### `POST /agent/stream`
-Stream agent responses in real-time.
+Stream agent responses as Server-Sent Events.
 
-**Request:**
 ```json
 {
-  "messages": [
-    { "role": "user", "content": "Tell me about your projects" }
-  ],
+  "messages": [{ "role": "user", "content": "Tell me about your projects" }],
   "threadId": "optional-thread-id",
   "resourceId": "optional-resource-id"
 }
 ```
 
-**Response:** Server-Sent Events stream
+### `POST /agent/prepare-local`
+Runs the guardrail and collects portfolio context for the in-browser WebLLM
+model. Returns `{ allowed, portfolioContext?, message?, events }`.
 
-### `GET /threads/:threadId?resourceId=xyz`
-Get thread history.
-
-### `GET /threads?resourceId=xyz`
-List all threads for a resource.
+### `GET /threads/:threadId` and `GET /threads?resourceId=...`
+Thread history and thread list, backed by PostgreSQL memory.
 
 ### `GET /health`
-Health check endpoint.
+Health check.
 
-## Local Development
+### `POST /internal/model-config/reload`
+Drops the cached model config so the next request reloads it. Called by the
+Next.js `/admin` save handler and authenticated with `INTERNAL_API_TOKEN`.
 
-```bash
-cd mastra-server
-pnpm install
-pnpm dev
-```
+## Guardrails
 
-Server runs on `http://localhost:4000`
+Before answering, the agent asks a small model to classify the message as
+in-scope or off-topic, using a structured output schema. Threads are blocked
+after 10 user messages.
+
+A guardrail **failure** (provider down, bad credentials) is reported to the user
+as "temporarily unavailable" and logged as `Portfolio guardrail unavailable`.
+It is deliberately not reported as an off-topic block, because the two have
+completely different causes.
+
+Set `GUARDRAILS_MODE=off` to skip the check entirely.
 
 ## Environment Variables
 
@@ -53,7 +51,7 @@ Server runs on `http://localhost:4000`
 MASTRA_PORT=4000
 ALLOWED_ORIGINS=https://app1.com,https://app2.com
 MEMORY_DATABASE_URL=postgresql://...
-OPENCODE_API_KEY=...
+OPENCODE_API_KEY=[REDACTED]
 OPENCODE_MODEL=deepseek-v4-flash
 OPENCODE_FALLBACK_MODEL=mimo-v2.5
 OPENCODE_GUARDRAIL_MODEL=deepseek-v4-flash
@@ -61,73 +59,38 @@ OPENCODE_GUARDRAIL_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
 MODEL_CONFIG_GCS_URI=gs://your-config-bucket/ai-model-config.json
+INTERNAL_API_TOKEN=
 ```
 
 ## Runtime Model Config
 
-For production, set `MODEL_CONFIG_GCS_URI` to a private GCS object. The server reads it before streaming a response, caches it for `cacheTtlSeconds`, and keeps the last good config if GCS has a transient failure.
-`guardrailModel` and `guardrailBaseURL` are used only for the structured-output portfolio-scope classifier. Threads are blocked after 10 user messages. For Big Pickle guardrail tests, use `big-pickle` with `https://opencode.ai/zen/v1`.
+Model settings live in a JSON file read from `MODEL_CONFIG_FILE` or
+`MODEL_CONFIG_GCS_URI`, cached for `cacheTtlSeconds`. On a read failure the last
+good config is reused; if there is none, the `OPENCODE_*` environment values are
+used. `src/lib/model-config.ts` owns the schema, validation, and both the read
+and write paths — the admin UI writes through the same module, so a value that
+saves successfully is always a value this server can load.
 
-```json
-{
-  "version": 1,
-  "provider": "opencode-go",
-  "model": "deepseek-v4-pro",
-  "fallbackModel": "mimo-v2.5",
-  "guardrailModel": "deepseek-v4-flash",
-  "guardrailBaseURL": "https://opencode.ai/zen/go/v1",
-  "thinkingMode": "disabled",
-  "cacheTtlSeconds": 60
-}
+The `apiType` for each model is not configurable: OpenCode Go only accepts each
+model on specific protocols, so `src/mastra/agents/opencode-model-catalog.ts`
+maps model id → protocols and `getChatModel()` selects the provider. See the
+root `README.md` for the protocol table.
+
+## Local Development
+
+```bash
+cd mastra-server
+pnpm dev
 ```
+
+Runs on `http://localhost:4000`.
 
 ## Deployment
 
-### Docker
-```bash
-docker build -t mastra-server -f mastra-server/Dockerfile .
-docker run -p 4000:4000 --env-file .env mastra-server
-```
+The Dockerfile at the repository root builds both Next.js and this server.
+`start.sh` runs `node mastra-server/dist/index.js` in the background and then
+starts Next.js in the foreground.
 
-### Railway/Render
-1. Push to GitHub
-2. Connect repository
-3. Set build command: `cd mastra-server && pnpm install && pnpm build`
-4. Set start command: `cd mastra-server && pnpm start`
-5. Set port: `4000`
-
-### Using from Next.js Apps
-
-Update your Next.js API routes to call this server:
-
-```typescript
-// src/app/api/chat/stream/route.ts
-const MASTRA_API = process.env.MASTRA_API_URL || 'http://localhost:4000';
-
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  
-  const response = await fetch(`${MASTRA_API}/agent/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  
-  // Forward the stream
-  return new Response(response.body, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
-}
-```
-
-## Benefits
-
-- **No cold starts** - Always running instance
-- **Shared across apps** - Multiple Next.js apps can use same instance
-- **Better performance** - Persistent connections and memory
-- **Easier scaling** - Scale independently from frontend apps
-- **Cost effective** - One instance for multiple apps
+`mastra-server/dist/index.js` is committed, so it must be rebuilt
+(`pnpm mastra:build`) whenever this directory changes or the container ships
+stale code.

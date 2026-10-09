@@ -95,7 +95,7 @@ Create a `.env.local` file in the project root:
 
 ```env
 # OpenCode Go Configuration
-OPENCODE_API_KEY=your-opencode-key
+OPENCODE_API_KEY=[REDACTED]
 OPENCODE_MODEL=deepseek-v4-flash
 OPENCODE_FALLBACK_MODEL=mimo-v2.5
 OPENCODE_GUARDRAIL_MODEL=deepseek-v4-flash
@@ -103,6 +103,10 @@ OPENCODE_GUARDRAIL_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_BASE_URL=https://opencode.ai/zen/go/v1
 OPENCODE_THINKING_MODE=disabled
 MODEL_CONFIG_GCS_URI=gs://your-config-bucket/ai-model-config.json
+
+# Admin (/admin) and the internal config-reload call
+ADMIN_SESSION_SECRET=
+INTERNAL_API_TOKEN=
 
 # Database
 MEMORY_DATABASE_URL=postgresql://user:password@host:port/database
@@ -124,22 +128,45 @@ MASTRA_API_URL=http://localhost:4000
 
 ### Runtime Model Config
 
-The Mastra chat server can load model settings from a private GCS JSON file on each cache refresh. The browser never receives this config; it is used only server-side when creating the OpenCode model client.
+The chat server reads its model settings from a private JSON file — GCS in production (`MODEL_CONFIG_GCS_URI`), a local file in development (`MODEL_CONFIG_FILE`). The browser never receives this file.
 
 ```json
 {
-  "version": 1,
-  "provider": "opencode-go",
+  "version": 2,
   "model": "deepseek-v4-pro",
   "fallbackModel": "mimo-v2.5",
   "guardrailModel": "deepseek-v4-flash",
   "guardrailBaseURL": "https://opencode.ai/zen/go/v1",
   "thinkingMode": "disabled",
-  "cacheTtlSeconds": 60
+  "cacheTtlSeconds": 60,
+  "adminPassword": "scrypt:<salt>:<hash>"
 }
 ```
 
-Set `MODEL_CONFIG_GCS_URI` to the object path and grant the Cloud Run service account `roles/storage.objectViewer` on the bucket. If the file is missing or temporarily unavailable, the server uses the last good config, then falls back to `OPENCODE_MODEL` and `OPENCODE_FALLBACK_MODEL`. Big Pickle guardrail tests should use `"guardrailModel": "big-pickle"` with `"guardrailBaseURL": "https://opencode.ai/zen/v1"`.
+The service account needs `roles/storage.objectViewer` to read the object and `roles/storage.objectCreator` to save changes from `/admin`. If the file is missing or temporarily unavailable, the server keeps the last good config and then falls back to `OPENCODE_MODEL` / `OPENCODE_FALLBACK_MODEL`.
+
+### API protocols
+
+OpenCode Go serves its models over **three different protocols**, and each model supports only some of them. Sending a model to the wrong one returns `400 ModelProtocolUnsupported`.
+
+| Protocol | AI SDK package | Example models |
+|---|---|---|
+| `chat_completions` | `@ai-sdk/openai-compatible` | deepseek-v4-flash, deepseek-v4-pro, mimo-v2.5, glm-5.3 |
+| `responses` | `@ai-sdk/openai` | grok-4.7, grok-4.6, gpt-6-luna, gpt-5.6-luna |
+| `anthropic_messages` | `@ai-sdk/anthropic` | claude-haiku-5-5, minimax-m2.7, qwen3.8-max |
+
+You do not configure this: `src/mastra/agents/opencode-model-catalog.ts` maps each model id to the protocols it accepts, and `getChatModel()` picks the right provider. Re-derive the map with `pnpm check:models` when the provider adds or retires models. The `/admin` page shows the resolved protocol for every model it offers.
+
+### Model administration (`/admin`)
+
+`/admin` is a password-protected page for changing the primary, fallback, and guardrail models without a redeploy. It reads and writes the same config file the chat server uses, validates every field server-side, and can make a live test call to any model to report the real provider response.
+
+- The password is stored in the config as an scrypt hash and is never sent to the browser.
+- A successful login sets a signed, `HttpOnly`, `SameSite=Strict` cookie.
+- Login attempts are rate limited; `/admin` is excluded from `robots.txt` and marked `noindex`.
+- Saving invalidates the chat server's config cache through an internal call authenticated with `INTERNAL_API_TOKEN`, so changes apply immediately.
+
+Requires `ADMIN_SESSION_SECRET` and `INTERNAL_API_TOKEN` (each `openssl rand -hex 32`).
 
 ### Installation
 

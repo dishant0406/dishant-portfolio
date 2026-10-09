@@ -65,6 +65,15 @@ export const threadLimitBlockMessage = () =>
 export const portfolioGuardrailBlockMessage = (reason: string) =>
   `I'm Dishant Sharma's portfolio assistant. ${reason} Ask me about his projects, GitHub work, skills, experience, resume, education, or contact details.`;
 
+/**
+ * Shown when the guardrail check itself could not run (provider outage, bad
+ * credentials, network failure). This is deliberately different from a policy
+ * block: telling a visitor their question was off-topic when the classifier was
+ * simply unreachable is what hid this outage in the first place.
+ */
+export const guardrailUnavailableMessage = () =>
+  "I'm Dishant Sharma's portfolio assistant, but my scope check is temporarily unavailable. Please try again in a moment.";
+
 const normalizeDecision = (output: GuardrailOutput): PortfolioGuardrailDecision => {
   const decision = output.decision?.toLowerCase();
   const allowed = output.allowed ?? decision === 'allow';
@@ -80,11 +89,12 @@ export const evaluatePortfolioGuardrail = async (
   messages: ChatMessage[],
   guardrailModel: string,
   guardrailBaseURL: string,
+  sessionId?: unknown,
 ): Promise<PortfolioGuardrailDecision> => {
   const agent = new Agent({
     name: 'portfolio-guardrail',
     instructions: guardrailInstructions,
-    model: getChatModel(guardrailModel, guardrailBaseURL),
+    model: getChatModel(guardrailModel, guardrailBaseURL, sessionId),
   });
 
   const result = await agent.generate(buildGuardrailPrompt(messages), {

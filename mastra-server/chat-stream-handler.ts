@@ -18,6 +18,7 @@ import {
 import { collectPortfolioContext } from './portfolio-context';
 import {
   evaluatePortfolioGuardrail,
+  guardrailUnavailableMessage,
   isThreadMessageLimitExceeded,
   portfolioGuardrailBlockMessage,
   threadLimitBlockMessage,
@@ -75,18 +76,20 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
         return;
       }
 
-      const decision = await evaluatePortfolioGuardrail(
-        messages,
-        modelConfig.guardrailModel,
-        modelConfig.guardrailBaseURL,
-      ).catch((error) => {
-        console.error('Portfolio guardrail failed:', error);
-        return {
-          allowed: false,
-          reason: 'I could not verify that this request belongs in the portfolio assistant.',
-          category: 'unsafe' as const,
-        };
-      });
+      let decision;
+      try {
+        decision = await evaluatePortfolioGuardrail(
+          messages,
+          modelConfig.guardrailModel,
+          modelConfig.guardrailBaseURL,
+          req.body.threadId,
+        );
+      } catch (error) {
+        console.error('Portfolio guardrail unavailable:', error);
+        writer.write({ type: 'text', text: guardrailUnavailableMessage() });
+        writer.done();
+        return;
+      }
 
       if (!decision.allowed) {
         writer.write({ type: 'text', text: portfolioGuardrailBlockMessage(decision.reason) });
@@ -95,7 +98,7 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
       }
     }
 
-    const agent = createPortfolioAgent(modelConfig.model);
+    const agent = createPortfolioAgent(modelConfig.model, req.body.threadId);
 
     writer.write({
       type: 'status',
@@ -165,7 +168,7 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
         fallbackModel: modelConfig.fallbackModel,
         error: getStreamErrorMessage(error),
       });
-      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel));
+      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel, req.body.threadId));
     }
 
     completeCompose();
