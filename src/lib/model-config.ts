@@ -307,8 +307,27 @@ const getAccessToken = async () => {
   return accessToken;
 };
 
+/** Reads one object. The JSON API takes the object name in the path. */
 const gcsObjectUrl = ({ bucket, object }: GcsLocation) =>
   `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}`;
+
+/**
+ * Uploads the body as a new version of an object.
+ *
+ * This is the simple-upload endpoint: the object name goes in the `name` query
+ * parameter and the request is a POST. The media-download path used by reads
+ * cannot be reused for writes — a PUT to `/storage/v1/.../o/<object>` with
+ * `uploadType=media` is answered `404 No such object`, or, worse, `200` with the
+ * existing object's metadata when the object already exists, so the write looks
+ * like it succeeded while the stored config never changes.
+ */
+const gcsUploadUrl = ({ bucket, object }: GcsLocation) => {
+  const url = new URL(`https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o`);
+  url.searchParams.set('uploadType', 'media');
+  url.searchParams.set('name', object);
+
+  return url;
+};
 
 export const readModelConfig = async (): Promise<unknown> => {
   const filePath = process.env.MODEL_CONFIG_FILE?.trim();
@@ -360,11 +379,9 @@ export const writeModelConfig = async (config: ModelConfig): Promise<void> => {
 
   const location = parseGcsUri(gcsUri);
   const accessToken = await getAccessToken();
-  const url = new URL(gcsObjectUrl(location));
-  url.searchParams.set('uploadType', 'media');
 
-  const response = await configFetch(url, {
-    method: 'PUT',
+  const response = await configFetch(gcsUploadUrl(location), {
+    method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
@@ -374,6 +391,18 @@ export const writeModelConfig = async (config: ModelConfig): Promise<void> => {
 
   if (!response.ok) {
     throw new Error(`GCS model config write failed with ${response.status}`);
+  }
+
+  // A 200 is not proof the bytes were stored: a request sent to the wrong GCS
+  // endpoint is answered with the *existing* object's metadata. Comparing the
+  // stored size against what was sent turns that silent no-op into an error.
+  const stored = await response.json();
+  const storedSize = isRecord(stored) ? stored.size : undefined;
+
+  if (String(storedSize) !== String(Buffer.byteLength(body))) {
+    throw new Error(
+      `GCS model config write did not store the config (sent ${Buffer.byteLength(body)} bytes, stored ${storedSize}).`,
+    );
   }
 };
 
