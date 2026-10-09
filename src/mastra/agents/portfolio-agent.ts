@@ -4,7 +4,8 @@ import { UnicodeNormalizer } from "@mastra/core/processors";
 import { Memory } from "@mastra/memory";
 import { PostgresStore } from "@mastra/pg";
 import { portfolioTools } from "../tools/portfolio-tools";
-import { getChatModel, getOpencodeBaseURL, defaultPortfolioModelId } from "./opencode-chat-model";
+import { getChatModel, getProviderConnection } from "./opencode-chat-model";
+import { getEnvModelConfig, type ModelConfig } from "../../lib/model-config";
 
 // Cache expensive instances across serverless invocations
 declare global {
@@ -101,17 +102,18 @@ ${openuiSystemPrompt}
 `;
 
 export const createPortfolioAgent = (
-  modelId = process.env.OPENCODE_MODEL || defaultPortfolioModelId,
+  config: ModelConfig,
+  modelId = config.model,
   sessionId?: unknown,
 ) => new Agent({
   name: "portfolio-agent",
   instructions: portfolioInstructions,
-  model: getChatModel(modelId, getOpencodeBaseURL(), sessionId),
+  model: getChatModel(modelId, getProviderConnection(config, sessionId)),
   tools: portfolioTools,
   memory,
   inputProcessors,
 });
 
-const portfolioAgent = createPortfolioAgent();
+const portfolioAgent = createPortfolioAgent(getEnvModelConfig());
 
 export { portfolioAgent };

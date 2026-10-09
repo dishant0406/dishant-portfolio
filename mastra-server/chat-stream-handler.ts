@@ -80,8 +80,7 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
       try {
         decision = await evaluatePortfolioGuardrail(
           messages,
-          modelConfig.guardrailModel,
-          modelConfig.guardrailBaseURL,
+          modelConfig,
           req.body.threadId,
         );
       } catch (error) {
@@ -98,7 +97,7 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
       }
     }
 
-    const agent = createPortfolioAgent(modelConfig.model, req.body.threadId);
+    const agent = createPortfolioAgent(modelConfig, modelConfig.model, req.body.threadId);
 
     writer.write({
       type: 'status',
@@ -168,7 +167,9 @@ export const streamAgentResponse = async (req: Request, res: Response) => {
         fallbackModel: modelConfig.fallbackModel,
         error: getStreamErrorMessage(error),
       });
-      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel, req.body.threadId));
+      await streamFromAgent(
+        createPortfolioAgent(modelConfig, modelConfig.fallbackModel, req.body.threadId),
+      );
     }
 
     completeCompose();

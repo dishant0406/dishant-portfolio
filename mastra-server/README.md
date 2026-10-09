@@ -67,14 +67,20 @@ INTERNAL_API_TOKEN=
 Model settings live in a JSON file read from `MODEL_CONFIG_FILE` or
 `MODEL_CONFIG_GCS_URI`, cached for `cacheTtlSeconds`. On a read failure the last
 good config is reused; if there is none, the `OPENCODE_*` environment values are
-used. `src/lib/model-config.ts` owns the schema, validation, and both the read
-and write paths — the admin UI writes through the same module, so a value that
-saves successfully is always a value this server can load.
+used. A missing file is not a failure: it falls back to those same defaults so a
+fresh deployment still serves chat and can be configured from `/admin`.
+`src/lib/model-config.ts` owns the schema, validation, and both the read and
+write paths — the admin UI writes through the same module, so a value that saves
+successfully is always a value this server can load.
 
-The `apiType` for each model is not configurable: OpenCode Go only accepts each
-model on specific protocols, so `src/mastra/agents/opencode-model-catalog.ts`
-maps model id → protocols and `getChatModel()` selects the provider. See the
-root `README.md` for the protocol table.
+The config carries the models, the provider `baseURL`, the API key, and the model
+catalog. The API key is write-only: it is never returned to the browser and never
+logged. The catalog is what `getChatModel()` uses to pick a provider, and it is
+re-derived from the provider by the **Refresh model list** action on `/admin`
+(see `src/lib/model-catalog.ts` and the protocol table in the root `README.md`).
+
+`guardrailBaseURL` may be blank, which means "use `baseURL`". Use
+`resolveGuardrailBaseURL()` rather than reading the field directly.
 
 ## Local Development
 

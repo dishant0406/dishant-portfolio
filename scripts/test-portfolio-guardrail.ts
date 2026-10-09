@@ -1,7 +1,17 @@
+/**
+ * Regression test for the portfolio guardrail: it must still block off-topic
+ * messages and still allow portfolio ones.
+ *
+ * Requires OPENCODE_API_KEY.
+ *
+ *   pnpm test:guardrail
+ */
+
 import {
   evaluatePortfolioGuardrail,
   isThreadMessageLimitExceeded,
 } from '../mastra-server/portfolio-guardrail';
+import { DEFAULT_BASE_URL, getEnvModelConfig, type ModelConfig } from '../src/lib/model-config';
 
 type TestCase = {
   name: string;
@@ -9,7 +19,6 @@ type TestCase = {
   messages: Array<{ role: 'user' | 'assistant'; content: string }>;
 };
 
-const DEFAULT_GO_BASE_URL = 'https://opencode.ai/zen/go/v1';
 const BIG_PICKLE_BASE_URL = 'https://opencode.ai/zen/v1';
 
 const testCases: TestCase[] = [
@@ -34,16 +43,18 @@ const testCases: TestCase[] = [
   },
 ];
 
-const suites = [
-  {
-    name: 'configured',
-    model: process.env.OPENCODE_GUARDRAIL_MODEL || 'deepseek-v4-flash',
-    baseURL: process.env.OPENCODE_GUARDRAIL_BASE_URL || process.env.OPENCODE_BASE_URL || DEFAULT_GO_BASE_URL,
-  },
+const baseConfig = getEnvModelConfig();
+
+const suites: Array<{ name: string; config: ModelConfig }> = [
+  { name: 'configured', config: baseConfig },
   {
     name: 'big-pickle',
-    model: 'big-pickle',
-    baseURL: BIG_PICKLE_BASE_URL,
+    config: {
+      ...baseConfig,
+      guardrailModel: 'big-pickle',
+      baseURL: BIG_PICKLE_BASE_URL,
+      guardrailBaseURL: BIG_PICKLE_BASE_URL,
+    },
   },
 ];
 
@@ -61,18 +72,18 @@ const assertThreadLimit = () => {
 const run = async () => {
   assertThreadLimit();
 
+  if (!baseConfig.apiKey) {
+    throw new Error(`OPENCODE_API_KEY is required. Base URL: ${baseConfig.baseURL || DEFAULT_BASE_URL}`);
+  }
+
   for (const suite of suites) {
     for (const testCase of testCases) {
-      const result = await evaluatePortfolioGuardrail(
-        testCase.messages,
-        suite.model,
-        suite.baseURL,
-      );
+      const result = await evaluatePortfolioGuardrail(testCase.messages, suite.config);
 
       const passed = result.allowed === testCase.expectedAllowed;
       console.log(JSON.stringify({
         suite: suite.name,
-        model: suite.model,
+        model: suite.config.guardrailModel,
         case: testCase.name,
         passed,
         result,

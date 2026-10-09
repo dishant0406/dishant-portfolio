@@ -10,7 +10,6 @@
     "start:next": "next start",
     "lint": "eslint",
     "test:guardrail": "tsx --env-file=.env.local scripts/test-portfolio-guardrail.ts",
-    "check:models": "tsx --env-file=.env.local scripts/check-model-protocols.ts",
     "gen:openui-prompt": "node scripts/generate-openui-prompt.mjs",
     "mastra:dev": "cd mastra-server && tsx watch --env-file=../.env.local index.ts",
     "mastra:development": "mastra dev",

@@ -27434,7 +27434,7 @@ var import_anthropic = require("@ai-sdk/anthropic");
 var import_openai = require("@ai-sdk/openai");
 var import_openai_compatible = require("@ai-sdk/openai-compatible");
 
-// ../src/mastra/agents/opencode-session.ts
+// ../src/lib/opencode-request.ts
 var OPENCODE_SESSION_HEADER = "x-opencode-session";
 var DEFAULT_SESSION_ID = "dishant-portfolio";
 var MAX_SESSION_ID_LENGTH = 128;
@@ -27447,14 +27447,20 @@ var getOpencodeSessionId = (threadId) => {
 var getOpencodeSessionHeaders = (threadId) => ({
   [OPENCODE_SESSION_HEADER]: getOpencodeSessionId(threadId)
 });
+var getOpencodeRequestHeaders = (sessionId) => ({
+  "User-Agent": process.env.OPENCODE_USER_AGENT || "dishant-portfolio/1.0",
+  "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev",
+  ...getOpencodeSessionHeaders(sessionId)
+});
 
-// ../src/mastra/agents/opencode-model-catalog.ts
+// ../src/lib/model-catalog.ts
+var OPENCODE_API_TYPES = ["chat_completions", "responses", "anthropic_messages"];
 var API_TYPE_PREFERENCE = [
   "chat_completions",
   "responses",
   "anthropic_messages"
 ];
-var MODEL_API_TYPES = {
+var BUNDLED_MODELS = {
   "claude-haiku-5-5": ["anthropic_messages"],
   "deepseek-flash": ["chat_completions", "responses", "anthropic_messages"],
   "deepseek-v4-flash": ["chat_completions", "responses", "anthropic_messages"],
@@ -27501,26 +27507,37 @@ var MODEL_API_TYPES = {
   "space-bunny": ["chat_completions", "anthropic_messages"],
   "step-5-preview-free": ["chat_completions"]
 };
-var DEFAULT_OPENCODE_API_TYPE = "chat_completions";
-var getModelApiTypes = (modelId) => MODEL_API_TYPES[modelId] ?? [];
-var isModelUsable = (modelId) => getModelApiTypes(modelId).length > 0;
-var getDefaultApiType = (modelId) => {
-  const supported = getModelApiTypes(modelId);
-  return API_TYPE_PREFERENCE.find((apiType) => supported.includes(apiType)) ?? DEFAULT_OPENCODE_API_TYPE;
+var isRecord = (value) => typeof value === "object" && value !== null;
+var getBundledCatalog = () => ({
+  updatedAt: "2026-10-09T00:00:00.000Z",
+  source: "bundled",
+  models: { ...BUNDLED_MODELS }
+});
+var normalizeCatalog = (rawCatalog) => {
+  if (!isRecord(rawCatalog) || !isRecord(rawCatalog.models)) return getBundledCatalog();
+  const models = {};
+  for (const [modelId, apiTypes] of Object.entries(rawCatalog.models)) {
+    if (!modelId.trim() || !Array.isArray(apiTypes)) continue;
+    models[modelId.trim()] = OPENCODE_API_TYPES.filter((apiType) => apiTypes.includes(apiType));
+  }
+  if (Object.keys(models).length === 0) return getBundledCatalog();
+  const updatedAt = typeof rawCatalog.updatedAt === "string" && rawCatalog.updatedAt.trim() ? rawCatalog.updatedAt : (/* @__PURE__ */ new Date()).toISOString();
+  return { updatedAt, source: rawCatalog.source === "probe" ? "probe" : "bundled", models };
 };
+var getModelApiTypes = (catalog, modelId) => catalog.models[modelId] ?? [];
+var isModelUsable = (catalog, modelId) => getModelApiTypes(catalog, modelId).length > 0;
+var getDefaultApiType = (catalog, modelId) => API_TYPE_PREFERENCE.find((apiType) => getModelApiTypes(catalog, modelId).includes(apiType)) ?? "chat_completions";
 
 // ../src/mastra/agents/opencode-chat-model.ts
-var defaultPortfolioModelId = "deepseek-v4-flash";
-var defaultOpencodeBaseURL = "https://opencode.ai/zen/go/v1";
 var OPENCODE_PROVIDER_NAME = "opencode-go";
-var getOpencodeRequestHeaders = (sessionId) => ({
-  "User-Agent": process.env.OPENCODE_USER_AGENT || "dishant-portfolio/1.0",
-  "HTTP-Referer": process.env.OPENCODE_HTTP_REFERER || "https://dishantsharma.dev",
-  ...getOpencodeSessionHeaders(sessionId)
+var getProviderConnection = (config, sessionId, baseURL = config.baseURL) => ({
+  baseURL,
+  apiKey: config.apiKey,
+  sessionId,
+  catalog: config.modelCatalog
 });
-var getOpencodeBaseURL = () => process.env.OPENCODE_BASE_URL || defaultOpencodeBaseURL;
-var buildProvider = (baseURL, apiType, sessionId) => {
-  const apiKey = process.env.OPENCODE_API_KEY;
+var buildProvider = (connection, apiType) => {
+  const { apiKey, baseURL, sessionId } = connection;
   const headers = getOpencodeRequestHeaders(sessionId);
   if (apiType === "anthropic_messages") {
     return (0, import_anthropic.createAnthropic)({ apiKey, baseURL, headers });
@@ -27530,9 +27547,212 @@ var buildProvider = (baseURL, apiType, sessionId) => {
   }
   return (0, import_openai_compatible.createOpenAICompatible)({ name: OPENCODE_PROVIDER_NAME, apiKey, baseURL, headers });
 };
-var getChatModel = (modelId = defaultPortfolioModelId, baseURL = getOpencodeBaseURL(), sessionId) => {
-  const apiType = isModelUsable(modelId) ? getDefaultApiType(modelId) : "chat_completions";
-  return buildProvider(baseURL, apiType, sessionId)(modelId);
+var getChatModel = (modelId, connection) => {
+  const apiType = isModelUsable(connection.catalog, modelId) ? getDefaultApiType(connection.catalog, modelId) : "chat_completions";
+  return buildProvider(connection, apiType)(modelId);
+};
+
+// ../src/lib/model-config.ts
+var import_promises = require("node:fs/promises");
+
+// opencode-thinking.ts
+var OPENCODE_PROVIDER_KEY = "opencode-go";
+var DISABLED_VALUES = /* @__PURE__ */ new Set(["disabled", "disable", "off", "false", "0", "none", "no"]);
+var ENABLED_VALUES = /* @__PURE__ */ new Set(["enabled", "enable", "on", "true", "1", "yes"]);
+var AUTO_VALUES = /* @__PURE__ */ new Set(["auto", "default", "provider"]);
+var getOpencodeThinkingMode = (value = process.env.OPENCODE_THINKING_MODE) => {
+  const normalized = String(value || "disabled").trim().toLowerCase();
+  if (ENABLED_VALUES.has(normalized)) return "enabled";
+  if (AUTO_VALUES.has(normalized)) return "auto";
+  if (DISABLED_VALUES.has(normalized)) return "disabled";
+  return "disabled";
+};
+var shouldForwardThinkingEvents = (mode = getOpencodeThinkingMode()) => mode !== "disabled";
+var getOpencodeProviderOptions = (mode = getOpencodeThinkingMode()) => {
+  if (mode === "auto") return void 0;
+  return {
+    [OPENCODE_PROVIDER_KEY]: {
+      thinking: {
+        type: mode
+      }
+    }
+  };
+};
+
+// ../src/lib/model-config.ts
+var MODEL_CONFIG_VERSION = 3;
+var DEFAULT_CACHE_TTL_SECONDS = 60;
+var MIN_CACHE_TTL_SECONDS = 5;
+var MAX_CACHE_TTL_SECONDS = 3600;
+var DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1";
+var METADATA_HOST_NAMES = /* @__PURE__ */ new Set([
+  "metadata.google.internal",
+  "metadata.goog",
+  "instance-data",
+  "100.100.100.200"
+]);
+var expandIpv6 = (hostname) => {
+  const parts = hostname.replace(/^\[|\]$/g, "").toLowerCase().split("::");
+  if (parts.length > 2) return [];
+  const left = parts[0] ? parts[0].split(":") : [];
+  const right = parts.length === 2 && parts[1] ? parts[1].split(":") : [];
+  const missing = 8 - left.length - right.length;
+  if (parts.length === 1 && left.length !== 8) return [];
+  if (missing < 0) return [];
+  return [...left, ...Array(missing).fill("0"), ...right];
+};
+var isBlockedAddress = (hostname) => {
+  if (hostname.startsWith("169.254.")) return true;
+  const groups = expandIpv6(hostname);
+  if (groups.length !== 8) return false;
+  if (/^fe[89ab][0-9a-f]$/.test(groups[0])) return true;
+  if (groups[0] === "fd00" && groups[1] === "ec2" && groups[7] === "254") {
+    return true;
+  }
+  if (groups.slice(0, 5).every((group) => group === "0") && groups[5] === "ffff") {
+    const hex = `${groups[6]}${groups[7]}`.padStart(8, "0");
+    const octets = [0, 2, 4, 6].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+    return octets[0] === 169 && octets[1] === 254;
+  }
+  return false;
+};
+var isAllowedBaseURL = (value) => {
+  if (!isHttpUrl(value)) return false;
+  try {
+    const hostname = new URL(value).hostname.toLowerCase().replace(/\.+$/, "");
+    return !METADATA_HOST_NAMES.has(hostname) && !isBlockedAddress(hostname);
+  } catch {
+    return false;
+  }
+};
+var resolveBaseURL = (value, fallback) => {
+  const url = value.trim().replace(/\/+$/, "");
+  return isAllowedBaseURL(url) ? url : fallback;
+};
+var DEFAULT_FALLBACK_MODEL = "mimo-v2.5";
+var DEFAULT_GUARDRAIL_MODEL = "deepseek-v4-flash";
+var isRecord2 = (value) => typeof value === "object" && value !== null;
+var envValue = (value, fallback) => {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
+};
+var clampTtl = (value) => {
+  const numericValue = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numericValue)) return DEFAULT_CACHE_TTL_SECONDS;
+  return Math.min(
+    MAX_CACHE_TTL_SECONDS,
+    Math.max(MIN_CACHE_TTL_SECONDS, Math.floor(numericValue))
+  );
+};
+var isHttpUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
+var getEnvModelConfig = () => {
+  return {
+    version: MODEL_CONFIG_VERSION,
+    model: envValue(process.env.OPENCODE_MODEL, "deepseek-v4-flash"),
+    fallbackModel: envValue(process.env.OPENCODE_FALLBACK_MODEL, DEFAULT_FALLBACK_MODEL),
+    guardrailModel: envValue(process.env.OPENCODE_GUARDRAIL_MODEL, DEFAULT_GUARDRAIL_MODEL),
+    baseURL: resolveBaseURL(process.env.OPENCODE_BASE_URL ?? "", DEFAULT_BASE_URL),
+    // Blank means "same as the chat models", resolved by resolveGuardrailBaseURL.
+    guardrailBaseURL: resolveBaseURL(process.env.OPENCODE_GUARDRAIL_BASE_URL ?? "", ""),
+    apiKey: process.env.OPENCODE_API_KEY?.trim() ?? "",
+    modelCatalog: getBundledCatalog(),
+    thinkingMode: getOpencodeThinkingMode(),
+    cacheTtlSeconds: clampTtl(process.env.MODEL_CONFIG_CACHE_TTL_SECONDS),
+    adminPassword: ""
+  };
+};
+var parseAdminPassword = (value, fallback) => {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || fallback;
+};
+var normalizeModelConfig = (rawConfig) => {
+  const fallback = getEnvModelConfig();
+  if (!isRecord2(rawConfig)) return fallback;
+  return {
+    version: MODEL_CONFIG_VERSION,
+    model: envValue(rawConfig.model, fallback.model),
+    fallbackModel: envValue(rawConfig.fallbackModel, fallback.fallbackModel),
+    guardrailModel: envValue(rawConfig.guardrailModel, fallback.guardrailModel),
+    baseURL: resolveBaseURL(
+      typeof rawConfig.baseURL === "string" ? rawConfig.baseURL : "",
+      fallback.baseURL
+    ),
+    // An unset or unusable guardrail URL means "same as the chat models" rather
+    // than "no endpoint", so a half-written config still produces working calls.
+    guardrailBaseURL: resolveBaseURL(
+      typeof rawConfig.guardrailBaseURL === "string" ? rawConfig.guardrailBaseURL : "",
+      fallback.guardrailBaseURL
+    ),
+    apiKey: envValue(rawConfig.apiKey, fallback.apiKey),
+    modelCatalog: normalizeCatalog(rawConfig.modelCatalog),
+    thinkingMode: getOpencodeThinkingMode(rawConfig.thinkingMode ?? fallback.thinkingMode),
+    cacheTtlSeconds: clampTtl(rawConfig.cacheTtlSeconds ?? fallback.cacheTtlSeconds),
+    adminPassword: parseAdminPassword(rawConfig.adminPassword, fallback.adminPassword)
+  };
+};
+var resolveGuardrailBaseURL = (config) => config.guardrailBaseURL || config.baseURL;
+var METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
+var parseGcsUri = (uri) => {
+  if (!uri.startsWith("gs://")) {
+    throw new Error("MODEL_CONFIG_GCS_URI must start with gs://");
+  }
+  const withoutScheme = uri.slice("gs://".length);
+  const slashIndex = withoutScheme.indexOf("/");
+  const bucket = slashIndex === -1 ? withoutScheme : withoutScheme.slice(0, slashIndex);
+  const object = slashIndex === -1 ? "" : withoutScheme.slice(slashIndex + 1);
+  if (!bucket || !object) {
+    throw new Error("MODEL_CONFIG_GCS_URI must include bucket and object path");
+  }
+  return { bucket, object };
+};
+var CONFIG_FETCH_TIMEOUT_MS = 5e3;
+var configFetch = (url, init = {}) => fetch(url, { ...init, signal: AbortSignal.timeout(CONFIG_FETCH_TIMEOUT_MS) });
+var getAccessToken = async () => {
+  const staticToken = process.env.MODEL_CONFIG_GCS_TOKEN?.trim();
+  if (staticToken) return staticToken;
+  const response = await configFetch(METADATA_TOKEN_URL, {
+    headers: { "Metadata-Flavor": "Google" }
+  });
+  if (!response.ok) {
+    throw new Error(`Metadata token request failed with ${response.status}`);
+  }
+  const payload = await response.json();
+  const accessToken = isRecord2(payload) ? payload.access_token : void 0;
+  if (typeof accessToken !== "string" || !accessToken.trim()) {
+    throw new Error("Metadata token response did not include access_token");
+  }
+  return accessToken;
+};
+var gcsObjectUrl = ({ bucket, object }) => `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}`;
+var readModelConfig = async () => {
+  const filePath = process.env.MODEL_CONFIG_FILE?.trim();
+  if (filePath) {
+    try {
+      return JSON.parse(await (0, import_promises.readFile)(filePath, "utf8"));
+    } catch (error) {
+      if (error.code === "ENOENT") return void 0;
+      throw error;
+    }
+  }
+  const gcsUri = process.env.MODEL_CONFIG_GCS_URI?.trim();
+  if (!gcsUri) return void 0;
+  const location = parseGcsUri(gcsUri);
+  const accessToken = await getAccessToken();
+  const url = new URL(gcsObjectUrl(location));
+  url.searchParams.set("alt", "media");
+  const response = await configFetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (response.status === 404) return void 0;
+  if (!response.ok) {
+    throw new Error(`GCS model config request failed with ${response.status}`);
+  }
+  return response.json();
 };
 
 // ../src/mastra/agents/portfolio-agent.ts
@@ -27617,15 +27837,15 @@ Output ONLY OpenUI Lang \u2014 no markdown, no plain text, no JSON. The UI frame
 ## OpenUI Lang Component Library & Syntax
 ${openuiSystemPrompt}
 `;
-var createPortfolioAgent = (modelId = process.env.OPENCODE_MODEL || defaultPortfolioModelId, sessionId) => new import_agent.Agent({
+var createPortfolioAgent = (config, modelId = config.model, sessionId) => new import_agent.Agent({
   name: "portfolio-agent",
   instructions: portfolioInstructions,
-  model: getChatModel(modelId, getOpencodeBaseURL(), sessionId),
+  model: getChatModel(modelId, getProviderConnection(config, sessionId)),
   tools: portfolioTools,
   memory,
   inputProcessors
 });
-var portfolioAgent = createPortfolioAgent();
+var portfolioAgent = createPortfolioAgent(getEnvModelConfig());
 
 // ../src/mastra/index.ts
 if (!global._mastraInstance) {
@@ -27678,7 +27898,7 @@ var validateMessages = (req, res) => {
 };
 
 // sse.ts
-var isRecord = (value) => typeof value === "object" && value !== null;
+var isRecord3 = (value) => typeof value === "object" && value !== null;
 var firstString = (...values) => {
   for (const value of values) {
     if (typeof value === "string") return value;
@@ -27686,13 +27906,13 @@ var firstString = (...values) => {
   return "";
 };
 var nestedRecord = (value, key) => {
-  if (!isRecord(value)) return void 0;
-  return isRecord(value[key]) ? value[key] : void 0;
+  if (!isRecord3(value)) return void 0;
+  return isRecord3(value[key]) ? value[key] : void 0;
 };
 var nestedValue = (value, ...path) => {
   let current = value;
   for (const key of path) {
-    if (!isRecord(current)) return void 0;
+    if (!isRecord3(current)) return void 0;
     current = current[key];
   }
   return current;
@@ -27739,7 +27959,7 @@ var createSseWriter = (res) => {
   };
 };
 var streamChunkToSseEvent = (chunk, options = {}) => {
-  if (!isRecord(chunk)) return null;
+  if (!isRecord3(chunk)) return null;
   const payload = nestedRecord(chunk, "payload");
   const chunkType = firstString(chunk.type, payload?.type);
   const includeThinking = options.includeThinking ?? true;
@@ -27819,30 +28039,6 @@ var getStreamErrorMessage = (error) => {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
   return "Stream error";
-};
-
-// opencode-thinking.ts
-var OPENCODE_PROVIDER_KEY = "opencode-go";
-var DISABLED_VALUES = /* @__PURE__ */ new Set(["disabled", "disable", "off", "false", "0", "none", "no"]);
-var ENABLED_VALUES = /* @__PURE__ */ new Set(["enabled", "enable", "on", "true", "1", "yes"]);
-var AUTO_VALUES = /* @__PURE__ */ new Set(["auto", "default", "provider"]);
-var getOpencodeThinkingMode = (value = process.env.OPENCODE_THINKING_MODE) => {
-  const normalized = String(value || "disabled").trim().toLowerCase();
-  if (ENABLED_VALUES.has(normalized)) return "enabled";
-  if (AUTO_VALUES.has(normalized)) return "auto";
-  if (DISABLED_VALUES.has(normalized)) return "disabled";
-  return "disabled";
-};
-var shouldForwardThinkingEvents = (mode = getOpencodeThinkingMode()) => mode !== "disabled";
-var getOpencodeProviderOptions = (mode = getOpencodeThinkingMode()) => {
-  if (mode === "auto") return void 0;
-  return {
-    [OPENCODE_PROVIDER_KEY]: {
-      thinking: {
-        type: mode
-      }
-    }
-  };
 };
 
 // portfolio-context.ts
@@ -27976,137 +28172,19 @@ var normalizeDecision = (output) => {
     category: output.category ?? (allowed ? "portfolio" : "off_topic")
   };
 };
-var evaluatePortfolioGuardrail = async (messages, guardrailModel, guardrailBaseURL, sessionId) => {
+var evaluatePortfolioGuardrail = async (messages, config, sessionId) => {
   const agent = new import_agent2.Agent({
     name: "portfolio-guardrail",
     instructions: guardrailInstructions,
-    model: getChatModel(guardrailModel, guardrailBaseURL, sessionId)
+    model: getChatModel(
+      config.guardrailModel,
+      getProviderConnection(config, sessionId, resolveGuardrailBaseURL(config))
+    )
   });
   const result = await agent.generate(buildGuardrailPrompt(messages), {
     output: decisionSchema
   });
   return normalizeDecision(result.object);
-};
-
-// ../src/lib/model-config.ts
-var import_promises = require("node:fs/promises");
-var MODEL_CONFIG_VERSION = 2;
-var DEFAULT_CACHE_TTL_SECONDS = 60;
-var MIN_CACHE_TTL_SECONDS = 5;
-var MAX_CACHE_TTL_SECONDS = 3600;
-var DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1";
-var DEFAULT_FALLBACK_MODEL = "mimo-v2.5";
-var DEFAULT_GUARDRAIL_MODEL = "deepseek-v4-flash";
-var isRecord2 = (value) => typeof value === "object" && value !== null;
-var envValue = (value, fallback) => {
-  const text = typeof value === "string" ? value.trim() : "";
-  return text || fallback;
-};
-var clampTtl = (value) => {
-  const numericValue = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(numericValue)) return DEFAULT_CACHE_TTL_SECONDS;
-  return Math.min(
-    MAX_CACHE_TTL_SECONDS,
-    Math.max(MIN_CACHE_TTL_SECONDS, Math.floor(numericValue))
-  );
-};
-var isHttpUrl = (value) => {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
-};
-var firstEnvValue = (...values) => {
-  for (const value of values) {
-    const text = value?.trim();
-    if (text) return text;
-  }
-  return "";
-};
-var getEnvModelConfig = () => {
-  const guardrailBaseURL = firstEnvValue(
-    process.env.OPENCODE_GUARDRAIL_BASE_URL,
-    process.env.OPENCODE_BASE_URL
-  );
-  return {
-    version: MODEL_CONFIG_VERSION,
-    model: envValue(process.env.OPENCODE_MODEL, "deepseek-v4-flash"),
-    fallbackModel: envValue(process.env.OPENCODE_FALLBACK_MODEL, DEFAULT_FALLBACK_MODEL),
-    guardrailModel: envValue(process.env.OPENCODE_GUARDRAIL_MODEL, DEFAULT_GUARDRAIL_MODEL),
-    guardrailBaseURL: isHttpUrl(guardrailBaseURL) ? guardrailBaseURL : DEFAULT_BASE_URL,
-    thinkingMode: getOpencodeThinkingMode(),
-    cacheTtlSeconds: clampTtl(process.env.MODEL_CONFIG_CACHE_TTL_SECONDS),
-    adminPassword: ""
-  };
-};
-var parseAdminPassword = (value, fallback) => {
-  const text = typeof value === "string" ? value.trim() : "";
-  return text || fallback;
-};
-var normalizeModelConfig = (rawConfig) => {
-  const fallback = getEnvModelConfig();
-  if (!isRecord2(rawConfig)) return fallback;
-  const guardrailBaseURL = envValue(rawConfig.guardrailBaseURL, fallback.guardrailBaseURL);
-  return {
-    version: MODEL_CONFIG_VERSION,
-    model: envValue(rawConfig.model, fallback.model),
-    fallbackModel: envValue(rawConfig.fallbackModel, fallback.fallbackModel),
-    guardrailModel: envValue(rawConfig.guardrailModel, fallback.guardrailModel),
-    guardrailBaseURL: isHttpUrl(guardrailBaseURL) ? guardrailBaseURL : fallback.guardrailBaseURL,
-    thinkingMode: getOpencodeThinkingMode(rawConfig.thinkingMode ?? fallback.thinkingMode),
-    cacheTtlSeconds: clampTtl(rawConfig.cacheTtlSeconds ?? fallback.cacheTtlSeconds),
-    adminPassword: parseAdminPassword(rawConfig.adminPassword, fallback.adminPassword)
-  };
-};
-var METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
-var parseGcsUri = (uri) => {
-  if (!uri.startsWith("gs://")) {
-    throw new Error("MODEL_CONFIG_GCS_URI must start with gs://");
-  }
-  const withoutScheme = uri.slice("gs://".length);
-  const slashIndex = withoutScheme.indexOf("/");
-  const bucket = slashIndex === -1 ? withoutScheme : withoutScheme.slice(0, slashIndex);
-  const object = slashIndex === -1 ? "" : withoutScheme.slice(slashIndex + 1);
-  if (!bucket || !object) {
-    throw new Error("MODEL_CONFIG_GCS_URI must include bucket and object path");
-  }
-  return { bucket, object };
-};
-var CONFIG_FETCH_TIMEOUT_MS = 5e3;
-var configFetch = (url, init = {}) => fetch(url, { ...init, signal: AbortSignal.timeout(CONFIG_FETCH_TIMEOUT_MS) });
-var getAccessToken = async () => {
-  const staticToken = process.env.MODEL_CONFIG_GCS_TOKEN?.trim();
-  if (staticToken) return staticToken;
-  const response = await configFetch(METADATA_TOKEN_URL, {
-    headers: { "Metadata-Flavor": "Google" }
-  });
-  if (!response.ok) {
-    throw new Error(`Metadata token request failed with ${response.status}`);
-  }
-  const payload = await response.json();
-  const accessToken = isRecord2(payload) ? payload.access_token : void 0;
-  if (typeof accessToken !== "string" || !accessToken.trim()) {
-    throw new Error("Metadata token response did not include access_token");
-  }
-  return accessToken;
-};
-var gcsObjectUrl = ({ bucket, object }) => `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}`;
-var readModelConfig = async () => {
-  const filePath = process.env.MODEL_CONFIG_FILE?.trim();
-  if (filePath) return JSON.parse(await (0, import_promises.readFile)(filePath, "utf8"));
-  const gcsUri = process.env.MODEL_CONFIG_GCS_URI?.trim();
-  if (!gcsUri) return void 0;
-  const location = parseGcsUri(gcsUri);
-  const accessToken = await getAccessToken();
-  const url = new URL(gcsObjectUrl(location));
-  url.searchParams.set("alt", "media");
-  const response = await configFetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-  if (!response.ok) {
-    throw new Error(`GCS model config request failed with ${response.status}`);
-  }
-  return response.json();
 };
 
 // runtime-model-config.ts
@@ -28168,8 +28246,7 @@ var streamAgentResponse = async (req, res) => {
       try {
         decision = await evaluatePortfolioGuardrail(
           messages,
-          modelConfig.guardrailModel,
-          modelConfig.guardrailBaseURL,
+          modelConfig,
           req.body.threadId
         );
       } catch (error) {
@@ -28184,7 +28261,7 @@ var streamAgentResponse = async (req, res) => {
         return;
       }
     }
-    const agent = createPortfolioAgent(modelConfig.model, req.body.threadId);
+    const agent = createPortfolioAgent(modelConfig, modelConfig.model, req.body.threadId);
     writer.write({
       type: "status",
       id: "portfolio-context",
@@ -28247,7 +28324,9 @@ var streamAgentResponse = async (req, res) => {
         fallbackModel: modelConfig.fallbackModel,
         error: getStreamErrorMessage(error)
       });
-      await streamFromAgent(createPortfolioAgent(modelConfig.fallbackModel, req.body.threadId));
+      await streamFromAgent(
+        createPortfolioAgent(modelConfig, modelConfig.fallbackModel, req.body.threadId)
+      );
     }
     completeCompose();
     writer.done();
@@ -28262,20 +28341,20 @@ var streamAgentResponse = async (req, res) => {
 
 // local-context-summary.ts
 var MAX_CONTEXT_CHARS = 5800;
-var isRecord3 = (value) => typeof value === "object" && value !== null;
+var isRecord4 = (value) => typeof value === "object" && value !== null;
 var cleanText = (value) => value.replace(/\s+/g, " ").replace(/\s([,.;:])/g, "$1").trim();
 var truncate = (value, maxLength) => value.length > maxLength ? `${value.slice(0, maxLength).trim()}...` : value;
 var toolResult = (results, toolName) => results.find((entry) => entry.toolName === toolName)?.result;
 var stringifyCompact = (value, maxLength) => truncate(cleanText(JSON.stringify(value ?? {}, null, 2)), maxLength);
 var personalSummary = (value) => {
-  if (!isRecord3(value) || typeof value.content !== "string") return "";
+  if (!isRecord4(value) || typeof value.content !== "string") return "";
   return [
     "Personal profile:",
     truncate(cleanText(value.content), 2600)
   ].join("\n");
 };
 var githubProfileSummary = (value) => {
-  if (!isRecord3(value)) return "";
+  if (!isRecord4(value)) return "";
   return [
     "GitHub profile:",
     stringifyCompact({
@@ -28290,9 +28369,9 @@ var githubProfileSummary = (value) => {
   ].join("\n");
 };
 var repoSummary = (value) => {
-  if (!isRecord3(value) || !Array.isArray(value.repositories)) return "";
+  if (!isRecord4(value) || !Array.isArray(value.repositories)) return "";
   const repos = value.repositories.slice(0, 8).map((repo) => {
-    if (!isRecord3(repo)) return void 0;
+    if (!isRecord4(repo)) return void 0;
     return {
       name: repo.name,
       description: repo.description,
@@ -28314,7 +28393,7 @@ var statsSummary = (value) => [
 var toLocalPortfolioContext = (portfolioContext) => {
   try {
     const parsed = JSON.parse(portfolioContext);
-    const results = isRecord3(parsed) && Array.isArray(parsed.results) ? parsed.results.filter(isRecord3) : [];
+    const results = isRecord4(parsed) && Array.isArray(parsed.results) ? parsed.results.filter(isRecord4) : [];
     return truncate([
       personalSummary(toolResult(results, "getPersonalInfo")),
       githubProfileSummary(toolResult(results, "getGitHubProfile")),
@@ -28355,8 +28434,7 @@ var prepareLocalChatResponse = async (req, res) => {
       try {
         decision = await evaluatePortfolioGuardrail(
           messages,
-          modelConfig.guardrailModel,
-          modelConfig.guardrailBaseURL,
+          modelConfig,
           req.body.threadId
         );
       } catch (error) {

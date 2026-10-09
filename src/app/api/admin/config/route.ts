@@ -8,7 +8,7 @@ import {
   validateModelConfigInput,
   writeModelConfig,
 } from '@/lib/model-config';
-import { getCatalogModels } from '@/mastra/agents/opencode-model-catalog';
+import { getCatalogModels } from '@/lib/model-catalog';
 import { requestMastraModelConfigReload } from '@/lib/mastra-admin';
 
 export async function GET() {
@@ -25,7 +25,7 @@ export async function GET() {
 
   return adminJson({
     config: redactModelConfig(config),
-    models: getCatalogModels(),
+    models: getCatalogModels(config.modelCatalog),
     writable: isModelConfigWritable(),
   });
 }

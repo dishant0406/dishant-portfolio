@@ -155,11 +155,19 @@ OpenCode Go serves its models over **three different protocols**, and each model
 | `responses` | `@ai-sdk/openai` | grok-4.7, grok-4.6, gpt-6-luna, gpt-5.6-luna |
 | `anthropic_messages` | `@ai-sdk/anthropic` | claude-haiku-5-5, minimax-m2.7, qwen3.8-max |
 
-You do not configure this: `src/mastra/agents/opencode-model-catalog.ts` maps each model id to the protocols it accepts, and `getChatModel()` picks the right provider. Re-derive the map with `pnpm check:models` when the provider adds or retires models. The `/admin` page shows the resolved protocol for every model it offers.
+You do not configure this by hand: `src/lib/model-catalog.ts` maps each model id to the protocols it accepts, and `getChatModel()` picks the right provider. The catalog is stored in the model config and re-derived from the provider by **Refresh model list** on `/admin`, which asks `/models` and then sends every model to all three protocols to find out which it accepts. A model list alone is not enough — the provider lists more models than it serves, so listing it directly would offer models that fail every request.
+
+The bundled map in `src/lib/model-catalog.ts` is the fallback used when the config has no catalog, so a failed refresh can never leave the admin without a usable list.
 
 ### Model administration (`/admin`)
 
-`/admin` is a password-protected page for changing the primary, fallback, and guardrail models without a redeploy. It reads and writes the same config file the chat server uses, validates every field server-side, and can make a live test call to any model to report the real provider response.
+`/admin` is a password-protected page for changing the models, the provider endpoint, the API key, and the model list without a redeploy. It reads and writes the same config file the chat server uses, validates every field server-side, and can make a live test call to any model to report the real provider response.
+
+- **Models** — primary, fallback and guardrail pickers. Each shows the protocol it will use and has a **Test** button that makes one real call and reports the actual provider result, including the status code and the provider's own message.
+- **Provider** — `baseURL` for the chat models, an optional `guardrailBaseURL` (blank means "same as `baseURL`"), and the API key. The key is write-only: it is never sent back to the browser (only `hasApiKey` and the last four characters are), never logged, and a blank field keeps the stored key.
+- **Model list** — **Refresh model list** probes the provider and reports what changed (added, removed, protocol changed, unavailable).
+- **Runtime** — `thinkingMode` and `cacheTtlSeconds`.
+- **Security** — change the admin password.
 
 - The password is stored in the config as an scrypt hash and is never sent to the browser.
 - A successful login sets a signed, `HttpOnly`, `SameSite=Strict` cookie.
@@ -167,6 +175,8 @@ You do not configure this: `src/mastra/agents/opencode-model-catalog.ts` maps ea
 - Saving invalidates the chat server's config cache through an internal call authenticated with `INTERNAL_API_TOKEN`, so changes apply immediately.
 
 Requires `ADMIN_SESSION_SECRET` and `INTERNAL_API_TOKEN` (each `openssl rand -hex 32`).
+
+The API key defaults to the `OPENCODE_API_KEY` environment variable, which is what the deployed service injects from Secret Manager. Setting it in `/admin` overrides that and stores it in the config object, so the bucket and its IAM become the protection for that secret.
 
 ### Installation
 

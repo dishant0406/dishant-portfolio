@@ -13,7 +13,12 @@
 
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { isModelUsable } from '../mastra/agents/opencode-model-catalog';
+import {
+  getBundledCatalog,
+  isModelUsable,
+  normalizeCatalog,
+  type ModelCatalog,
+} from './model-catalog';
 import { getOpencodeThinkingMode, type ThinkingMode } from '../../mastra-server/opencode-thinking';
 
 export type ModelConfig = {
@@ -21,36 +26,130 @@ export type ModelConfig = {
   model: string;
   fallbackModel: string;
   guardrailModel: string;
+  /** Provider endpoint for the chat and fallback models. */
+  baseURL: string;
+  /** Provider endpoint for the guardrail model. Blank inherits `baseURL`. */
   guardrailBaseURL: string;
+  /** Provider API key. Write-only: never returned to the browser or logged. */
+  apiKey: string;
+  /** Which protocol each model speaks. Derived from the provider by /admin. */
+  modelCatalog: ModelCatalog;
   thinkingMode: ThinkingMode;
   cacheTtlSeconds: number;
   /** Password for /admin, stored as `scrypt:<salt>:<hash>`. Empty disables the admin. */
   adminPassword: string;
 };
 
-/** The config without the password hash, safe to send to the admin browser. */
-export type PublicModelConfig = Omit<ModelConfig, 'adminPassword'>;
+/** The config without secrets, safe to send to the admin browser. */
+export type PublicModelConfig = Omit<ModelConfig, 'adminPassword' | 'apiKey'> & {
+  hasApiKey: boolean;
+};
 
 export const redactModelConfig = (config: ModelConfig): PublicModelConfig => ({
   version: config.version,
   model: config.model,
   fallbackModel: config.fallbackModel,
   guardrailModel: config.guardrailModel,
+  baseURL: config.baseURL,
   guardrailBaseURL: config.guardrailBaseURL,
+  modelCatalog: config.modelCatalog,
   thinkingMode: config.thinkingMode,
   cacheTtlSeconds: config.cacheTtlSeconds,
+  hasApiKey: Boolean(config.apiKey),
 });
 
-export const MODEL_CONFIG_VERSION = 2;
-
+const MODEL_CONFIG_VERSION = 3;
 const DEFAULT_CACHE_TTL_SECONDS = 60;
 const MIN_CACHE_TTL_SECONDS = 5;
 const MAX_CACHE_TTL_SECONDS = 3600;
 const MAX_MODEL_ID_LENGTH = 128;
+const MAX_API_KEY_LENGTH = 512;
+const MIN_API_KEY_LENGTH = 8;
 
 export const DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1';
-export const DEFAULT_FALLBACK_MODEL = 'mimo-v2.5';
-export const DEFAULT_GUARDRAIL_MODEL = 'deepseek-v4-flash';
+
+const METADATA_HOST_NAMES = new Set([
+  'metadata.google.internal',
+  'metadata.goog',
+  'instance-data',
+  '100.100.100.200',
+]);
+
+/** Expands an IPv6 address to its eight groups, resolving the `::` shorthand. */
+const expandIpv6 = (hostname: string) => {
+  const parts = hostname.replace(/^\[|\]$/g, '').toLowerCase().split('::');
+  if (parts.length > 2) return [];
+
+  const left = parts[0] ? parts[0].split(':') : [];
+  const right = parts.length === 2 && parts[1] ? parts[1].split(':') : [];
+  const missing = 8 - left.length - right.length;
+  if (parts.length === 1 && left.length !== 8) return [];
+  if (missing < 0) return [];
+
+  return [...left, ...Array(missing).fill('0'), ...right];
+};
+
+/**
+ * Link-local and metadata addresses that no model endpoint should ever point at.
+ *
+ * `169.254.0.0/16` covers both the cloud metadata address and the ECS task
+ * metadata address; `fe80::/10` is its IPv6 equivalent. Private ranges such as
+ * `10.0.0.0/8` stay allowed, because running your own gateway is a real setup.
+ */
+const isBlockedAddress = (hostname: string) => {
+  if (hostname.startsWith('169.254.')) return true;
+
+  const groups = expandIpv6(hostname);
+  if (groups.length !== 8) return false;
+
+  // fe80::/10 means the first group is fe80 to febf.
+  if (/^fe[89ab][0-9a-f]$/.test(groups[0])) return true;
+
+  // AWS's IPv6 metadata endpoint, `fd00:ec2::254`.
+  if (groups[0] === 'fd00' && groups[1] === 'ec2' && groups[7] === '254') {
+    return true;
+  }
+
+  // An IPv4-mapped address arrives as ::ffff:a9fe:a9fe, so the last two groups
+  // are the IPv4 address in hex.
+  if (groups.slice(0, 5).every((group) => group === '0') && groups[5] === 'ffff') {
+    const hex = `${groups[6]}${groups[7]}`.padStart(8, '0');
+    const octets = [0, 2, 4, 6].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+
+    return octets[0] === 169 && octets[1] === 254;
+  }
+
+  return false;
+};
+
+/**
+ * A provider endpoint has to be a real http(s) URL and must not be a cloud
+ * metadata service. This runs on stored values and on the unsaved overrides the
+ * admin form sends, because both reach the same fetch code.
+ */
+export const isAllowedBaseURL = (value: string) => {
+  if (!isHttpUrl(value)) return false;
+
+  try {
+    // A trailing dot is the same host to DNS, so it must not slip past the name
+    // check. `new URL` already canonicalises the integer and hex forms of an IP.
+    const hostname = new URL(value).hostname.toLowerCase().replace(/\.+$/, '');
+
+    return !METADATA_HOST_NAMES.has(hostname) && !isBlockedAddress(hostname);
+  } catch {
+    return false;
+  }
+};
+
+/** Normalises an operator-supplied endpoint, or returns the fallback if unusable. */
+const resolveBaseURL = (value: string, fallback: string) => {
+  const url = value.trim().replace(/\/+$/, '');
+
+  return isAllowedBaseURL(url) ? url : fallback;
+};
+
+const DEFAULT_FALLBACK_MODEL = 'mimo-v2.5';
+const DEFAULT_GUARDRAIL_MODEL = 'deepseek-v4-flash';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -79,31 +178,21 @@ const isHttpUrl = (value: string) => {
   }
 };
 
-const firstEnvValue = (...values: (string | undefined)[]) => {
-  for (const value of values) {
-    const text = value?.trim();
-    if (text) return text;
-  }
-
-  return '';
-};
-
 /**
  * Values that come from the environment instead of the config file. Also used as
  * the fallback when the config file is missing or unreadable.
  */
 export const getEnvModelConfig = (): ModelConfig => {
-  const guardrailBaseURL = firstEnvValue(
-    process.env.OPENCODE_GUARDRAIL_BASE_URL,
-    process.env.OPENCODE_BASE_URL,
-  );
-
   return {
     version: MODEL_CONFIG_VERSION,
     model: envValue(process.env.OPENCODE_MODEL, 'deepseek-v4-flash'),
     fallbackModel: envValue(process.env.OPENCODE_FALLBACK_MODEL, DEFAULT_FALLBACK_MODEL),
     guardrailModel: envValue(process.env.OPENCODE_GUARDRAIL_MODEL, DEFAULT_GUARDRAIL_MODEL),
-    guardrailBaseURL: isHttpUrl(guardrailBaseURL) ? guardrailBaseURL : DEFAULT_BASE_URL,
+    baseURL: resolveBaseURL(process.env.OPENCODE_BASE_URL ?? '', DEFAULT_BASE_URL),
+    // Blank means "same as the chat models", resolved by resolveGuardrailBaseURL.
+    guardrailBaseURL: resolveBaseURL(process.env.OPENCODE_GUARDRAIL_BASE_URL ?? '', ''),
+    apiKey: process.env.OPENCODE_API_KEY?.trim() ?? '',
+    modelCatalog: getBundledCatalog(),
     thinkingMode: getOpencodeThinkingMode(),
     cacheTtlSeconds: clampTtl(process.env.MODEL_CONFIG_CACHE_TTL_SECONDS),
     adminPassword: '',
@@ -128,19 +217,36 @@ export const normalizeModelConfig = (rawConfig: unknown): ModelConfig => {
   const fallback = getEnvModelConfig();
   if (!isRecord(rawConfig)) return fallback;
 
-  const guardrailBaseURL = envValue(rawConfig.guardrailBaseURL, fallback.guardrailBaseURL);
-
   return {
     version: MODEL_CONFIG_VERSION,
     model: envValue(rawConfig.model, fallback.model),
     fallbackModel: envValue(rawConfig.fallbackModel, fallback.fallbackModel),
     guardrailModel: envValue(rawConfig.guardrailModel, fallback.guardrailModel),
-    guardrailBaseURL: isHttpUrl(guardrailBaseURL) ? guardrailBaseURL : fallback.guardrailBaseURL,
+    baseURL: resolveBaseURL(
+      typeof rawConfig.baseURL === 'string' ? rawConfig.baseURL : '',
+      fallback.baseURL,
+    ),
+    // An unset or unusable guardrail URL means "same as the chat models" rather
+    // than "no endpoint", so a half-written config still produces working calls.
+    guardrailBaseURL: resolveBaseURL(
+      typeof rawConfig.guardrailBaseURL === 'string' ? rawConfig.guardrailBaseURL : '',
+      fallback.guardrailBaseURL,
+    ),
+    apiKey: envValue(rawConfig.apiKey, fallback.apiKey),
+    modelCatalog: normalizeCatalog(rawConfig.modelCatalog),
     thinkingMode: getOpencodeThinkingMode(rawConfig.thinkingMode ?? fallback.thinkingMode),
     cacheTtlSeconds: clampTtl(rawConfig.cacheTtlSeconds ?? fallback.cacheTtlSeconds),
     adminPassword: parseAdminPassword(rawConfig.adminPassword, fallback.adminPassword),
   };
 };
+
+/**
+ * The endpoint a request should use. The guardrail keeps its own field so it can
+ * point at a different deployment, and an empty value means "same as the chat
+ * models" rather than "no endpoint".
+ */
+export const resolveGuardrailBaseURL = (config: ModelConfig) =>
+  config.guardrailBaseURL || config.baseURL;
 
 // ---------------------------------------------------------------------------
 // Storage
@@ -206,7 +312,16 @@ const gcsObjectUrl = ({ bucket, object }: GcsLocation) =>
 
 export const readModelConfig = async (): Promise<unknown> => {
   const filePath = process.env.MODEL_CONFIG_FILE?.trim();
-  if (filePath) return JSON.parse(await readFile(filePath, 'utf8'));
+  if (filePath) {
+    try {
+      return JSON.parse(await readFile(filePath, 'utf8'));
+    } catch (error) {
+      // No config yet is not an error: the caller falls back to env defaults and
+      // /admin can then create the file. Anything else is a real failure.
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+      throw error;
+    }
+  }
 
   const gcsUri = process.env.MODEL_CONFIG_GCS_URI?.trim();
   if (!gcsUri) return undefined;
@@ -217,6 +332,7 @@ export const readModelConfig = async (): Promise<unknown> => {
   url.searchParams.set('alt', 'media');
 
   const response = await configFetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (response.status === 404) return undefined;
   if (!response.ok) {
     throw new Error(`GCS model config request failed with ${response.status}`);
   }
@@ -259,6 +375,44 @@ export const writeModelConfig = async (config: ModelConfig): Promise<void> => {
   if (!response.ok) {
     throw new Error(`GCS model config write failed with ${response.status}`);
   }
+};
+
+/**
+ * The provider endpoint and key an admin request should use.
+ *
+ * The admin form may send the endpoint and key it has not saved yet, so an
+ * unsaved connection can be tested. Those overrides reach the same fetch code as
+ * the stored values, so they are checked with the same rule — otherwise the
+ * server would fetch an arbitrary URL with the API key attached (SSRF).
+ *
+ * `scope` only decides *which* endpoint field the override stands in for. The
+ * caller reads the endpoint it needs from the returned config, so the two fields
+ * are never confused.
+ */
+export const resolveAdminConnection = (
+  current: ModelConfig,
+  override: { baseURL?: string; apiKey?: string },
+  scope: 'chat' | 'guardrail',
+): { ok: true; config: ModelConfig } | { ok: false; error: string } => {
+  const baseURL = override.baseURL?.trim().replace(/\/+$/, '') || '';
+
+  if (baseURL && !isAllowedBaseURL(baseURL)) {
+    return {
+      ok: false,
+      error: 'The base URL must be a valid http(s) URL that is not a cloud metadata endpoint.',
+    };
+  }
+
+  const field = scope === 'guardrail' ? 'guardrailBaseURL' : 'baseURL';
+
+  return {
+    ok: true,
+    config: {
+      ...current,
+      [field]: baseURL || current[field],
+      apiKey: override.apiKey?.trim() || current.apiKey,
+    },
+  };
 };
 
 export const isModelConfigWritable = () =>
@@ -318,6 +472,10 @@ export type ModelConfigValidation = {
 /**
  * Validates a config coming from the admin UI. Every field is checked here, not
  * in the form, because the API route is reachable directly.
+ *
+ * Model ids are checked against the stored catalog, which only the catalog
+ * refresh route can change. That route derives it from the provider, so a model
+ * that cannot answer a request is never accepted.
  */
 export const validateModelConfigInput = (
   input: unknown,
@@ -327,6 +485,8 @@ export const validateModelConfigInput = (
   if (!isRecord(input)) {
     return { ok: false, errors: ['Config must be a JSON object.'], config: current };
   }
+
+  const catalog = current.modelCatalog;
 
   const readModelField = (field: string, previous: string) => {
     const value = input[field];
@@ -341,8 +501,8 @@ export const validateModelConfigInput = (
       errors.push(`${field} must be at most ${MAX_MODEL_ID_LENGTH} characters.`);
       return previous;
     }
-    if (!isModelUsable(modelId)) {
-      errors.push(`${field} "${modelId}" is not a model OpenCode Go serves over any supported protocol.`);
+    if (!isModelUsable(catalog, modelId)) {
+      errors.push(`${field} "${modelId}" is not served over any protocol in the model catalog.`);
       return previous;
     }
 
@@ -351,20 +511,43 @@ export const validateModelConfigInput = (
 
   const next: ModelConfig = {
     ...current,
+    modelCatalog: catalog,
     model: readModelField('model', current.model),
     fallbackModel: readModelField('fallbackModel', current.fallbackModel),
     guardrailModel: readModelField('guardrailModel', current.guardrailModel),
   };
 
-  if (input.guardrailBaseURL !== undefined) {
-    const guardrailBaseURL = typeof input.guardrailBaseURL === 'string'
-      ? input.guardrailBaseURL.trim()
-      : '';
+  const readBaseURL = (field: 'baseURL' | 'guardrailBaseURL', allowEmpty: boolean) => {
+    const value = input[field];
+    if (value === undefined) return;
 
-    if (!isHttpUrl(guardrailBaseURL)) {
-      errors.push('guardrailBaseURL must be a valid http(s) URL.');
+    const url = typeof value === 'string' ? value.trim().replace(/\/$/, '') : '';
+    if (!url && allowEmpty) {
+      next[field] = '';
+      return;
+    }
+    if (!isAllowedBaseURL(url)) {
+      errors.push(`${field} must be a valid http(s) URL that is not a cloud metadata endpoint.`);
+      return;
+    }
+
+    next[field] = url;
+  };
+
+  readBaseURL('baseURL', false);
+  readBaseURL('guardrailBaseURL', true);
+
+  // An empty key means "keep the stored one", so the field can stay blank in the
+  // form without wiping the credential on every save.
+  if (typeof input.apiKey === 'string' && input.apiKey !== '') {
+    const apiKey = input.apiKey.trim();
+
+    if (apiKey.length < MIN_API_KEY_LENGTH || apiKey.length > MAX_API_KEY_LENGTH) {
+      errors.push(`apiKey must be between ${MIN_API_KEY_LENGTH} and ${MAX_API_KEY_LENGTH} characters.`);
+    } else if (/\s/.test(apiKey)) {
+      errors.push('apiKey must not contain whitespace.');
     } else {
-      next.guardrailBaseURL = guardrailBaseURL.replace(/\/$/, '');
+      next.apiKey = apiKey;
     }
   }
 
@@ -390,7 +573,7 @@ export const validateModelConfigInput = (
   }
 
   if (input.adminPassword !== undefined && input.adminPassword !== '') {
-    const password = String(input.adminPassword);
+    const password = typeof input.adminPassword === 'string' ? input.adminPassword : '';
     if (password.length < 8) {
       errors.push('adminPassword must be at least 8 characters.');
     } else {

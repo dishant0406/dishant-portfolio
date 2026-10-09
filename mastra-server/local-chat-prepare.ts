@@ -52,8 +52,7 @@ export const prepareLocalChatResponse = async (req: Request, res: Response) => {
       try {
         decision = await evaluatePortfolioGuardrail(
           messages,
-          modelConfig.guardrailModel,
-          modelConfig.guardrailBaseURL,
+          modelConfig,
           req.body.threadId,
         );
       } catch (error) {

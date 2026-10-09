@@ -1,6 +1,7 @@
 import { Agent } from '@mastra/core/agent';
 import { z } from 'zod';
-import { getChatModel } from '../src/mastra/agents/opencode-chat-model';
+import { getChatModel, getProviderConnection } from '../src/mastra/agents/opencode-chat-model';
+import { resolveGuardrailBaseURL, type ModelConfig } from '../src/lib/model-config';
 import type { ChatMessage } from './chat-request';
 
 export type PortfolioGuardrailDecision = {
@@ -87,14 +88,16 @@ const normalizeDecision = (output: GuardrailOutput): PortfolioGuardrailDecision 
 
 export const evaluatePortfolioGuardrail = async (
   messages: ChatMessage[],
-  guardrailModel: string,
-  guardrailBaseURL: string,
+  config: ModelConfig,
   sessionId?: unknown,
 ): Promise<PortfolioGuardrailDecision> => {
   const agent = new Agent({
     name: 'portfolio-guardrail',
     instructions: guardrailInstructions,
-    model: getChatModel(guardrailModel, guardrailBaseURL, sessionId),
+    model: getChatModel(
+      config.guardrailModel,
+      getProviderConnection(config, sessionId, resolveGuardrailBaseURL(config)),
+    ),
   });
 
   const result = await agent.generate(buildGuardrailPrompt(messages), {
