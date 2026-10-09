@@ -98,13 +98,20 @@ export const adminJson = (body: unknown, status = 200) =>
 /**
  * Blocks cross-site form posts, which are the only requests that can skip a CORS
  * preflight. SameSite=Strict already covers this, so this is defence in depth.
+ *
+ * The comparison uses the forwarded/host header rather than `request.url`,
+ * because behind Cloud Run's proxy `request.url` is built from the internal
+ * address, not the public host the browser sent.
  */
 export const isSameOriginRequest = (request: Request) => {
   const origin = request.headers.get('origin');
   if (!origin) return false;
 
+  const requestHost = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  if (!requestHost) return false;
+
   try {
-    return new URL(origin).host === new URL(request.url).host;
+    return new URL(origin).host === requestHost;
   } catch {
     return false;
   }
