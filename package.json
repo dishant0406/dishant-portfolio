@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run mastra:dev\"",
-    "build": "node scripts/generate-openui-prompt.mjs && TURBOPACK=0 next build && npm run mastra:build",
+    "build": "node scripts/generate-openui-prompt.mjs && next build && npm run mastra:build",
     "start": "sh start.sh",
     "start:next": "next start",
     "lint": "eslint",

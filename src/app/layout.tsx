@@ -1,10 +1,10 @@
 import { ThemeProvider } from '@/components';
 import { siteUrl } from '@/lib/seo';
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
+import { interFont } from './fonts';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = interFont;
 
 // OG Image URL
 const ogImage = 'https://cdn.jsdelivr.net/gh/dishant0406/images-repo@master/dishantsharma.webp';
