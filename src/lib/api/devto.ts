@@ -54,6 +54,7 @@ function allowedImageUrl(url: string | null | undefined): string | undefined {
 
 function toBlogPost(article: Article): BlogPost {
   const coverImage = allowedImageUrl(article.cover_image) ?? allowedImageUrl(article.social_image);
+  const publishedAt = article.published_at || article.created_at;
 
   return {
     id: String(article.id),
@@ -61,7 +62,10 @@ function toBlogPost(article: Article): BlogPost {
     title: article.title,
     brief: article.description,
     coverImage: coverImage ? { url: coverImage } : undefined,
-    publishedAt: article.published_at || article.created_at,
+    publishedAt,
+    // `edited_at` is null until a post is edited, so the sitemap can tell an
+    // updated post from an untouched one instead of guessing.
+    updatedAt: article.edited_at || publishedAt,
     readTimeInMinutes: article.reading_time_minutes,
     author: { name: article.user.name },
     tags: tagNames(article).map((name) => ({ name, slug: name })),
@@ -98,18 +102,6 @@ async function loadAllPosts(): Promise<BlogPost[]> {
 
 /** Cached per request, so the blog page, recent posts and the sitemap share one walk. */
 export const fetchAllPosts = cache(loadAllPosts);
-
-export async function fetchBlogPostsForPage(
-  page: number,
-  postsPerPage: number
-): Promise<{ posts: BlogPost[]; totalPages: number }> {
-  const posts = await fetchAllPosts();
-  const totalPages = Math.max(1, Math.ceil(posts.length / postsPerPage));
-  const currentPage = Math.min(page, totalPages);
-  const start = (currentPage - 1) * postsPerPage;
-
-  return { posts: posts.slice(start, start + postsPerPage), totalPages };
-}
 
 /** Returns null when the slug does not exist or is not published. */
 export const fetchBlogPostBySlug = cache(async (slug: string): Promise<BlogPostDetail | null> => {

@@ -23,12 +23,6 @@ interface AppState {
   currentView: 'home' | 'chats' | 'chat';
   setCurrentView: (view: 'home' | 'chats' | 'chat') => void;
   
-  // Search state
-  isSearchOpen: boolean;
-  setIsSearchOpen: (isOpen: boolean) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  
   // Chat search state
   chatSearchQuery: string;
   setChatSearchQuery: (query: string) => void;
@@ -138,12 +132,6 @@ export const useAppStore = create<AppState>()(
       // View state
       currentView: 'home',
       setCurrentView: (view) => set({ currentView: view }),
-      
-      // Search state
-      isSearchOpen: false,
-      setIsSearchOpen: (isOpen) => set({ isSearchOpen: isOpen }),
-      searchQuery: '',
-      setSearchQuery: (query) => set({ searchQuery: query }),
       
       // Chat search state
       chatSearchQuery: '',

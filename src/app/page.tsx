@@ -1,7 +1,9 @@
 import { HomePage } from '@/components';
+import { JsonLd } from '@/components/JsonLd';
 import { defaultMetadata, ogImage } from '@/lib/constants';
 import { getThreadById } from '@/lib/get-thread';
 import { getPersonalizedGreeting } from '@/lib/helpers';
+import { personJsonLd } from '@/lib/seo';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
@@ -78,6 +80,7 @@ export default async function Home() {
   
   return (
     <Suspense fallback={<LoadingFallback />}>
+      <JsonLd data={personJsonLd()} />
       <HomePage 
         serverGreeting={greetingData.greeting}
         city={greetingData.city}

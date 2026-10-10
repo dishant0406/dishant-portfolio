@@ -1,4 +1,5 @@
 import { ThemeProvider } from '@/components';
+import { siteUrl } from '@/lib/seo';
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -10,14 +11,16 @@ const ogImage = 'https://cdn.jsdelivr.net/gh/dishant0406/images-repo@master/dish
 
 // Base metadata - specific page metadata will override these
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://dishant.dev'),
+  // Same origin as `siteUrl`, so relative URLs and the sitemap can never point
+  // at a different host than the pages they describe.
+  metadataBase: new URL(siteUrl),
   title: {
     default: 'Dishant Sharma | Full Stack Developer',
     template: '%s | Dishant Sharma',
   },
   description: 'Interactive portfolio of Dishant Sharma - Full Stack Developer. Chat with me to learn about my projects, skills, and experience.',
   keywords: ['Dishant Sharma', 'Portfolio', 'Full Stack Developer', 'React', 'Next.js', 'TypeScript'],
-  authors: [{ name: 'Dishant Sharma' }],
+  authors: [{ name: 'Dishant Sharma', url: siteUrl }],
   creator: 'Dishant Sharma',
   openGraph: {
     type: 'website',

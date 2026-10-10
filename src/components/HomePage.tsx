@@ -4,12 +4,12 @@ import {
   ChatView,
   ChatsListView,
   FeatureCards,
-  GlassContainer,
   GreetingSection,
   Header,
   MessageInput,
   ShareModal,
 } from '@/components';
+import { GlassContainer } from './ui';
 import { useAppStore } from '@/store/useAppStore';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -40,8 +40,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
   const {
     user,
     currentView,
-    isSearchOpen,
-    searchQuery,
     chatSearchQuery,
     chats,
     currentChatId,
@@ -50,8 +48,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     isChatLoading,
     featureCards,
     setCurrentView,
-    setIsSearchOpen,
-    setSearchQuery,
     setChatSearchQuery,
     setMessage,
     setCurrentChatId,
@@ -163,10 +159,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
 
   const handleNewChat = () => {
     navigateHome();
-  };
-
-  const handleSearch = () => {
-    setIsSearchOpen(true);
   };
 
   const handleGrid = () => {
@@ -302,20 +294,12 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
         <div className="shrink-0">
           <Header
             onNewChat={handleNewChat}
-            onSearch={handleSearch}
             onGrid={handleGrid}
             onShare={handleShare}
             onBack={handleBack}
             showBackButton={currentView !== 'home'}
             showShareButton={!!currentChatId}
-            isSearchOpen={isSearchOpen}
-            searchQuery={searchQuery}
-            onSearchQueryChange={setSearchQuery}
-            onSearchClose={() => {
-              setIsSearchOpen(false);
-              setSearchQuery('');
-            }}
-            onSearchOpen={() => setIsSearchOpen(true)}
+            showNewChat={!searchParams.get('chat')}
           />
         </div>
         {/* Scrollable content area */}

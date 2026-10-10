@@ -1,42 +1,39 @@
 import type { MetadataRoute } from 'next';
 
 import { fetchAllPosts } from '@/lib/api/devto';
-import { env } from '@/lib/env';
+import { siteUrl } from '@/lib/seo';
 
-// Posts change outside this app, so the sitemap must be built per request
-// instead of being frozen at build time.
-export const dynamic = 'force-dynamic';
+/**
+ * Posts live in dev.to, so the sitemap is rebuilt on a timer rather than frozen
+ * at build time. An hour of staleness is harmless; a request-time build is not,
+ * because it makes the sitemap uncacheable and gives it a `lastmod` that moves
+ * on every fetch.
+ */
+export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = env.NEXT_PUBLIC_SITE_URL;
   const entries: MetadataRoute.Sitemap = [
     {
-      url: baseUrl,
-      lastModified: new Date(),
+      url: siteUrl,
       changeFrequency: 'weekly',
       priority: 1,
     },
     {
-      url: `${baseUrl}/blog`,
-      lastModified: new Date(),
+      url: `${siteUrl}/blog`,
       changeFrequency: 'weekly',
       priority: 0.8,
     },
   ];
 
-  try {
-    const posts = await fetchAllPosts();
+  const posts = await fetchAllPosts();
 
-    for (const post of posts) {
-      entries.push({
-        url: `${baseUrl}/blog/${post.slug}`,
-        lastModified: new Date(post.publishedAt),
-        changeFrequency: 'weekly',
-        priority: 0.8,
-      });
-    }
-  } catch (error) {
-    console.error('Error generating blog sitemap:', error);
+  for (const post of posts) {
+    entries.push({
+      url: `${siteUrl}/blog/${post.slug}`,
+      lastModified: post.updatedAt,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    });
   }
 
   return entries;

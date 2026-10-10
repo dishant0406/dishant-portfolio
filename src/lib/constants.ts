@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { siteUrl } from './seo';
+
 // Weather condition to emoji and description mapping
 export const weatherInfo: Record<number, { emoji: string; description: string }> = {
   0: { emoji: '☀️', description: 'sunny' },
@@ -53,6 +55,12 @@ export const defaultMetadata: Metadata = {
   title: 'Dishant Sharma | Full Stack Developer',
   description: "Interactive portfolio of Dishant Sharma - Full Stack Developer. Chat with me to learn about my projects, skills, and experience.",
   keywords: ['Dishant Sharma', 'Portfolio', 'Full Stack Developer', 'React', 'Next.js', 'TypeScript'],
+  // Only the homepage claims the homepage as its canonical. Declaring this in the
+  // root layout would make every route that does not set its own canonical — the
+  // 404 page and /admin included — claim to be the homepage.
+  alternates: {
+    canonical: siteUrl,
+  },
   openGraph: {
     title: 'Dishant Sharma | Full Stack Developer',
     description: 'Interactive portfolio - Chat with me to learn about my projects, skills, and experience.',

@@ -130,8 +130,6 @@ export interface AppState {
   currentView: ViewType;
   
   // Search state
-  isSearchOpen: boolean;
-  searchQuery: string;
   chatSearchQuery: string;
   
   // Chat state
@@ -145,8 +143,6 @@ export interface AppState {
   // Actions
   setUser: (user: User) => void;
   setCurrentView: (view: ViewType) => void;
-  setIsSearchOpen: (isOpen: boolean) => void;
-  setSearchQuery: (query: string) => void;
   setChatSearchQuery: (query: string) => void;
   setMessage: (message: string) => void;
   setIsLoading: (loading: boolean) => void;

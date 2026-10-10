@@ -1,62 +1,49 @@
 import type { Metadata } from 'next';
 
 import { BlogList } from '@/components/blog/BlogList';
-import { BlogPagination } from '@/components/blog/BlogPagination';
-import { fetchBlogPostsForPage } from '@/lib/api/devto';
-import { env } from '@/lib/env';
+import { fetchAllPosts } from '@/lib/api/devto';
+import { siteUrl } from '@/lib/seo';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
+/**
+ * All posts are rendered on one page.
+ *
+ * Paging used to hide 47 of 56 posts behind `?page=2..7`. Those URLs
+ * self-canonicalised, carried no `rel=next/prev`, and were only linked from the
+ * bottom of the previous page, so search engines had almost no path into them —
+ * which is why the blog went undiscovered. A single list of ~60 links is cheaper
+ * to crawl and impossible to leave half-indexed.
+ *
+ * dev.to is the source of truth, so the list is refreshed hourly rather than
+ * frozen at build time.
+ */
+export const revalidate = 3600;
 
-const POSTS_PER_PAGE = 9;
+const description = 'Essays, notes, and product stories from the studio.';
 
-interface BlogPageProps {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}
+export const metadata: Metadata = {
+  title: 'Blog',
+  description,
+  alternates: {
+    canonical: `${siteUrl}/blog`,
+  },
+  openGraph: {
+    title: 'Blog',
+    description,
+    type: 'website',
+    url: `${siteUrl}/blog`,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog',
+    description,
+  },
+};
 
-/** `?page=abc` or a missing page falls back to page 1 instead of an empty list. */
-function parsePage(value: string | string[] | undefined): number {
-  const page = Number.parseInt(Array.isArray(value) ? value[0] : value ?? '', 10);
-  return Number.isFinite(page) && page > 1 ? page : 1;
-}
-
-export async function generateMetadata({ searchParams }: BlogPageProps): Promise<Metadata> {
-  const params = await searchParams;
-  const page = parsePage(params.page);
-  const baseUrl = `${env.NEXT_PUBLIC_SITE_URL}/blog`;
-  const canonical = page > 1 ? `${baseUrl}?page=${page}` : baseUrl;
-
-  return {
-    title: page > 1 ? `Blog - Page ${page}` : 'Blog',
-    description: 'Essays, notes, and product stories from the studio.',
-    alternates: {
-      canonical,
-    },
-    openGraph: {
-      title: page > 1 ? `Blog - Page ${page}` : 'Blog',
-      description: 'Essays, notes, and product stories from the studio.',
-      type: 'website',
-      url: canonical,
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: page > 1 ? `Blog - Page ${page}` : 'Blog',
-      description: 'Essays, notes, and product stories from the studio.',
-    },
-  };
-}
-
-export default async function BlogPage({
-  searchParams,
-}: BlogPageProps): Promise<React.JSX.Element> {
-  const params = await searchParams;
-  const page = parsePage(params.page);
-
+export default async function BlogPage(): Promise<React.JSX.Element> {
   // Deliberately not swallowed: a fetch failure must surface as an error, not as
   // an empty blog. Silently rendering "No posts yet" is what previously hid a
   // broken feed for weeks.
-  const { posts, totalPages } = await fetchBlogPostsForPage(page, POSTS_PER_PAGE);
+  const posts = await fetchAllPosts();
 
   return (
     <main className="blog-page blog-page-light">
@@ -68,7 +55,6 @@ export default async function BlogPage({
           </p>
         </header>
         <BlogList posts={posts} />
-        <BlogPagination currentPage={page} totalPages={totalPages} />
       </div>
     </main>
   );

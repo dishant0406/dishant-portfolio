@@ -5,12 +5,26 @@ import { notFound } from 'next/navigation';
 
 import { BlogPostContent } from '@/components/blog/BlogPostContent';
 import { RecentPosts } from '@/components/blog/RecentPosts';
-import { fetchBlogPostBySlug } from '@/lib/api/devto';
-import { env } from '@/lib/env';
+import { JsonLd } from '@/components/JsonLd';
+import { fetchAllPosts, fetchBlogPostBySlug } from '@/lib/api/devto';
+import { blogPostingJsonLd, breadcrumbJsonLd, siteUrl } from '@/lib/seo';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
+/**
+ * The post list is cached for an hour, so rendering each article at request time
+ * buys nothing except an uncacheable response. dev.to is the source of truth and
+ * a post edited there is picked up on the next revalidation.
+ */
+export const revalidate = 3600;
+
+/**
+ * Enumerating the slugs is what makes an article static and cacheable. Without
+ * it Next has to render every article on demand and cannot cache the HTML, which
+ * is how these pages previously ended up `no-store`.
+ */
+export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
+  const posts = await fetchAllPosts();
+  return posts.map((post) => ({ slug: post.slug }));
+}
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -45,7 +59,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     const title = post.title;
     const description = post.brief;
     const image = post.coverImage?.url;
-    const canonicalUrl = `${env.NEXT_PUBLIC_SITE_URL}/blog/${slug}`;
+    const canonicalUrl = `${siteUrl}/blog/${slug}`;
     const keywords = post.tags?.map((tag) => tag.name).filter(Boolean);
 
     return {
@@ -61,6 +75,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
         type: 'article',
         url: canonicalUrl,
         publishedTime: post.publishedAt,
+        modifiedTime: post.updatedAt,
         authors: [post.author.name],
         ...(image && {
           images: [
@@ -101,16 +116,21 @@ export default async function BlogPostPage({
   }
 
   const formattedDate = formatDate(post.publishedAt);
+  // Compare instants, not strings: the same moment can be written as `Z` or
+  // `+00:00`, which would otherwise read as an update.
+  const wasUpdated = new Date(post.updatedAt).getTime() > new Date(post.publishedAt).getTime();
 
   return (
     <main className="blog-page blog-page-article">
+      <JsonLd data={blogPostingJsonLd(post)} />
+      <JsonLd data={breadcrumbJsonLd(post)} />
       <div className="blog-container blog-article">
         <Link className="blog-back-link" href="/blog">
           Back to articles
         </Link>
         <h1 className="blog-hero-title blog-serif">{post.title}</h1>
         <div className="blog-meta">
-          <span>{formattedDate}</span>
+          <span>{wasUpdated ? `Updated ${formatDate(post.updatedAt)}` : formattedDate}</span>
           <span className="blog-dot" aria-hidden="true">
             ·
           </span>

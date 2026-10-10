@@ -2,62 +2,56 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 /**
- * Proxy to add geo-location headers using IP-based geo-location API
+ * Adds geo-location headers that the homepage greeting reads.
+ *
+ * Only the homepage needs these, so the matcher is limited to `/`. Crawler
+ * endpoints such as /sitemap.xml, /robots.txt and every blog page previously ran
+ * through this proxy too, which put a blocking third-party lookup in front of
+ * content that does not use the result.
  */
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
-  // Get client IP from the standard proxy x-forwarded-for header
   const forwardedFor = request.headers.get('x-forwarded-for');
   const clientIP = forwardedFor?.split(',')[0]?.trim() || '127.0.0.1';
 
-  console.log('Client IP detected:', clientIP);
-
-  // Await geo-location data fetch to ensure headers are set before returning
   await fetchGeoLocationData(clientIP, response);
 
   return response;
 }
 
-// Async function to fetch geo-location data and set headers
 async function fetchGeoLocationData(ip: string, response: NextResponse) {
   try {
-    // Free, no-key, HTTPS geo-location API (ipwho.is)
     const geoResponse = await fetch(`https://ipwho.is/${ip}`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: 3600 } // Cache for 1 hour
+      next: { revalidate: 3600 },
+      // A third party must never be able to hold up a page render.
+      signal: AbortSignal.timeout(2000),
     });
 
-    if (geoResponse.ok) {
-      const geoData = await geoResponse.json();
-
-      if (geoData.success) {
-        // Set custom geo headers based on the API response format
-        response.headers.set('x-geo-timezone', geoData.timezone?.id || 'Asia/Kolkata');
-        response.headers.set('x-geo-city', geoData.city || 'Bangalore');
-        response.headers.set('x-geo-latitude', geoData.latitude?.toString() || '12.9716');
-        response.headers.set('x-geo-longitude', geoData.longitude?.toString() || '77.5946');
-        response.headers.set('x-geo-country', geoData.country_code || 'IN');
-
-        console.log('Geo data fetched:', {
-          city: geoData.city,
-          country: geoData.country_code,
-          timezone: geoData.timezone?.id,
-          coordinates: [geoData.latitude, geoData.longitude]
-        });
-      } else {
-        setDefaultHeaders(response);
-      }
-    } else {
+    if (!geoResponse.ok) {
       setDefaultHeaders(response);
+      return;
     }
+
+    const geoData = await geoResponse.json();
+
+    if (!geoData.success) {
+      setDefaultHeaders(response);
+      return;
+    }
+
+    response.headers.set('x-geo-timezone', geoData.timezone?.id || 'Asia/Kolkata');
+    response.headers.set('x-geo-city', geoData.city || 'Bangalore');
+    response.headers.set('x-geo-latitude', geoData.latitude?.toString() || '12.9716');
+    response.headers.set('x-geo-longitude', geoData.longitude?.toString() || '77.5946');
+    response.headers.set('x-geo-country', geoData.country_code || 'IN');
   } catch (error) {
     console.error('Geo-location API error:', error);
     setDefaultHeaders(response);
   }
 }
 
-// Fallback to default headers
 function setDefaultHeaders(response: NextResponse) {
   response.headers.set('x-geo-timezone', 'Asia/Kolkata');
   response.headers.set('x-geo-city', 'Bangalore');
@@ -66,16 +60,6 @@ function setDefaultHeaders(response: NextResponse) {
   response.headers.set('x-geo-country', 'IN');
 }
 
-// Configure which routes should use this proxy
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes that don't need geo data)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/'],
 };

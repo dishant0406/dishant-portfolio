@@ -3,22 +3,17 @@
 import { useTheme } from '@/hooks';
 import { ArrowLeft, BookOpen, Grid3X3, Home, Map, Moon, Plus, Share2, Sun } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { Button, IconButton } from './ui';
 
 interface HeaderProps {
   onNewChat?: () => void;
-  onSearch?: () => void;
   onGrid?: () => void;
   onShare?: () => void;
   onBack?: () => void;
   showBackButton?: boolean;
   showShareButton?: boolean;
-  isSearchOpen?: boolean;
-  searchQuery?: string;
-  onSearchQueryChange?: (query: string) => void;
-  onSearchClose?: () => void;
-  onSearchOpen?: () => void;
+  showNewChat?: boolean;
   className?: string;
   showGridButton?: boolean;
 }
@@ -30,13 +25,12 @@ export function Header({
   onBack,
   showBackButton = false,
   showShareButton = false,
+  showNewChat = false,
   showGridButton = true,
   className = '',
 }: HeaderProps) {
   const { toggleTheme, isDark, mounted } = useTheme();
-  const searchParams = useSearchParams();
   const pathname = usePathname();
-  const isNewChat = searchParams.get('chat') ? false : true;
   const showHomeLink = pathname !== '/';
   const canShowGrid = showGridButton && !!onGrid;
   const iconLinkClassName =
@@ -64,7 +58,7 @@ export function Header({
           />
         )}
 
-       {!isNewChat && <Button
+       {showNewChat && <Button
           size="sm"
           onClick={onNewChat}
           className="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 h-8 sm:h-9 flex items-center gap-1"

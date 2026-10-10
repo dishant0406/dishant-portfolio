@@ -8,4 +8,3 @@ export { HomePage } from './HomePage';
 export { MessageInput } from './MessageInput';
 export { ShareModal } from './ShareModal';
 export { ThemeProvider } from './ThemeProvider';
-export * from './ui';
