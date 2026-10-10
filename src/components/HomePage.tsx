@@ -3,7 +3,6 @@
 import {
   ChatView,
   ChatsListView,
-  ChatModelFloatingControl,
   FeatureCards,
   GlassContainer,
   GreetingSection,
@@ -49,9 +48,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     message,
     isLoading,
     isChatLoading,
-    chatProvider,
-    localModelId,
-    localModel,
     featureCards,
     setCurrentView,
     setIsSearchOpen,
@@ -59,8 +55,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
     setChatSearchQuery,
     setMessage,
     setCurrentChatId,
-    setChatProvider,
-    setLocalModelId,
     startChatWithMessage,
     sendMessage,
     handleCardAction: runCardAction,
@@ -313,7 +307,7 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
             onShare={handleShare}
             onBack={handleBack}
             showBackButton={currentView !== 'home'}
-            showShareButton={!!currentChatId && currentChat?.provider !== 'webllm'}
+            showShareButton={!!currentChatId}
             isSearchOpen={isSearchOpen}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
@@ -342,14 +336,6 @@ export function HomePage({ serverGreeting, city, weather, holiday }: HomePagePro
             disabled={false}
             isStreaming={isLoading}
             className="md:max-w-[50vw] mx-auto"
-          />
-          <ChatModelFloatingControl
-            provider={chatProvider}
-            modelId={localModelId}
-            localModel={localModel}
-            disabled={isLoading}
-            onProviderChange={setChatProvider}
-            onModelChange={setLocalModelId}
           />
         </div>
       )}

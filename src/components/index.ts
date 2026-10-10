@@ -1,5 +1,4 @@
 export { ChatsListView } from './ChatsListView';
-export { ChatModelFloatingControl } from './ChatModelFloatingControl';
 export { ChatView } from './ChatView';
 export { FeatureCard, FeatureCards } from './FeatureCard';
 export { FollowUp } from './FollowUp';

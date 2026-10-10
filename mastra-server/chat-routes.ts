@@ -1,7 +1,6 @@
 import type { Express } from 'express';
 import { mastra } from '../src/mastra';
 import { streamAgentResponse } from './chat-stream-handler';
-import { prepareLocalChatResponse } from './local-chat-prepare';
 
 const getAgentMemory = async () => {
   const agent = mastra.getAgent('portfolioAgent');
@@ -10,7 +9,6 @@ const getAgentMemory = async () => {
 
 export const registerChatRoutes = (app: Express) => {
   app.post('/agent/stream', streamAgentResponse);
-  app.post('/agent/prepare-local', prepareLocalChatResponse);
 
   app.get('/threads/:threadId', async (req, res) => {
     try {

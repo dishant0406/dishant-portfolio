@@ -18,10 +18,6 @@ Stream agent responses as Server-Sent Events.
 }
 ```
 
-### `POST /agent/prepare-local`
-Runs the guardrail and collects portfolio context for the in-browser WebLLM
-model. Returns `{ allowed, portfolioContext?, message?, events }`.
-
 ### `GET /threads/:threadId` and `GET /threads?resourceId=...`
 Thread history and thread list, backed by PostgreSQL memory.
 

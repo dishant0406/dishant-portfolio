@@ -2,16 +2,12 @@ import { analytics } from '@/lib/analytics';
 import {
   Chat,
   ChatMessage,
-  ChatProvider,
-  LocalModelState,
   ToolCall,
   User,
 } from '@/types';
-import { DEFAULT_WEBLLM_MODEL_ID } from '@/webllm/models';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { generateId } from './chatIds';
-import { streamLocalResponse } from './chatLocalStream';
 import { stopStreamingMessages, streamResponse } from './chatStream';
 
 interface AppState {
@@ -52,12 +48,6 @@ interface AppState {
   setIsChatLoading: (isLoading: boolean) => void;
   activeStreamId: string | null;
   activeStreamController: AbortController | null;
-  chatProvider: ChatProvider;
-  localModelId: string;
-  localModel: LocalModelState;
-  setChatProvider: (provider: ChatProvider) => void;
-  setLocalModelId: (modelId: string) => void;
-  setLocalModelState: (state: Partial<LocalModelState>) => void;
   
   // Message state
   message: string;
@@ -194,36 +184,6 @@ export const useAppStore = create<AppState>()(
       setIsChatLoading: (isChatLoading) => set({ isChatLoading }),
       activeStreamId: null,
       activeStreamController: null,
-      chatProvider: 'hosted',
-      localModelId: DEFAULT_WEBLLM_MODEL_ID,
-      localModel: {
-        status: 'idle',
-        progress: 0,
-        message: '',
-        modelId: DEFAULT_WEBLLM_MODEL_ID,
-      },
-      setChatProvider: (chatProvider) => set((state) => ({
-        chatProvider,
-        localModel: chatProvider === 'hosted'
-          ? { ...state.localModel, status: 'idle', progress: 0, message: '', error: undefined }
-          : state.localModel,
-      })),
-      setLocalModelId: (localModelId) => set({
-        localModelId,
-        localModel: {
-          status: 'idle',
-          progress: 0,
-          message: '',
-          error: undefined,
-          modelId: localModelId,
-        },
-      }),
-      setLocalModelState: (localModel) => set((state) => ({
-        localModel: {
-          ...state.localModel,
-          ...localModel,
-        },
-      })),
       
       // Message state
       message: '',
@@ -261,13 +221,10 @@ export const useAppStore = create<AppState>()(
       createNewChat: (title = 'New Conversation') => {
         const chatId = generateId();
         const now = new Date();
-        const { chatProvider, localModelId } = get();
         
         const newChat: Chat = {
           id: chatId,
           title,
-          provider: chatProvider,
-          localModelId: chatProvider === 'webllm' ? localModelId : undefined,
           createdAt: now,
           updatedAt: now,
           messages: [],
@@ -321,8 +278,6 @@ export const useAppStore = create<AppState>()(
         if (!userQuestion) return null;
 
         const state = get();
-        const provider = state.chatProvider;
-        const selectedLocalModelId = state.localModelId;
         if (state.activeStreamId) {
           if (!options.forceNew) return null;
           state.cancelActiveStream();
@@ -330,11 +285,6 @@ export const useAppStore = create<AppState>()(
 
         let chatId = options.forceNew ? null : get().currentChatId;
         let currentChat = chatId ? get().chats.find(c => c.id === chatId) : undefined;
-
-        if (currentChat?.provider && currentChat.provider !== provider) {
-          chatId = null;
-          currentChat = undefined;
-        }
 
         if (!chatId || !currentChat) {
           chatId = get().createNewChat(options.title || userQuestion.substring(0, 50));
@@ -359,8 +309,6 @@ export const useAppStore = create<AppState>()(
 
         get().updateChat(chatId, {
           messages: [...currentChat.messages, userMessage],
-          provider,
-          localModelId: provider === 'webllm' ? selectedLocalModelId : undefined,
           title: currentChat.messages.length === 0 ? userQuestion.substring(0, 50) : currentChat.title,
           updatedAt: new Date(),
         });
@@ -405,15 +353,7 @@ export const useAppStore = create<AppState>()(
           finishStream,
         };
 
-        if (provider === 'webllm') {
-          streamLocalResponse({
-            ...streamOptions,
-            modelId: selectedLocalModelId,
-            setLocalModelState: get().setLocalModelState,
-          });
-        } else {
-          streamResponse(streamOptions);
-        }
+        streamResponse(streamOptions);
 
         return chatId;
       },
@@ -485,7 +425,6 @@ export const useAppStore = create<AppState>()(
           const chat: Chat = {
             id: threadId,
             title: typeof thread?.title === 'string' ? thread.title : 'Conversation',
-            provider: 'hosted',
             createdAt: typeof thread?.createdAt === 'string' || typeof thread?.createdAt === 'number'
               ? new Date(thread.createdAt)
               : new Date(),
@@ -534,8 +473,6 @@ export const useAppStore = create<AppState>()(
       partialize: (state) => ({
         chats: state.chats,
         user: state.user,
-        chatProvider: state.chatProvider,
-        localModelId: state.localModelId,
       }),
       // Rehydrate dates after loading from localStorage
       onRehydrateStorage: () => (state) => {
