@@ -15,7 +15,8 @@
     "mastra:dev": "cd mastra-server && tsx watch --env-file=../.env.local index.ts",
     "mastra:development": "mastra dev",
     "mastra:build": "cd mastra-server && npx esbuild index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:pg-native --external:@mastra/* --external:@ai-sdk/* --format=cjs",
-    "mastra:start": "node mastra-server/dist/index.js"
+    "mastra:start": "node mastra-server/dist/index.js",
+    "devto:canonical": "tsx --env-file-if-exists=.env.local scripts/sync-devto-canonical.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.33",

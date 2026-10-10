@@ -42,6 +42,12 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     turbopackUseSystemTlsCerts: true,
+    // Building the blog prerenders every post, and each one reads the dev.to
+    // API. The SDK throttles per process, so Next's default of `cpus - 1`
+    // workers each get their own budget and collectively blow past dev.to's
+    // account-wide limit, failing the build with 429s. One worker keeps the
+    // throttle honest.
+    cpus: 1,
   },
   async redirects() {
     return wwwRedirect();

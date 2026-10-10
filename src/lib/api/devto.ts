@@ -103,6 +103,20 @@ async function loadAllPosts(): Promise<BlogPost[]> {
 /** Cached per request, so the blog page, recent posts and the sitemap share one walk. */
 export const fetchAllPosts = cache(loadAllPosts);
 
+/**
+ * dev.to posts open with a visible "Originally published at" line so readers on
+ * dev.to can find the canonical copy. This site renders the same `body_html`,
+ * where that line would point at the page the reader is already on, so the
+ * opening paragraph is dropped. Only the first paragraph is considered, so a
+ * later mention of the phrase in the prose is left alone.
+ */
+function withoutSyndicationNote(html: string): string {
+  return html.replace(
+    /^\s*<p>\s*<em>\s*Originally published at[\s\S]*?<\/em>\s*<\/p>\s*/i,
+    '',
+  );
+}
+
 /** Returns null when the slug does not exist or is not published. */
 export const fetchBlogPostBySlug = cache(async (slug: string): Promise<BlogPostDetail | null> => {
   let article: ArticleDetail;
@@ -116,5 +130,8 @@ export const fetchBlogPostBySlug = cache(async (slug: string): Promise<BlogPostD
     throw error;
   }
 
-  return { ...toBlogPost(article), content: { html: article.body_html } };
+  return {
+    ...toBlogPost(article),
+    content: { html: withoutSyndicationNote(article.body_html) },
+  };
 });
