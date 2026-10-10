@@ -178,6 +178,21 @@ Requires `ADMIN_SESSION_SECRET` and `INTERNAL_API_TOKEN` (each `openssl rand -he
 
 The API key defaults to the `OPENCODE_API_KEY` environment variable, which is what the deployed service injects from Secret Manager. Setting it in `/admin` overrides that and stores it in the config object, so the bucket and its IAM become the protection for that secret.
 
+### Blog (`dev.to`)
+
+Posts are written on dev.to and read back through its API. dev.to is only the writing surface: this domain is the canonical home, so every published article must declare `https://dishantsharma.dev/blog/<slug>` as its canonical URL. A post created in the dev.to editor defaults to canonicalising itself, which makes search engines treat the dev.to copy as the original and this site's copy as the duplicate.
+
+`pnpm devto:canonical` enforces that invariant across every published article and is idempotent, so it is safe to run after publishing:
+
+```sh
+DEVTO_API_KEY=xxx pnpm devto:canonical -- --dry-run   # show what would change
+DEVTO_API_KEY=xxx pnpm devto:canonical               # apply
+```
+
+It exits non-zero if anything failed. The key needs write access, unlike the read key the site uses.
+
+Each article also opens with a visible "Originally published at" line on dev.to. This site renders the same HTML, where that line would link to the page the reader is already on, so the opening paragraph is dropped before render (see `withoutSyndicationNote` in `src/lib/api/devto.ts`).
+
 ### Installation
 
 1. **Clone and install dependencies:**
