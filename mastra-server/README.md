@@ -89,10 +89,17 @@ Runs on `http://localhost:4000`.
 
 ## Deployment
 
-The Dockerfile at the repository root builds both Next.js and this server.
-`start.sh` runs `node mastra-server/dist/index.js` in the background and then
-starts Next.js in the foreground.
+The Dockerfile at the repository root builds both Next.js and this server, and
+`mastra-server/dist/index.js` is a build artifact: `npm run build` regenerates it
+inside the image. It is not committed, so there is nothing to keep in sync by
+hand.
 
-`mastra-server/dist/index.js` is committed, so it must be rebuilt
-(`pnpm mastra:build`) whenever this directory changes or the container ships
-stale code.
+`start.sh` runs `node mastra-server/dist/index.js` in the background, waits for
+its `/health` endpoint to answer, and then starts Next.js in the foreground.
+Waiting on `/health` rather than sleeping a fixed amount means a fast boot is not
+penalised and a slow one is not cut short.
+
+`mastra:build` inlines `@mastra/*` and `@ai-sdk/*`; only `pg-native` stays
+external. Loading one bundled file instead of a few hundred module files is
+noticeably faster on the single vCPU a Cloud Run instance gets.
+

@@ -43,4 +43,6 @@ ENV HOSTNAME="0.0.0.0"
 # Cloud Run injects PORT; Mastra runs internally on 4000.
 EXPOSE 8080
 
-CMD ["npm", "run", "start"]
+# Run the script directly. Going through `npm run` would add an npm process in
+# front of it that only forwards signals and arguments.
+CMD ["sh", "start.sh"]
