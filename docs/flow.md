@@ -6,9 +6,11 @@
 2. Call the endpoint:
 
    ```bash
-   curl -X POST https://dishantsharma.dev/api/revalidate \
+   curl -X POST -d '' https://dishantsharma.dev/api/revalidate \
      -H "Authorization: Bearer $REVALIDATE_TOKEN"
    ```
+
+The empty `-d ''` matters. Cloud Run's front end answers 411 to a POST with no body.
 
 3. `POST` in `src/app/api/revalidate/route.ts` runs `isTokenValid`. Then it calls `revalidatePath` for `/blog`, `/blog/[slug]` and `/sitemap.xml`.
 4. It answers `{"ok":true,"revalidatedAt":"..."}`.

@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
  * list, every post page and the sitemap as stale, so the next visit rebuilds
  * them from dev.to instead of waiting for the hourly timer.
  *
- *   curl -X POST https://dishantsharma.dev/api/revalidate \
+ *   curl -X POST -d '' https://dishantsharma.dev/api/revalidate \
  *     -H "Authorization: Bearer $REVALIDATE_TOKEN"
  */
 
