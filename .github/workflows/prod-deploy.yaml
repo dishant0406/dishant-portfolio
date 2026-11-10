@@ -80,5 +80,5 @@ jobs:
             --project "$GCP_PROJECT_ID" \
             --platform managed \
             --update-env-vars "DEVTO_USERNAME=${{ vars.DEVTO_USERNAME }},DEVTO_API_KEY=${{ secrets.DEVTO_API_KEY }}" \
-            --update-secrets "ADMIN_SESSION_SECRET=admin-session-secret:latest,INTERNAL_API_TOKEN=internal-api-token:latest" \
+            --update-secrets "ADMIN_SESSION_SECRET=admin-session-secret:latest,INTERNAL_API_TOKEN=internal-api-token:latest,REVALIDATE_TOKEN=revalidate-token:latest" \
             --quiet
