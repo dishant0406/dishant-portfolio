@@ -12,9 +12,9 @@
 
 The empty `-d ''` matters. Cloud Run's front end answers 411 to a POST with no body.
 
-3. `POST` in `src/app/api/revalidate/route.ts` runs `isTokenValid`. Then it calls `revalidatePath` for `/blog`, `/blog/[slug]` and `/sitemap.xml`.
+3. `POST` in `src/app/api/revalidate/route.ts` runs `isTokenValid`. Then it expires our cached post list (`revalidateTag('devto-posts', { expire: 0 })`) and calls `revalidatePath` for `/blog`, `/blog/[slug]` and `/sitemap.xml`.
 4. It answers `{"ok":true,"revalidatedAt":"..."}`.
-5. The next visit to each page rebuilds it. `fetchAllPosts` in `src/lib/api/devto.ts` reads dev.to again.
+5. The next visit to each page rebuilds it. `fetchAllPosts` in `src/lib/api/devto.ts` reads dev.to's authenticated list again and caches it for an hour.
 
 ## Edge cases
 

@@ -1,6 +1,8 @@
 import { timingSafeEqual } from 'node:crypto';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
+
+import { POSTS_CACHE_TAG } from '@/lib/api/devto';
 
 /**
  * Call this after publishing or editing a post on dev.to. It marks the blog
@@ -31,6 +33,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: noStore });
   }
 
+  // First drop our cached post list, so the pages below rebuild from dev.to.
+  revalidateTag(POSTS_CACHE_TAG, { expire: 0 });
   revalidatePath('/blog');
   revalidatePath('/blog/[slug]', 'page');
   revalidatePath('/sitemap.xml');

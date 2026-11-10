@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { DevToClient, NotFoundError, type Article, type ArticleDetail } from '@dishant0406/dev-to';
+import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 
 import { env } from '@/lib/env';
@@ -84,11 +85,14 @@ async function loadAllPosts(): Promise<BlogPost[]> {
   const posts: BlogPost[] = [];
 
   for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const articles = await client.articles.list({
-      username: env.DEVTO_USERNAME,
-      page,
-      perPage: PER_PAGE,
-    });
+    // The public list is cached by dev.to's CDN, and the copy the server reads
+    // can lag behind by days, so new posts never appear. The authenticated list
+    // is private and never cached. It has no `edited_at`, so `updatedAt` falls
+    // back to the publish date here; the post page reads the real value from
+    // the detail endpoint. Without a key, fall back to the public list.
+    const articles = env.DEVTO_API_KEY
+      ? await client.articles.minePublished({ page, perPage: PER_PAGE })
+      : await client.articles.list({ username: env.DEVTO_USERNAME, page, perPage: PER_PAGE });
 
     posts.push(...articles.map(toBlogPost));
 
@@ -100,8 +104,17 @@ async function loadAllPosts(): Promise<BlogPost[]> {
   return posts;
 }
 
-/** Cached per request, so the blog page, recent posts and the sitemap share one walk. */
-export const fetchAllPosts = cache(loadAllPosts);
+/**
+ * Our own copy of the post list, shared by the blog page, recent posts and the
+ * sitemap. It lasts an hour, or until `POST /api/revalidate` expires the
+ * `POSTS_CACHE_TAG` tag. A failed fetch throws and is never cached.
+ */
+export const POSTS_CACHE_TAG = 'devto-posts';
+
+export const fetchAllPosts = unstable_cache(loadAllPosts, [POSTS_CACHE_TAG], {
+  revalidate: 3600,
+  tags: [POSTS_CACHE_TAG],
+});
 
 /**
  * dev.to posts open with a visible "Originally published at" line so readers on

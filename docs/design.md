@@ -18,3 +18,15 @@
 - Revalidate only one slug: more input to validate, and clearing all post pages costs nothing, because pages rebuild only when someone visits.
 
 **Trade-off.** dev.to's own list cache (Fastly) can still serve old data for a while. See `src/lib/api/devto.ts`. If a new post does not show after a refresh, that is the likely cause, not this endpoint.
+
+## Where the post list comes from, and our own cache
+
+**What we chose.** `fetchAllPosts` in `src/lib/api/devto.ts` reads dev.to's authenticated list (`/api/articles/me/published`, via `client.articles.minePublished`). It keeps the result in our own cache (`unstable_cache`, tag `devto-posts`, one hour). `POST /api/revalidate` expires that tag first, then marks the pages stale.
+
+**Why.** The public list (`/api/articles?username=...`) goes through dev.to's CDN. The copy our Cloud Run server reads was stale: the live sitemap had 84 posts while dev.to had 86. The authenticated list is private and is never cached by the CDN (checked: `Cache-Control: private`, no cache hits). We could not look at the server's side directly, so the CDN is the most likely cause, not a proven one. Adding a throwaway query value does not help, because the CDN ignores it.
+
+**Why our own cache.** Without it, every page rebuild would call dev.to again. One cached list serves the blog page, recent posts and the sitemap, and the refresh endpoint can drop it on demand.
+
+**Trade-off.** The authenticated list has no `edited_at`. So the sitemap's last-modified date for a post is its publish date. The post page still shows "Updated <date>", because it reads the single-post endpoint. The authenticated list also carries each post's full markdown, so the response is bigger.
+
+**Fallback.** With no `DEVTO_API_KEY` (for example a local build), the code reads the public list instead.
