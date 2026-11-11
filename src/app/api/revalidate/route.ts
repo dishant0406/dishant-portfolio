@@ -2,12 +2,13 @@ import { timingSafeEqual } from 'node:crypto';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
 
-import { POSTS_CACHE_TAG } from '@/lib/api/devto';
+import { POSTS_CACHE_TAG, syncCanonicalUrls } from '@/lib/api/devto';
 
 /**
  * Call this after publishing or editing a post on dev.to. It marks the blog
  * list, every post page and the sitemap as stale, so the next visit rebuilds
- * them from dev.to instead of waiting for the hourly timer.
+ * them from dev.to instead of waiting for the hourly timer. It also points the
+ * canonical URL of every dev.to post at this site, so Google indexes our copy.
  *
  *   curl -X POST -d '' https://dishantsharma.dev/api/revalidate \
  *     -H "Authorization: Bearer $REVALIDATE_TOKEN"
@@ -39,5 +40,19 @@ export async function POST(request: Request) {
   revalidatePath('/blog/[slug]', 'page');
   revalidatePath('/sitemap.xml');
 
-  return NextResponse.json({ ok: true, revalidatedAt: new Date().toISOString() }, { headers: noStore });
+  const revalidatedAt = new Date().toISOString();
+
+  // The pages are already refreshed above, so a dev.to failure here must not
+  // hide that. It is reported with a 502 so a script still notices.
+  try {
+    const canonical = await syncCanonicalUrls();
+    const status = canonical.failed.length > 0 ? 502 : 200;
+    return NextResponse.json({ ok: status === 200, revalidatedAt, canonical }, { status, headers: noStore });
+  } catch (error) {
+    console.error('Canonical sync failed:', error);
+    return NextResponse.json(
+      { ok: false, revalidatedAt, error: 'Canonical sync failed' },
+      { status: 502, headers: noStore },
+    );
+  }
 }

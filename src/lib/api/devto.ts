@@ -4,7 +4,7 @@ import { DevToClient, NotFoundError, type Article, type ArticleDetail } from '@d
 import { unstable_cache } from 'next/cache';
 import { cache } from 'react';
 
-import { env } from '@/lib/env';
+import { env, siteUrl } from '@/lib/env';
 import type { BlogPost, BlogPostDetail } from '@/lib/types/blog';
 
 /**
@@ -115,6 +115,43 @@ export const fetchAllPosts = unstable_cache(loadAllPosts, [POSTS_CACHE_TAG], {
   revalidate: 3600,
   tags: [POSTS_CACHE_TAG],
 });
+
+/**
+ * Points every dev.to post's canonical URL at its copy on this site.
+ *
+ * A post written on dev.to says dev.to is the original, so Google keeps the
+ * dev.to copy and skips ours. Posts that are already right are left alone, so
+ * a normal run only touches the newest post.
+ */
+export async function syncCanonicalUrls(): Promise<{ updated: string[]; failed: string[] }> {
+  const updated: string[] = [];
+  const failed: string[] = [];
+
+  for (let page = 1; page <= MAX_PAGES; page += 1) {
+    const articles = await client.articles.minePublished({ page, perPage: PER_PAGE });
+
+    for (const article of articles) {
+      const canonical = `${siteUrl}/blog/${article.slug}`;
+      if (article.canonical_url === canonical) {
+        continue;
+      }
+
+      try {
+        await client.articles.update(article.id, { canonical_url: canonical });
+        updated.push(article.slug);
+      } catch (error) {
+        console.error(`Canonical update failed for ${article.slug}:`, error);
+        failed.push(article.slug);
+      }
+    }
+
+    if (articles.length < PER_PAGE) {
+      break;
+    }
+  }
+
+  return { updated, failed };
+}
 
 /**
  * dev.to posts open with a visible "Originally published at" line so readers on

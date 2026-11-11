@@ -57,3 +57,20 @@
 - The homepage has about 125 words and 2 links. A short "about" block with links to GitHub and top posts would help the name search.
 - `userScalable: false` in `src/app/layout.tsx` stops pinch zoom. It is an accessibility problem, but it was likely set on purpose for the chat input.
 - No `llms.txt`. There is no good proof yet that AI search tools read it.
+
+## The refresh endpoint also fixes canonical URLs
+
+**What we chose.** `POST /api/revalidate` now calls `syncCanonicalUrls` (`src/lib/api/devto.ts`) after it refreshes the pages. That function points each dev.to post's canonical URL at `https://dishantsharma.dev/blog/<slug>`.
+
+**Why.** This step used to be a separate command, `pnpm devto:canonical`, and it was forgotten for a month. 31 posts stayed out of Google because of that. You already call the refresh endpoint after every post, so now the fix cannot be forgotten.
+
+**Order.** Pages are refreshed first, canonicals second. So if dev.to is down, the blog still refreshes. The answer is then a 502 so a script notices.
+
+**Cost.** One list call to dev.to on each run. Updates happen only for posts that are wrong, which is normally just the newest one.
+
+**Rejected.**
+- A scheduled job (cron): one more thing to set up and watch, and a new post would wait for the next run.
+- A separate endpoint: a second command to remember, which is the problem we are removing.
+- Deleting the laptop script: its `--dry-run` is still useful, and it checks that an update did not empty the post body.
+
+**Trade-off.** The token for this endpoint can now make a write to dev.to. The write is fixed: it can only set the canonical URL to this site. The worst a leaked token can do is still small.
