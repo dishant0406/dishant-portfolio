@@ -21,7 +21,7 @@ interface GreetingSectionProps {
 export function GreetingSection({
   greeting = 'Hi',
   userName = 'there',
-  subtitle = "I'm Dishant Sharma. Ask me anything about my work, skills, or experience!",
+  subtitle = "I'm Dishant Sharma, a Full Stack Developer. Ask me anything about my work, skills, or experience!",
   city,
   weather,
   holiday,
@@ -97,13 +97,13 @@ export function GreetingSection({
       </div>
 
       {/* Personalized Greeting */}
-      <h1 className="text-xl sm:text-2xl lg:text-3xl font-light text-foreground mb-1 flex items-center flex-wrap justify-center">
+      <p className="text-xl sm:text-2xl lg:text-3xl font-light text-foreground mb-1 flex items-center flex-wrap justify-center">
         {buildPersonalizedGreeting()}
         {tempBadge}
-      </h1>
+      </p>
 
-      {/* Subtitle */}
-      <p className="text-muted-foreground text-xs sm:text-sm max-w-xs sm:max-w-md mt-1">{subtitle}</p>
+      {/* The h1 is the line with the name, because the greeting above changes per visitor. */}
+      <h1 className="text-muted-foreground text-xs sm:text-sm font-normal max-w-xs sm:max-w-md mt-1">{subtitle}</h1>
     </div>
   );
 }

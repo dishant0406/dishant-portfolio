@@ -3,7 +3,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { defaultMetadata, ogImage } from '@/lib/constants';
 import { getThreadById } from '@/lib/get-thread';
 import { getPersonalizedGreeting } from '@/lib/helpers';
-import { personJsonLd } from '@/lib/seo';
+import { profilePageJsonLd, websiteJsonLd } from '@/lib/seo';
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
@@ -39,6 +39,9 @@ export async function generateMetadata({
     return {
       title,
       description,
+      // A shared chat is a copy of the homepage with a different title, so it
+      // stays out of search results.
+      robots: { index: false, follow: true },
       openGraph: {
         title,
         description,
@@ -80,7 +83,8 @@ export default async function Home() {
   
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <JsonLd data={personJsonLd()} />
+      <JsonLd data={profilePageJsonLd()} />
+      <JsonLd data={websiteJsonLd()} />
       <HomePage 
         serverGreeting={greetingData.greeting}
         city={greetingData.city}

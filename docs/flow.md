@@ -16,6 +16,16 @@ The empty `-d ''` matters. Cloud Run's front end answers 411 to a POST with no b
 4. It answers `{"ok":true,"revalidatedAt":"..."}`.
 5. The next visit to each page rebuilds it. `fetchAllPosts` in `src/lib/api/devto.ts` reads dev.to's authenticated list again and caches it for an hour.
 
+## Making Google index a new post
+
+1. You publish on dev.to. dev.to says the dev.to copy is the original (its "canonical URL").
+2. Run `DEVTO_API_KEY=xxx pnpm devto:canonical`. The script is `scripts/sync-devto-canonical.ts`. It sets each dev.to post's canonical URL to `https://dishantsharma.dev/blog/<slug>`. Add `-- --dry-run` to only see what it would change.
+3. Google then treats the site copy as the original and indexes it.
+
+If you skip step 2, the post shows on the site but Google keeps the dev.to copy. In Search Console the site URL shows "Discovered, currently not indexed". The script is safe to run again: posts that are already right are left alone. It exits non-zero and prints the slug if dev.to rejects an update.
+
+To check one URL: `gsc-cli inspect url --site sc-domain:dishantsharma.dev --url <url>`.
+
 ## Edge cases
 
 - No `Authorization` header, or wrong token: 401 `{"error":"Unauthorized"}`. Nothing is cleared.

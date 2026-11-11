@@ -32,11 +32,11 @@ export function BlogListItem({ post }: BlogListItemProps): React.JSX.Element {
           {post.coverImage?.url ? (
             <div className="blog-list-image">
               <Image
-                fill
                 alt={post.title}
                 className="blog-list-image-img"
-                sizes="(max-width: 768px) 84px, 120px"
+                height={96}
                 src={post.coverImage.url}
+                width={96}
               />
             </div>
           ) : (

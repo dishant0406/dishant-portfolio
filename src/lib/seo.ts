@@ -34,6 +34,26 @@ export function personJsonLd() {
   };
 }
 
+/** Tells Google the homepage is a profile of one person. */
+export function profilePageJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    url: siteUrl,
+    mainEntity: personJsonLd(),
+  };
+}
+
+/** Gives search engines the site name to show next to results. */
+export function websiteJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: personName,
+    url: siteUrl,
+  };
+}
+
 export function blogPostingJsonLd(post: {
   slug: string;
   title: string;
@@ -53,7 +73,9 @@ export function blogPostingJsonLd(post: {
     datePublished: post.publishedAt,
     dateModified: post.updatedAt,
     mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
-    author: { '@id': `${siteUrl}/#person` },
+    // Name and url are repeated here because the full Person block is only on
+    // the homepage, so a bare `@id` on a post would point at nothing.
+    author: { '@type': 'Person', '@id': `${siteUrl}/#person`, name: personName, url: siteUrl },
     publisher: { '@id': `${siteUrl}/#person` },
     ...(post.coverImage && { image: post.coverImage.url }),
     ...(post.tags?.length && { keywords: post.tags.map((tag) => tag.name).join(', ') }),

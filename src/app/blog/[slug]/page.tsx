@@ -63,7 +63,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     const keywords = post.tags?.map((tag) => tag.name).filter(Boolean);
 
     return {
-      title,
+      // No "| Dishant Sharma" suffix: post titles are already long, and the
+      // suffix pushed them past the ~60 characters Google shows.
+      title: { absolute: title },
       description,
       keywords,
       alternates: {
@@ -81,6 +83,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
           images: [
             {
               url: image,
+              width: 1000,
+              height: 420,
               alt: title,
             },
           ],
@@ -144,11 +148,13 @@ export default async function BlogPostPage({
         {post.coverImage?.url && (
           <div className="blog-cover">
             <Image
+              priority
               alt={post.title}
               className="blog-cover-image"
-              height={720}
+              height={420}
+              sizes="(max-width: 768px) 100vw, 768px"
               src={post.coverImage.url}
-              width={1280}
+              width={1000}
             />
           </div>
         )}

@@ -65,6 +65,7 @@ export const defaultMetadata: Metadata = {
     title: 'Dishant Sharma | Full Stack Developer',
     description: 'Interactive portfolio - Chat with me to learn about my projects, skills, and experience.',
     type: 'website',
+    url: siteUrl,
     images: [
       {
         url: ogImage,

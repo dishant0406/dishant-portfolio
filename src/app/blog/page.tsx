@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 
 import { BlogList } from '@/components/blog/BlogList';
 import { fetchAllPosts } from '@/lib/api/devto';
+import { ogImage } from '@/lib/constants';
 import { siteUrl } from '@/lib/seo';
 
 /**
@@ -18,24 +19,28 @@ import { siteUrl } from '@/lib/seo';
  */
 export const revalidate = 3600;
 
-const description = 'Essays, notes, and product stories from the studio.';
+const title = 'Blog: AI Coding Tools and Model Reviews';
+const description =
+  'Hands-on reviews of AI coding tools, new models and developer frameworks by Dishant Sharma. What shipped, what the hype missed, and what works.';
 
 export const metadata: Metadata = {
-  title: 'Blog',
+  title,
   description,
   alternates: {
     canonical: `${siteUrl}/blog`,
   },
   openGraph: {
-    title: 'Blog',
+    title,
     description,
     type: 'website',
     url: `${siteUrl}/blog`,
+    images: [ogImage],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Blog',
+    title,
     description,
+    images: [ogImage],
   },
 };
 
