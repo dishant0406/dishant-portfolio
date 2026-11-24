@@ -1,6 +1,6 @@
 # Dishant Sharma — Portfolio
 
-My portfolio site, built with Next.js 16, React 19 and Tailwind CSS 4. The design comes from [akoder.xyz](https://www.akoder.xyz) (MIT, see `THIRD_PARTY_LICENSES.md`).
+My portfolio site, built with Next.js 16, React 19 and Tailwind CSS 4. The licenses of the open source parts are in `THIRD_PARTY_LICENSES.md`.
 
 ## Change the content
 
@@ -9,9 +9,10 @@ Every piece of content lives in one file: [`src/config/config.json`](src/config/
 - `site`: title, description, share image, keywords.
 - `person`: name, city, time zone, GitHub and dev.to usernames.
 - `hero`: greeting, headline lines, description.
-- `projects`: the list comes from the GitHub API. `github.featured` names the repos that always show, `github.exclude` hides repos, and `overrides` improves the text, link or picture of one repo.
+- `projects`: the list comes from the GitHub API. A repo shows when it has the GitHub topic named in `projects.github.topic` (`portfolio`) and belongs to one of `projects.github.owners`. Add the topic to a repo on GitHub and it shows here within an hour. `overrides` improves the text, link or picture of one repo.
 - `experience`, `socials`, `skills`, `about`, `footer`: the page sections.
-- `testimonials`, `bookshelf`, `bookmarks`, `certifications`: empty at first. A section appears on the page as soon as its `items` list has an entry.
+- `articles`: the recent dev.to articles in the carousel. `articles.limit` sets how many.
+- `bookshelf`, `bookmarks`, `certifications`: empty at first. A section appears on the page as soon as its `items` list has an entry.
 - `sections.order`: the order of the sections on the page.
 - `navigation`: the tabs in the header.
 

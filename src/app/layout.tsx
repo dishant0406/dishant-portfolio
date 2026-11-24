@@ -79,6 +79,7 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml" />
         <script
           defer
           src="https://cloud.umami.is/script.js"

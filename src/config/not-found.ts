@@ -10,10 +10,10 @@ export const notFoundConfig = {
   foundNote: "Found it!",
   foxNote: "z z z",
   interactions: {
-    hiker: "Help the hiker read his map",
+    hiker: "Help the hiker read the map",
     snail: "Say hello to the shy snail",
     mole: "Play peekaboo with the mole",
     fox: "Wake the sleepy fox",
   },
-  home: { label: "Back to home", href: "/" },
+  home: { label: "Go to the home page", href: "/" },
 } as const;

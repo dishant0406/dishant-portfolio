@@ -75,11 +75,11 @@
 
 **Trade-off.** The token for this endpoint can now make a write to dev.to. The write is fixed: it can only set the canonical URL to this site. The worst a leaked token can do is still small.
 
-## The portfolio redesign (akoder.xyz look, one config file)
+## The portfolio redesign (one config file)
 
 Old entries above mention the chat, `/admin`, Mastra and `INTERNAL_API_TOKEN`. All of that is gone now. The blog, the refresh endpoint and the SEO work stay.
 
-**We copied the design from akoder.xyz instead of rebuilding it.** The site is open source under the MIT license, so we took its components, styles and motion code. The license text is in `THIRD_PARTY_LICENSES.md`. Why: the goal was "exactly like it, every hover and animation". Reading minified code and guessing would never get every timing right. Copying the real code does.
+**The interface is built on open source MIT code instead of from scratch.** We took ready-made components, styles and motion code. The license text is in `THIRD_PARTY_LICENSES.md`. Why: the goal was a polished interface with every hover and animation. Reading minified code and guessing would never get every timing right. Using real code does.
 
 **All content lives in `src/config/config.json`.** Basically, the JSON holds the data and the old `src/config/*.ts` files became thin readers. Each one imports the JSON and gives the shape the components already expected (`projects.ts`, `socials.ts`, `skills.ts`, and so on). Why: we did not have to rewrite the components, and you edit one file. Interface text (tooltips, aria labels) stays in the TypeScript files, because it is not personal data.
 
@@ -145,3 +145,83 @@ Old entries above mention the chat, `/admin`, Mastra and `INTERNAL_API_TOKEN`. A
 - A star count in the project rows: more noise on a one-line row.
 
 **Trade-off.** A GitHub outage hides the Projects section for visitors, once the cache runs out.
+
+## The Insights line chart
+
+**What we chose.** The Insights section has a smooth two-line chart (`src/components/landing/insights-chart.tsx`, from the same MIT-licensed code). The two lines are contributions per day and pushes per day, for the last 7 days.
+
+**Why these two lines.** The original plots visitors and views, which come from the author's own analytics product. We have no such data. GitHub gives us two real daily numbers: the contribution calendar, and the public push events.
+
+**Why pushes and not commits.** GitHub no longer sends the list of commits in a push event, so we cannot count commits per day from the public API. A push event is still a real, public number. The trade-off is that pushes to private repos (such as work at Groww) show only in the contribution line.
+
+**Needs a token.** The contribution calendar needs `PROFILE_G_TOKEN`. Without it the chart is hidden, like the contribution graph.
+
+## Projects by topic, an automatic hover picture, and the articles carousel
+
+**Projects use a GitHub topic.** A repo shows in Projects when it has the topic `portfolio` (set in `projects.github.topic`) and its owner is in `projects.github.owners`. Why: the earlier `featured` and `exclude` lists lived in the config, so every new project meant a code edit. A topic is set on GitHub in seconds and works for any repo, including repos in an organization. We use one search call (`searchReposByTopic`), cached for an hour. Rejected: a list in the config (needs a deploy), GitHub pinned repos (token needed, six at most), and a repo description tag (hacky to parse).
+
+**The hover picture picks itself.** Order: your `image` override, then the share image of the live site, then the card GitHub generates for the repo. Why the share image: sites already publish a picture made for previews, so there is nothing to maintain. Why the GitHub card as a last step: every repo has one, so the hover never shows an empty box. Rejected: a screenshot service, because it adds a paid or rate-limited service and can show a loading placeholder. The hover image uses `unoptimized` because the pictures come from many hosts.
+
+**Articles replace Testimonials.** The community carousel from that code is now the Recent articles carousel (`src/components/landing/articles.tsx`). We removed the testimonials code and config. Why: it was empty and it was the same component, so keeping both meant two copies of 200 lines. If you want testimonials later, the carousel can take another card type.
+
+**Copy follows one voice.** The interface copy was rewritten with these rules: plain words, one word per idea (the place is "Blog", the items are "articles"), no exclamation marks in errors, a fix in every error, and no gendered words. Facts did not change.
+
+## The logo and favicon are a sticker of my face
+
+**What we chose.** The pixel "D" is gone. The header logo (`src/components/shared/logo.tsx`) is now the sticker image `public/images/logo.webp`. The favicon comes from the same picture: `src/app/favicon.ico` (16, 32 and 48 px), `src/app/icon.png` (512 px) and `src/app/apple-icon.png` (180 px). Next.js finds the `icon.png` and `apple-icon.png` files by name and adds the link tags itself.
+
+**Why.** A picture of you is easier to recognize than a letter, and one source picture keeps the header and the browser tab the same.
+
+**How the files were made.** The original image is 1275 by 1234 px with a clear background. Each file is the picture shrunk to fit a square, with the clear background kept. The `.ico` file holds three PNG images, which every current browser reads.
+
+**Trade-off.** At 34 px the face is small and the hair is most of what you see. A tighter crop of the face would read better at that size, but the sticker outline would be lost.
+
+## The About stickers are my own pictures
+
+**What we chose.** The two small mascots above the greeting are now two stickers of mine, in `src/components/landing/about-mascots.tsx`. On the left, my head peeks over the greeting bar. On the right, a book, a coffee cup and a star sit on it. Both are plain images (`public/images/about-peek.webp` and `about-desk.webp`), cut from one shared picture. Each rises in with the same fade as the rest of the page. On hover, the head lifts and the pile tilts.
+
+**Why.** The old mascots came with the original code and had a lot of code behind them (eight drawn characters and a click-to-swap game). Two images are simpler and are yours.
+
+**Dark mode.** The pictures have thick black outlines, which vanish on a dark page. In dark mode they get a thin white edge from a CSS `drop-shadow`.
+
+**Removed.** The mascot drawings, their CSS module and the `--mascot-*` colours.
+
+## The header is a 3D landscape
+
+**What we chose.** The dotted wave is gone. The header (`src/components/landing/hero-scenery.tsx`) now shows a 3D landscape of mountains, a green hill and a sunset sky, drawn with Three.js. The camera sways slowly, and the mouse moves it a little. It stops when the header is off screen, and it stays still when the system asks for reduced motion. The bottom edge fades out with a CSS mask.
+
+**The model.** "landscape forest & mountains" by dasy444 on Sketchfab, CC BY 4.0, so commercial use is allowed with a credit. The footer shows "Landscape by dasy444 (CC BY 4.0)" with a link. The text lives in `footer.sceneryCredit` in `src/config/config.json`.
+
+**How we got the file small.** The download was 26.8 MB unpacked. The shape data was only 18,600 triangles. The weight was in 14 large pictures, mostly normal maps. We shrank it once with the `gltf-transform` tool (run through `npx`, not added to the project): the trees and ground pictures at 256 px in WebP, shape data compressed with meshopt. The sky picture stays at its full 1024 by 512 px. The first version shrank the sky to 256 px too, and the sky looked blurry, because one small picture is stretched over the whole view. The result is `public/models/scenery.glb`, 560 KB. To redo this, run `npx @gltf-transform/cli resize scene.gltf r.gltf --width 256 --height 256 --pattern "Material.00*"`, then `npx @gltf-transform/cli optimize r.gltf scenery.glb --compress meshopt --texture-compress webp --texture-size 1024`. The pattern leaves out `Material.011`, which is the sky.
+
+**Loading.** Three.js, the loader and the model load on their own after the page is ready, so the first view does not wait for them. They are about 520 KB for the model and about 170 KB (compressed) for Three.js.
+
+**The camera sits inside the model's sky dome.** The model wraps the landscape in a sky sphere. A camera outside the sphere sees a ball, not a landscape.
+
+**Rejected.** The Minecraft world model (CC BY 4.0). It has 492,000 triangles. Every block face has its own picture coordinates, so the shape cannot be simplified. The best result was 4.3 MB.
+
+**Trade-off.** The header is now a real 3D scene, so it uses more graphics power than the old flat canvas, and it needs WebGL. If WebGL is missing, the header stays empty.
+
+## The footer Earth is a 3D cartoon planet
+
+**What we chose.** The dotted blue globe at the bottom is gone. The footer now shows "Earth cartoon" by onirix (CC BY 4.0): a bright low-poly planet with white clouds, green land, trees and a small plane that moves. It turns slowly and rises from the bottom edge under the quote. The footer shows the credit "Earth by onirix (CC BY 4.0)" with a link. The text lives in `footer.earthCredit` in `src/config/config.json`.
+
+**One component for both 3D scenes.** The header landscape and the footer Earth both use `src/components/landing/model-canvas.tsx`. It loads Three.js and a model file after the page is ready, plays the animations that come inside the file, turns the model, swings the camera a little, follows the mouse, and stops when it is off screen or when motion is turned off. Each scene passes only its camera, scale and light settings. Why one component: the two scenes would otherwise carry about 150 lines of the same code each.
+
+**The file.** The download was 5.5 MB unpacked. We shrank it once with `gltf-transform` (through `npx`, not added to the project): pictures at 256 px in WebP and compressed shape data, with simplification off, because simplifying breaks the animations. The result is `public/models/earth.glb`, 819 KB. To redo it: `npx @gltf-transform/cli optimize scene.gltf earth.glb --compress meshopt --simplify false --texture-compress webp --texture-size 256`.
+
+**Removed.** The dotted globe (`footer-earth.tsx`), its land outline data file, and the orbiting satellite.
+
+**Trade-off.** The Earth model is 819 KB, bigger than the 519 KB landscape. It loads only when the footer is about to appear on screen (the scene is created on scroll), so it does not slow the first view.
+
+## Share pictures (Open Graph)
+
+**What we chose.** Two pictures, 1200 by 630 px, in `public/og/`: `home.jpg` (the mountain landscape with my name and the line "I build apps and AI tools. Software engineer at Groww.") and `blog.jpg` (the cartoon Earth with the word "Blog"). The home picture is used for the home page and the structured data. The blog list uses the blog picture. A blog post uses its own cover image. The paths are in `site.ogImage` and `site.blogOgImage` in `src/config/config.json`, and the page tags read them in `src/app/layout.tsx` and `src/app/blog/page.tsx`.
+
+**How they were made.** A temporary page drew the same 3D scenes at 1200 by 630 px. The browser then painted the scene and the text (in the site fonts) onto one canvas and sent it to a temporary route that saved a PNG. The PNGs were converted to JPEG at quality 88, which brought them from 1.3 MB to about 200 KB and 100 KB. The temporary page and route were deleted. They are not in the repo.
+
+**Why this way.** The usual Next.js tool for share pictures cannot read our `.woff2` fonts and cannot draw a 3D scene. Pictures made from the real site match the real look.
+
+**To change them.** Edit the text or the scene, take a new picture the same way, and replace the JPEG files. The picture is baked in, so it does not update by itself when `hero.greeting` changes in the config.
+
+**Trade-off.** Social networks keep share pictures for a long time. After a deploy, use each network's debugger (for example the LinkedIn Post Inspector) to refresh the old picture.

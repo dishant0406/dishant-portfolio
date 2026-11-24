@@ -503,6 +503,7 @@ export function ProjectExplorer({
                     width={600}
                     height={338}
                     sizes="276px"
+                    unoptimized
                     className="aspect-video w-full object-cover saturate-[0.7]"
                   />
                 ) : (

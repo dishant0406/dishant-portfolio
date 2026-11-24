@@ -18,6 +18,7 @@ export {
   HomeIcon as Home,
   LayersIcon as Layers,
   LinkIcon as Link,
+  MapIcon as SiteMap,
   MonitorIcon as Monitor,
   MoonIcon as Moon,
   RestartIcon as RotateCcw,

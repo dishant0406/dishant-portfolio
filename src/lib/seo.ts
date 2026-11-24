@@ -28,7 +28,8 @@ export function personJsonLd() {
     url: siteUrl,
     jobTitle: personJobTitle,
     description: personDescription,
-    image: ogImage,
+    // Structured data needs the full address.
+    image: `${siteUrl}${ogImage.url}`,
     sameAs,
     knowsAbout: config.site.knowsAbout,
   };

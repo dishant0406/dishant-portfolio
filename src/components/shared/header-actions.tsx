@@ -11,7 +11,7 @@ import { revealOnMount } from "@/lib/motion";
 import dynamic from "next/dynamic";
 import { siteConfig } from "@/config/site";
 import { trackEvent } from "@/lib/analytics";
-import { Moon, Search, Sun } from "@/components/shared/site-icons";
+import { Moon, Search, SiteMap, Sun } from "@/components/shared/site-icons";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -198,6 +198,21 @@ export function HeaderActions({ projects }: { projects: Project[] }) {
           </TooltipContent>
         </Tooltip>
         <GitHubNavLink />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href={navigationConfig.sitemapHref}
+              type="application/xml"
+              aria-label={navigationConfig.sitemap}
+              className={`${styles.utility} cursor-pointer`}
+            >
+              <span className={styles.utilityFace}><SiteMap className="size-[14.4px]" /></span>
+            </a>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{navigationConfig.sitemap}</p>
+          </TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <button

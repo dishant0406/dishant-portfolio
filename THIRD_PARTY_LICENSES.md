@@ -1,13 +1,23 @@
 # Third-party licenses
 
-The design and much of the interface code in `src/` come from the open source
-portfolio at https://github.com/AdityaKodez/adityaojha (https://www.akoder.xyz),
-used under the MIT license below. The stickers come from the `trazo-stickers` and
-`stick-it-up` packages (MIT).
+Parts of the interface code in `src/` are used under the MIT license below. The
+stickers come from the `trazo-stickers` and `stick-it-up` packages (MIT).
 
 The interface icons come from the Solar icon set by 480 Design, licensed CC BY 4.0
 (https://github.com/480-Design/Solar-Icon-Set), through the `@solar-icons/react`
 package (MIT). The credit is shown in the site footer, as the license requires.
+
+The 3D landscape in the header is based on "landscape forest & mountains"
+(https://sketchfab.com/3d-models/landscape-forest-mountains-94809d21d7aa4cfe9b658a111b35a42c)
+by dasy444 (https://sketchfab.com/dasy444), licensed under CC BY 4.0
+(http://creativecommons.org/licenses/by/4.0/). The file was shrunk for the web.
+The credit is shown in the site footer.
+
+The 3D Earth in the footer is based on "Earth cartoon"
+(https://sketchfab.com/3d-models/earth-cartoon-8980e2238c534516bc2345703cd8eae4)
+by onirix (https://sketchfab.com/onirix), licensed under CC BY 4.0
+(http://creativecommons.org/licenses/by/4.0/). The file was shrunk for the web.
+The credit is shown in the site footer.
 
 ---
 

@@ -1,3 +1,4 @@
+import { InsightsChart } from "@/components/landing/insights-chart";
 import { ArrowDownRight, ArrowUpRight } from "@/components/shared/site-icons";
 import config from "@/config/config.json";
 import { getInsights, type Metric } from "@/lib/github/insights";
@@ -84,6 +85,7 @@ export async function Insights() {
           <MetricCard key={card.label} {...card} />
         ))}
       </div>
+      {insights.points && <InsightsChart points={insights.points} />}
     </section>
   );
 }

@@ -136,7 +136,7 @@ export default async function BlogPostPage({
             className="micro-transition inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-3.5" />
-            Back to articles
+            Back to the blog
           </Link>
           <h1 className="font-serif text-3xl italic leading-[1.1] tracking-tight text-balance sm:text-4xl">
             {post.title}

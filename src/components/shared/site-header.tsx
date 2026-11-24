@@ -17,7 +17,7 @@ export function SiteHeader({ projects }: { projects: Project[] }) {
   const pathname = usePathname();
 
   return (
-    <header className="pointer-events-none sticky top-3 z-40 mx-auto -mb-11 flex h-11 w-full max-w-[var(--frame-max-w)] items-center justify-between gap-4 px-6 sm:top-4">
+    <header className="pointer-events-none sticky top-6 z-40 mx-auto -mb-11 flex h-11 w-full max-w-[var(--frame-max-w)] items-center justify-between gap-4 px-6 sm:top-6">
       <motion.nav
         {...revealOnMount({ y: -10 })}
         aria-label={navigationConfig.label}
@@ -28,12 +28,12 @@ export function SiteHeader({ projects }: { projects: Project[] }) {
           aria-label="Home"
           aria-current={pathname === "/" ? "page" : undefined}
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+            "flex h-11 w-16 shrink-0 items-center justify-center rounded-xl outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
             styles.homeLink,
           )}
         >
           <span aria-hidden="true" className={styles.logoStage}>
-            <Logo size={34} />
+            <Logo size={84} />
           </span>
         </Link>
 

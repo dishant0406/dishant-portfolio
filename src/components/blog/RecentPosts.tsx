@@ -24,7 +24,7 @@ export async function RecentPosts({ currentSlug }: RecentPostsProps): Promise<Re
 
   return (
     <section className="border-t border-dashed pt-6">
-      <h2 className="section-heading mb-3">Recent posts</h2>
+      <h2 className="section-heading mb-3">More articles</h2>
       <ul className="px-4 pb-6 sm:px-6">
         {posts.map((post) => (
           <BlogListItem key={post.slug} post={post} />

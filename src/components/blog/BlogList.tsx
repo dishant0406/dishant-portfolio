@@ -16,7 +16,7 @@ export function BlogList({ posts }: { posts: BlogPost[] }): React.JSX.Element {
   if (!posts.length) {
     return (
       <p className="px-6 py-6 text-sm text-muted-foreground">
-        No posts yet. Check back soon for new writing.
+        No articles yet.
       </p>
     );
   }

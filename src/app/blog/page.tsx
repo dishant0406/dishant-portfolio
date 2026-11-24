@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 
 import { BlogList } from '@/components/blog/BlogList';
 import { fetchAllPosts } from '@/lib/api/devto';
-import { ogImage } from '@/lib/constants';
+import { blogOgImage } from '@/lib/constants';
 import { siteUrl } from '@/lib/seo';
 
 /**
@@ -34,13 +34,13 @@ export const metadata: Metadata = {
     description,
     type: 'website',
     url: `${siteUrl}/blog`,
-    images: [ogImage],
+    images: [blogOgImage],
   },
   twitter: {
     card: 'summary_large_image',
     title,
     description,
-    images: [ogImage],
+    images: [blogOgImage.url],
   },
 };
 
@@ -53,13 +53,13 @@ export default async function BlogPage(): Promise<React.JSX.Element> {
   return (
     <>
       <header className="rise space-y-1 px-6">
-        <h1 className="font-serif text-3xl italic leading-none tracking-tight">Articles</h1>
+        <h1 className="font-serif text-3xl italic leading-none tracking-tight">Blog</h1>
         <p className="text-sm text-muted-foreground">
-          Notes on AI coding tools, new models and the frameworks I use.
+          Articles on AI coding tools, new models and the frameworks I use.
         </p>
       </header>
       <section className="rise border-t border-dashed pt-6" style={{ '--rise-delay': '0.1s' } as React.CSSProperties}>
-        <h2 className="section-heading mb-3">All posts</h2>
+        <h2 className="section-heading mb-3">All articles</h2>
         <BlogList posts={posts} />
       </section>
     </>

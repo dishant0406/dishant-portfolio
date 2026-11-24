@@ -16,6 +16,8 @@ export type GithubRepo = {
   created_at: string;
 };
 
+export type GithubEvent = { type: string; created_at: string };
+
 export type GithubProfile = {
   followers: number;
   public_repos: number;
@@ -53,10 +55,20 @@ export function fetchOwnerRepos(owner: string) {
   );
 }
 
-export function fetchRepo(fullName: string) {
-  return getJson<GithubRepo>(`/repos/${fullName}`);
-}
-
 export function fetchProfile(owner: string) {
   return getJson<GithubProfile>(`/users/${owner}`);
+}
+
+/** The latest 100 public events. GitHub keeps events for 90 days at most. */
+export function fetchPublicEvents(owner: string) {
+  return getJson<GithubEvent[]>(`/users/${owner}/events/public?per_page=100`);
+}
+
+/** Public repositories that carry a topic, owned by any of the given users or orgs. */
+export async function searchReposByTopic(topic: string, owners: string[]) {
+  const query = [`topic:${topic}`, ...owners.map((owner) => `user:${owner}`)].join(" ");
+  const result = await getJson<{ items: GithubRepo[] }>(
+    `/search/repositories?q=${encodeURIComponent(query)}&sort=updated&per_page=50`,
+  );
+  return result?.items ?? null;
 }

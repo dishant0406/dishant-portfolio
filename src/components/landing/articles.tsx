@@ -1,11 +1,10 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { testimonialsConfig, testimonialsSectionConfig } from "@/config/testimonials";
-import type { Testimonial } from "@/config/types";
+import { ArrowUpRight, ArrowUpRightCircle } from "@/components/shared/site-icons";
+import config from "@/config/config.json";
+import type { BlogPost } from "@/lib/types/blog";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { ArrowUpRightCircle } from "@/components/shared/site-icons";
 import {
   useEffect,
   useRef,
@@ -21,10 +20,11 @@ const MARQUEE_GAP = 15;
 const SLIDE_WIDTH = 340;
 const SLIDE_WIDTH_MD = 350;
 
-const enabledTestimonials = testimonialsConfig;
-const marqueeSplit = Math.ceil(enabledTestimonials.length / 2);
-const marqueeTop = enabledTestimonials.slice(0, marqueeSplit);
-const marqueeBottom = enabledTestimonials.slice(marqueeSplit);
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 /* One copy of the row plus the gap that follows it, at the shared px/s. */
 function marqueeDuration(count: number, slideWidth: number) {
@@ -49,62 +49,43 @@ function handlePointerLeave(event: ReactPointerEvent<HTMLDivElement>) {
   setPlaybackRate(event.currentTarget, 1);
 }
 
-function TestimonialSlide({ testimonial }: { testimonial: Testimonial }) {
+function ArticleSlide({ post }: { post: BlogPost }) {
   return (
-    <figure
-      className={cn(
-        "group relative flex w-85 shrink-0 flex-col border-x border-border px-4 py-3.5 transition-colors hover:bg-muted/10 md:w-87.5",
-        testimonial.href && "cursor-pointer",
-      )}
-    >
+    <figure className="group relative flex min-h-32 w-85 shrink-0 flex-col border-x border-border px-4 py-3.5 transition-colors hover:bg-muted/10 md:w-87.5">
       <div className="blueprint-bg pointer-events-none absolute inset-0 opacity-50 transition-opacity group-hover:opacity-100" />
 
+      <Link
+        href={`/blog/${post.slug}`}
+        className="absolute inset-0 z-20 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-foreground/20"
+        aria-label={`Read ${post.title}`}
+      />
+
       <div className="relative z-10 flex flex-1 flex-col">
-        {testimonial.href ? (
-          <a
-            href={testimonial.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute inset-0 z-20"
-            aria-label={`Open original post from ${testimonial.name}`}
-          />
-        ) : null}
-        <blockquote className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-          {testimonial.content}
-        </blockquote>
+        <h3 className="line-clamp-2 text-sm font-medium leading-snug tracking-tight transition-colors group-hover:text-primary">
+          {post.title}
+        </h3>
+        <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">
+          {post.brief}
+        </p>
 
-        <figcaption className="mt-auto flex items-center gap-3 pt-3">
-          <Avatar className="size-8">
-            <AvatarImage
-              src={testimonial.image}
-              alt={testimonial.name}
-              loading="lazy"
-              decoding="async"
-            />
-            <AvatarFallback>{testimonial.avatar}</AvatarFallback>
-          </Avatar>
-
-          <div className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium tracking-tight">
-              {testimonial.name}
-            </span>
-            <span className="truncate font-mono text-[10px] tracking-wider text-muted-foreground/60">
-              {testimonial.role}
-            </span>
-          </div>
-        </figcaption>
+        <div className="mt-auto flex items-center justify-between gap-3 pt-3 font-mono text-[10px] tracking-wider text-muted-foreground/60">
+          <span className="truncate">
+            {dateFormatter.format(new Date(post.publishedAt))} · {post.readTimeInMinutes} min read
+          </span>
+          <ArrowUpRight className="size-3.5 shrink-0 transition-all group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+        </div>
       </div>
     </figure>
   );
 }
 
-function TestimonialsTrack({
+function ArticlesTrack({
   items,
   reverse = false,
   borderTop = true,
   paused = false,
 }: {
-  items: Testimonial[];
+  items: BlogPost[];
   reverse?: boolean;
   borderTop?: boolean;
   paused?: boolean;
@@ -117,7 +98,7 @@ function TestimonialsTrack({
       )}
     >
       <div
-        className="testimonial-marquee"
+        className="card-marquee"
         data-reverse={reverse ? "true" : undefined}
         data-paused={paused ? "true" : undefined}
         style={
@@ -131,11 +112,8 @@ function TestimonialsTrack({
       >
         {[0, 1].map((copy) => (
           <div key={copy} className="flex shrink-0 gap-[15px] pr-[15px]">
-            {items.map((testimonial) => (
-              <TestimonialSlide
-                key={`${copy}-${testimonial.id}`}
-                testimonial={testimonial}
-              />
+            {items.map((post) => (
+              <ArticleSlide key={`${copy}-${post.slug}`} post={post} />
             ))}
           </div>
         ))}
@@ -144,7 +122,8 @@ function TestimonialsTrack({
   );
 }
 
-export function Testimonials() {
+/** The most recent articles in two rows that scroll in opposite directions. */
+export function Articles({ posts, total }: { posts: BlogPost[]; total: number }) {
   const sectionRef = useRef<HTMLElement>(null);
   const [inView, setInView] = useState(false);
 
@@ -160,16 +139,20 @@ export function Testimonials() {
     return () => observer.disconnect();
   }, []);
 
+  const split = Math.ceil(posts.length / 2);
+  const top = posts.slice(0, split);
+  const bottom = posts.slice(split);
+
   return (
     <section ref={sectionRef} className="border-t border-dashed pt-8">
       <h2 className="no-js-visible section-heading mb-3">
-        Community
+        {config.articles.title}
       </h2>
       <div className="relative mb-[15px] flex flex-col">
-        <TestimonialsTrack items={marqueeTop} paused={!inView} />
-        {marqueeBottom.length > 0 && (
-          <TestimonialsTrack
-            items={marqueeBottom}
+        <ArticlesTrack items={top} paused={!inView} />
+        {bottom.length > 0 && (
+          <ArticlesTrack
+            items={bottom}
             reverse
             borderTop={false}
             paused={!inView}
@@ -183,10 +166,10 @@ export function Testimonials() {
 
       <div className="flex justify-center items-center border-y py-4">
         <Link
-          href="/testimonials"
+          href="/blog"
           className="flex items-center gap-2 font-sans text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          {`${testimonialsSectionConfig.seeMoreLabel} ${testimonialsConfig.length} testimonials`}
+          {`Read all ${total} articles`}
           <ArrowUpRightCircle className="size-3.5" />
         </Link>
       </div>

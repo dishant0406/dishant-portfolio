@@ -1,17 +1,11 @@
 "use client";
 
 import { Fragment, useRef } from "react";
-import dynamic from "next/dynamic";
 import { motion, useInView, useReducedMotion, useSpring, type Variants } from "motion/react";
+import { ModelCanvas } from "@/components/landing/model-canvas";
 import { footerConfig } from "@/config/site";
 import { MOTION_EASE } from "@/lib/motion";
 import { CoffeeSticker } from "stick-it-up";
-
-const FooterEarth = dynamic(
-  () =>
-    import("@/components/landing/footer-earth").then((mod) => mod.FooterEarth),
-  { ssr: false },
-);
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
@@ -127,6 +121,28 @@ export function FooterScene() {
         >
           {footerConfig.iconCredit.text}
         </motion.a>
+
+        <motion.a
+          data-reveal=""
+          variants={itemVariants}
+          href={footerConfig.sceneryCredit.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="micro-transition mt-1 font-mono text-[10px] tracking-[0.06em] text-muted-foreground/70 hover:text-foreground"
+        >
+          {footerConfig.sceneryCredit.text}
+        </motion.a>
+
+        <motion.a
+          data-reveal=""
+          variants={itemVariants}
+          href={footerConfig.earthCredit.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="micro-transition mt-1 font-mono text-[10px] tracking-[0.06em] text-muted-foreground/70 hover:text-foreground"
+        >
+          {footerConfig.earthCredit.text}
+        </motion.a>
       </motion.div>
 
       <motion.div
@@ -148,7 +164,7 @@ export function FooterScene() {
         }}
         onPointerLeave={resetEarth}
         onPointerCancel={resetEarth}
-        className="relative mt-2 h-48 select-none overflow-hidden sm:h-52"
+        className="relative mt-2 h-56 select-none overflow-hidden sm:h-64"
       >
         <div className="relative left-1/2 h-full w-[calc(100%+24px)] min-w-180 -translate-x-1/2">
           <motion.div
@@ -159,7 +175,21 @@ export function FooterScene() {
               rotate: reducedMotion ? 0 : rotate,
             }}
           >
-            {earthMounted ? <FooterEarth /> : null}
+            {earthMounted ? (
+              <ModelCanvas
+                url="/models/earth.glb"
+                className="block h-full w-full"
+                fov={32}
+                cameraPosition={[0, 0.6, 9]}
+                cameraTarget={[0, -0.9, 0]}
+                modelScale={4.3}
+                modelPosition={[0, -3.9, 0]}
+                spinSpeed={0.12}
+                playAnimations
+                ambient={3.2}
+                sun={{ color: 0xfff4e0, intensity: 2.6, position: [6, 12, 14] }}
+              />
+            ) : null}
           </motion.div>
         </div>
       </motion.div>

@@ -8,7 +8,7 @@ export type SectionId =
   | "about"
   | "insights"
   | "github"
-  | "testimonials"
+  | "articles"
   | "bookshelf"
   | "bookmarks"
   | "certifications";
@@ -36,6 +36,8 @@ export interface FooterConfig {
   attribution: string;
   credit: string;
   iconCredit: { text: string; href: string };
+  sceneryCredit: { text: string; href: string };
+  earthCredit: { text: string; href: string };
 }
 
 export interface SkillCategoryConfig {
@@ -75,18 +77,6 @@ export interface SocialLink {
   copyValue?: string;
   shortcutKey?: string;
   tooltipDefault?: string;
-}
-
-export interface Testimonial {
-  id: string;
-  name: string;
-  role: string;
-  content: string;
-  /** Initials shown while the photo loads or when there is no photo. */
-  avatar: string;
-  image?: string;
-  /** Link to the original post, when one exists. */
-  href?: string;
 }
 
 export interface Project {

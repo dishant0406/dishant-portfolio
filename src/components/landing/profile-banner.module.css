@@ -1,7 +1,7 @@
 .waveStage {
   position: relative;
   width: 100%;
-  height: 136px;
+  height: 170px;
   overflow: hidden;
   isolation: isolate;
 }
@@ -10,7 +10,8 @@
   display: block;
   width: 100%;
   height: 100%;
-  image-rendering: pixelated;
+  /* The scene fades out at the bottom instead of ending in a hard line. */
+  mask-image: linear-gradient(to bottom, #000 78%, transparent);
 }
 
 .profile {
@@ -39,7 +40,7 @@
 
 @media (min-width: 640px) {
   .waveStage {
-    height: 164px;
+    height: 230px;
   }
 
   .profile {

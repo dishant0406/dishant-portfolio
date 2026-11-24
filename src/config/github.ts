@@ -37,7 +37,7 @@ export const githubSectionConfig = {
   less: "Less",
   more: "More",
   legend: "0, 1, 2, 3, 4+ contributions",
-  unavailable: "No data available",
+  unavailable: "No data",
   contribution: "contribution",
   contributions: "contributions",
   newRepository: "New repo",

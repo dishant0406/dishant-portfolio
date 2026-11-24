@@ -12,7 +12,7 @@ import { HomeSectionRail } from "@/components/landing/home-section-rail";
 import { ProfileBanner } from "@/components/landing/profile-banner";
 import Social from "@/components/landing/social";
 import { Skills } from "@/components/landing/skills";
-import { Testimonials } from "@/components/landing/testimonials";
+import { Articles } from "@/components/landing/articles";
 import { GitSkeleton } from "@/components/skeletons/github-skeleton";
 import { PixelDissolve } from "@/components/ui/pixel-dissolve";
 import { SideNote } from "@/components/shared/side-note";
@@ -20,9 +20,10 @@ import { booksConfig } from "@/config/books";
 import config from "@/config/config.json";
 import { experienceConfig } from "@/config/experience";
 import { projectsSectionConfig } from "@/config/projects";
+import { fetchAllPosts } from "@/lib/api/devto";
 import { fetchProjects } from "@/lib/github/projects";
+import type { BlogPost } from "@/lib/types/blog";
 import { sectionNotes, sectionOrder } from "@/config/section-notes";
-import { testimonialsConfig } from "@/config/testimonials";
 import type { Project, SectionId } from "@/config/types";
 import { Suspense } from "react";
 
@@ -32,16 +33,16 @@ export const dynamic = "force-dynamic";
 
 // A section shows only when it has something to show. The GitHub section also
 // needs a token, because the contribution graph comes from the GitHub GraphQL API.
-function getHasContent(projectCount: number): Record<SectionId, boolean> {
+function getHasContent(projectCount: number, articleCount: number): Record<SectionId, boolean> {
   return {
     projects: projectCount > 0,
     experience: experienceConfig.length > 0,
+    articles: articleCount > 0,
     socials: config.socials.items.length > 0,
     skills: config.skills.items.length > 0,
     about: config.about.items.length > 0,
     insights: config.insights.enabled,
     github: config.github.enabled && Boolean(process.env.PROFILE_G_TOKEN),
-    testimonials: testimonialsConfig.length > 0,
     bookshelf: booksConfig.length > 0,
     bookmarks: config.bookmarks.items.length > 0,
     certifications: config.certifications.items.length > 0,
@@ -61,13 +62,13 @@ const sectionLabels: Record<SectionId, string> = {
   about: "About",
   insights: "Insights",
   github: "GitHub",
-  testimonials: "Testimonials",
+  articles: "Articles",
   bookshelf: "Bookshelf",
   bookmarks: "Bookmarks",
   certifications: "Certificates",
 };
 
-function renderSection(id: SectionId, projects: Project[]) {
+function renderSection(id: SectionId, projects: Project[], posts: BlogPost[]) {
   switch (id) {
     case "projects":
       return <HomeProjectExplorer projects={explorerProjects(projects)} title={projectsSectionConfig.title} />;
@@ -91,8 +92,8 @@ function renderSection(id: SectionId, projects: Project[]) {
           <GitHubSection />
         </Suspense>
       );
-    case "testimonials":
-      return <Testimonials />;
+    case "articles":
+      return <Articles posts={posts.slice(0, config.articles.limit)} total={posts.length} />;
     case "bookshelf":
       return <Bookshelf books={booksConfig} />;
     case "bookmarks":
@@ -104,7 +105,8 @@ function renderSection(id: SectionId, projects: Project[]) {
 
 export default async function Home() {
   const projects = await fetchProjects();
-  const hasContent = getHasContent(projects.length);
+  const posts = await fetchAllPosts().catch(() => []);
+  const hasContent = getHasContent(projects.length, posts.length);
   const visibleSections = sectionOrder.filter((id) => hasContent[id]);
 
   return (
@@ -122,7 +124,7 @@ export default async function Home() {
           return (
             <div key={id} id={id} className="relative bg-background scroll-mt-20">
               {note && <SideNote side={note.side}>{note.text}</SideNote>}
-              {renderSection(id, projects)}
+              {renderSection(id, projects, posts)}
             </div>
           );
         })}
