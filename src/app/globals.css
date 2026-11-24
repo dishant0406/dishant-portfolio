@@ -1,832 +1,785 @@
-/* Cascade layer ordering: keep OpenUI component styles above Tailwind's
-   Preflight (base) but below our utilities so app CSS can override when needed.
-   Imported from exactly one place to avoid Turbopack layer-order races. */
-@layer theme, base, openui, components, utilities;
 @import "tailwindcss";
-@import "@openuidev/react-ui/layered/styles/index.css";
+@import "tw-animate-css";
 
-/* Configure Tailwind v4 to use class-based dark mode */
-/* stylelint-disable-next-line at-rule-no-unknown */
-@variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:is(.dark *));
 
-/* Shadcn color tokens mapped to existing theme variables */
-/* stylelint-disable-next-line at-rule-no-unknown */
-@theme {
-  --color-background: var(--color-background);
-  --color-foreground: var(--color-foreground);
-  --color-card: var(--color-card);
-  --color-card-foreground: var(--color-foreground);
-  --color-popover: var(--color-card);
-  --color-popover-foreground: var(--color-foreground);
-  --color-primary: var(--color-primary);
-  --color-primary-foreground: var(--color-primary-foreground);
-  --color-secondary: var(--color-secondary);
-  --color-secondary-foreground: var(--color-secondary-foreground);
-  --color-tertiary: var(--color-tertiary);
-  --color-tertiary-foreground: var(--color-tertiary-foreground);
-  --color-muted: var(--color-muted);
-  --color-muted-foreground: var(--color-muted-foreground);
-  --color-accent: var(--color-accent);
-  --color-accent-foreground: var(--color-accent-foreground);
-  --color-destructive: var(--color-destructive);
-  --color-destructive-foreground: var(--color-destructive-foreground);
-  --color-success: var(--color-success);
-  --color-success-foreground: var(--color-success-foreground);
-  --color-warning: var(--color-warning);
-  --color-warning-foreground: var(--color-warning-foreground);
-  --color-info: var(--color-info);
-  --color-info-foreground: var(--color-info-foreground);
-  --color-link: var(--color-link);
-  --color-link-hover: var(--color-link-hover);
-  --color-overlay: var(--color-overlay);
-  --color-code-bg: var(--color-code-bg);
-  --color-code-fg: var(--color-code-fg);
-  --color-border: var(--color-border);
-  --color-input: var(--color-input);
-  --color-ring: var(--color-primary);
-  --radius: 0.75rem;
+/* State variants that the radix-based components use. */
+@custom-variant data-open {
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-closed {
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"])) {
+    @slot;
+  }
+}
+@custom-variant data-selected {
+  &:where([data-selected="true"]),
+  &:where([data-state="selected"]) {
+    @slot;
+  }
+}
+
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-instrument-serif);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --animate-wave: wave .5s ease-in-out infinite;
 }
 
 :root {
-  /* Light mode colors - Minimal Monochrome Theme */
-  --color-background: rgb(255, 255, 255);
-  --color-foreground: rgb(10, 10, 10);
-  --color-muted: rgb(245, 245, 245);
-  --color-muted-foreground: rgb(115, 115, 115);
-  --color-border: rgb(229, 229, 229);
-  --color-card: rgb(255, 255, 255);
-  --color-card-foreground: rgb(10, 10, 10);
-  --color-card-hover: rgb(250, 250, 250);
-  --color-input: rgb(229, 229, 229);
-  --color-primary: rgb(23, 23, 23);
-  --color-primary-foreground: rgb(250, 250, 250);
-  --color-secondary: rgb(245, 245, 245);
-  --color-secondary-foreground: rgb(23, 23, 23);
-  --color-tertiary: rgb(245, 245, 245);
-  --color-tertiary-foreground: rgb(23, 23, 23);
-  --color-accent: rgb(245, 245, 245);
-  --color-accent-foreground: rgb(23, 23, 23);
-  --color-destructive: rgb(231, 0, 11);
-  --color-destructive-foreground: rgb(255, 255, 255);
-  --color-success: rgb(34, 197, 94);
-  --color-success-foreground: rgb(255, 255, 255);
-  --color-warning: rgb(251, 191, 36);
-  --color-warning-foreground: rgb(23, 23, 23);
-  --color-info: rgb(58, 129, 246);
-  --color-info-foreground: rgb(255, 255, 255);
-  --color-link: rgb(23, 23, 23);
-  --color-link-hover: rgb(115, 115, 115);
-  --color-overlay: rgb(0, 0, 0);
-  --color-code-bg: rgb(23, 23, 23);
-  --color-code-fg: rgb(250, 250, 250);
-  --color-ring: rgb(161, 161, 161);
-  
-  /* Popover colors */
-  --color-popover: rgb(255, 255, 255);
-  --color-popover-foreground: rgb(10, 10, 10);
-  
-  /* Sidebar colors */
-  --color-sidebar: rgb(250, 250, 250);
-  --color-sidebar-foreground: rgb(10, 10, 10);
-  --color-sidebar-primary: rgb(23, 23, 23);
-  --color-sidebar-primary-foreground: rgb(250, 250, 250);
-  --color-sidebar-accent: rgb(245, 245, 245);
-  --color-sidebar-accent-foreground: rgb(23, 23, 23);
-  --color-sidebar-border: rgb(229, 229, 229);
-  --color-sidebar-ring: rgb(161, 161, 161);
-  
-  /* Chart colors */
-  --color-chart-1: rgb(145, 197, 255);
-  --color-chart-2: rgb(58, 129, 246);
-  --color-chart-3: rgb(37, 99, 239);
-  --color-chart-4: rgb(26, 78, 218);
-  --color-chart-5: rgb(31, 63, 173);
-  
-  /* Gradient colors for light mode */
-  --gradient-from: rgb(255, 255, 255);
-  --gradient-via: rgb(245, 245, 245);
-  --gradient-to: rgb(23, 23, 23);
-  
-  /* Glass effect colors */
-  --glass-bg: rgb(255, 255, 255);
-  --glass-border: rgb(229, 229, 229);
-  
-  /* Typography */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  
-  /* Border radius */
-  --radius: 0.625rem;
-  --radius-sm: calc(0.625rem - 4px);
-  --radius-md: calc(0.625rem - 2px);
-  --radius-lg: 0.625rem;
-  --radius-xl: calc(0.625rem + 4px);
-  
-  /* Subtle shadows */
-  --shadow-x: 0;
-  --shadow-y: 1px;
-  --shadow-blur: 3px;
-  --shadow-spread: 0px;
-  --shadow-opacity: 0.1;
-  --shadow-color: rgb(0, 0, 0);
-  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-  
-  /* Letter spacing */
-  --tracking-normal: 0em;
-  --tracking-tighter: -0.05em;
-  --tracking-tight: -0.025em;
-  --tracking-wide: 0.025em;
-  --tracking-wider: 0.05em;
-  --tracking-widest: 0.1em;
-  
-  /* Spacing */
-  --spacing: 0.25rem;
+  /* Width of the centered site frame. The sticky header and the route `<main>`
+     both read it, so a route can widen the column without the header drifting
+     out of alignment. `/components` switches it in card view. */
+  --frame-max-w: 48rem;
+  --not-found-paper: oklch(1 0 0);
+  --not-found-button: oklch(0.94 0 0);
+  --motion-duration-fast: 180ms;
+  --motion-duration-base: 220ms;
+  --motion-duration-slow: 280ms;
+  --motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.488 0.243 264.376);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.52 0.15 150);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.808 0.114 19.571);
+  --chart-2: oklch(0.637 0.237 25.331);
+  --chart-3: oklch(0.577 0.245 27.325);
+  --chart-4: oklch(0.505 0.213 27.518);
+  --chart-5: oklch(0.444 0.177 26.899);
+  --radius: 0.45rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --verse-text-blend: multiply;
+  --heatmap-level-0: oklch(0.92 0 0);
+  --heatmap-level-1: oklch(0.882 0.057 254.128);
+  --heatmap-level-2: oklch(0.707 0.165 254.624);
+  --heatmap-level-3: oklch(0.488 0.243 264.376);
+  --heatmap-level-4: oklch(0.379 0.146 265.522);
+  --scrollbar-thumb: oklch(0.87 0 0);
+  --scrollbar-thumb-hover: oklch(0.78 0 0);
+  --logo-wax-light: oklch(0.96 0.11 95);
+  --logo-wax-gold: oklch(0.87 0.17 85);
+  --logo-wax-amber: oklch(0.77 0.18 65);
+  --logo-wax-shadow: oklch(0.59 0.17 43);
+  --logo-flame: oklch(0.7 0.2 43);
+  --logo-flame-core: oklch(0.99 0.035 100);
+  --logo-wick: oklch(0.3 0.04 48);
+  --mascot-teal: oklch(0.86 0.065 205);
+  --mascot-teal-shade: oklch(0.65 0.085 215);
+  --mascot-sun: oklch(0.91 0.105 93);
+  --mascot-sun-shade: oklch(0.76 0.15 84);
+  --mascot-peach: oklch(0.82 0.095 48);
+  --mascot-peach-shade: oklch(0.66 0.135 42);
+  --mascot-mint: oklch(0.83 0.065 166);
+  --mascot-mint-shade: oklch(0.62 0.075 172);
+  --mascot-lilac: oklch(0.73 0.12 295);
+  --mascot-lilac-shade: oklch(0.54 0.17 292);
+  --mascot-ink: oklch(0.23 0.02 265);
+  --mascot-glint: oklch(0.99 0.01 95);
+  --mascot-blush: oklch(0.72 0.13 15);
+  --mascot-claude: oklch(0.7 0.15 48);
+  --mascot-claude-shade: oklch(0.55 0.14 42);
+  --mascot-claude-snout: oklch(0.86 0.07 55);
+  --mascot-hat: oklch(0.34 0.045 55);
+  --mascot-hat-shade: oklch(0.25 0.035 55);
+  --mascot-glass: oklch(0.62 0.012 250);
+  --mascot-glass-lens: oklch(0.92 0.02 220 / 0.35);
+  --footer-earth-deep: 19 54 103;
+  --footer-earth-ocean: 35 112 190;
+  --footer-earth-light: 169 220 249;
+  --footer-earth-cloud: 246 251 255;
+  --hero-wave-stop-1: 30 39 54;
+  --hero-wave-stop-2: 19 54 103;
+  --hero-wave-stop-3: 35 112 190;
+  --hero-wave-stop-4: 142 196 232;
+  --hero-wave-stop-5: 216 118 82;
+  --meadow-field: oklch(0.82 0.165 84);
+  --meadow-field-shade: oklch(0.766 0.16 75.3);
+  --meadow-field-speck: oklch(0.705 0.154 67.4);
+  --meadow-field-glow: oklch(0.883 0.158 91.4);
+  --meadow-field-shadow: oklch(0.668 0.141 72.1);
+  --meadow-grass: oklch(0.645 0.129 123);
+  --meadow-hedge: oklch(0.569 0.139 143.1);
+  --meadow-road: oklch(0.883 0.034 43.5);
+  --meadow-road-track: oklch(0.819 0.044 39.8);
+  --meadow-sand: oklch(0.819 0.11 82.3);
+  --meadow-water: oklch(0.519 0.115 244.7);
+  --meadow-water-deep: oklch(0.453 0.106 246.2);
+  --meadow-water-light: oklch(0.646 0.112 240.3);
+  --meadow-forest-deep: oklch(0.332 0.055 167.2);
+  --meadow-leaf-1: oklch(0.432 0.087 155.5);
+  --meadow-leaf-2: oklch(0.502 0.102 152.2);
+  --meadow-leaf-3: oklch(0.588 0.124 147.1);
+  --meadow-leaf-4: oklch(0.655 0.134 142.1);
+  --meadow-leaf-5: oklch(0.43 0.057 178.6);
+  --meadow-leaf-6: oklch(0.509 0.038 193.7);
+  --meadow-leaf-light: oklch(0.825 0.137 131.2);
+  --meadow-roof: oklch(0.62 0.183 14.9);
+  --meadow-roof-shade: oklch(0.525 0.165 13.3);
+  --meadow-wall: oklch(0.937 0.014 53.3);
+  --meadow-bird: oklch(0.471 0.089 94.8);
+  --meadow-car: oklch(0.981 0.005 106.5);
+  --meadow-car-shade: oklch(0.883 0.011 106.6);
+  --meadow-glass: oklch(0.365 0.028 248.6);
+  --meadow-tail-light: oklch(0.589 0.194 19.6);
+  --meadow-beam: oklch(0.956 0.074 95.9);
+  --meadow-beam-opacity: 0;
 }
 
-/* Dark mode colors - Minimal Monochrome Dark Theme */
 .dark {
-  --color-background: rgb(10, 10, 10);
-  --color-foreground: rgb(250, 250, 250);
-  --color-muted: rgb(38, 38, 38);
-  --color-muted-foreground: rgb(161, 161, 161);
-  --color-border: rgb(40, 40, 40);
-  --color-card: rgb(23, 23, 23);
-  --color-card-foreground: rgb(250, 250, 250);
-  --color-card-hover: rgb(33, 33, 33);
-  --color-input: rgb(52, 52, 52);
-  --color-primary: rgb(229, 229, 229);
-  --color-primary-foreground: rgb(23, 23, 23);
-  --color-secondary: rgb(38, 38, 38);
-  --color-secondary-foreground: rgb(250, 250, 250);
-  --color-tertiary: rgb(38, 38, 38);
-  --color-tertiary-foreground: rgb(250, 250, 250);
-  --color-accent: rgb(64, 64, 64);
-  --color-accent-foreground: rgb(250, 250, 250);
-  --color-destructive: rgb(255, 100, 103);
-  --color-destructive-foreground: rgb(250, 250, 250);
-  --color-success: rgb(34, 197, 94);
-  --color-success-foreground: rgb(255, 255, 255);
-  --color-warning: rgb(251, 191, 36);
-  --color-warning-foreground: rgb(10, 10, 10);
-  --color-info: rgb(58, 129, 246);
-  --color-info-foreground: rgb(255, 255, 255);
-  --color-link: rgb(229, 229, 229);
-  --color-link-hover: rgb(161, 161, 161);
-  --color-overlay: rgb(0, 0, 0);
-  /* Lighter than --color-background (rgb(10,10,10)) so code blocks stay
-     visible; a code block the same colour as the page reads as no block. */
-  --color-code-bg: rgb(23, 23, 23);
-  --color-code-fg: rgb(250, 250, 250);
-  --color-ring: rgb(115, 115, 115);
-  
-  /* Popover colors */
-  --color-popover: rgb(38, 38, 38);
-  --color-popover-foreground: rgb(250, 250, 250);
-  
-  /* Sidebar colors */
-  --color-sidebar: rgb(23, 23, 23);
-  --color-sidebar-foreground: rgb(250, 250, 250);
-  --color-sidebar-primary: rgb(20, 71, 230);
-  --color-sidebar-primary-foreground: rgb(250, 250, 250);
-  --color-sidebar-accent: rgb(38, 38, 38);
-  --color-sidebar-accent-foreground: rgb(250, 250, 250);
-  --color-sidebar-border: rgb(40, 40, 40);
-  --color-sidebar-ring: rgb(82, 82, 82);
-  
-  /* Chart colors */
-  --color-chart-1: rgb(145, 197, 255);
-  --color-chart-2: rgb(58, 129, 246);
-  --color-chart-3: rgb(37, 99, 239);
-  --color-chart-4: rgb(26, 78, 218);
-  --color-chart-5: rgb(31, 63, 173);
-  
-  /* Gradient colors for dark mode */
-  --gradient-from: rgb(10, 10, 10);
-  --gradient-via: rgb(38, 38, 38);
-  --gradient-to: rgb(229, 229, 229);
-  
-  /* Glass effect colors - dark glass */
-  --glass-bg: rgb(23, 23, 23);
-  --glass-border: rgb(40, 40, 40);
-  
-  /* Subtle shadows - same in dark mode */
-  --shadow-color: rgb(0, 0, 0);
-  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --not-found-paper: oklch(0 0 0);
+  --not-found-button: oklch(0.22 0 0);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --verse-text-blend: screen;
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.707 0.165 254.624);
+  --primary-foreground: oklch(0.379 0.146 265.522);
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --success: oklch(0.75 0.18 155);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.808 0.114 19.571);
+  --chart-2: oklch(0.637 0.237 25.331);
+  --chart-3: oklch(0.577 0.245 27.325);
+  --chart-4: oklch(0.505 0.213 27.518);
+  --chart-5: oklch(0.444 0.177 26.899);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.707 0.165 254.624);
+  --sidebar-primary-foreground: oklch(0.379 0.146 265.522);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+  --heatmap-level-0: oklch(0.28 0 0);
+  --heatmap-level-1: oklch(0.379 0.08 254.128);
+  --heatmap-level-2: oklch(0.488 0.14 254.624);
+  --heatmap-level-3: oklch(0.627 0.18 264.376);
+  --heatmap-level-4: oklch(0.707 0.165 254.624);
+  --scrollbar-thumb: oklch(0.34 0 0);
+  --scrollbar-thumb-hover: oklch(0.45 0 0);
+  --hero-wave-stop-1: 28 42 66;
+  --hero-wave-stop-2: 38 88 156;
+  --hero-wave-stop-3: 84 156 232;
+  --hero-wave-stop-4: 184 224 250;
+  --hero-wave-stop-5: 235 148 104;
+  --meadow-field: oklch(0.561 0.129 84);
+  --meadow-field-shade: oklch(0.526 0.125 75.3);
+  --meadow-field-speck: oklch(0.485 0.12 67.4);
+  --meadow-field-glow: oklch(0.603 0.123 91.4);
+  --meadow-field-shadow: oklch(0.461 0.11 72.1);
+  --meadow-grass: oklch(0.446 0.101 123);
+  --meadow-hedge: oklch(0.395 0.108 143.1);
+  --meadow-road: oklch(0.603 0.026 43.5);
+  --meadow-road-track: oklch(0.561 0.034 39.8);
+  --meadow-sand: oklch(0.56 0.086 82.3);
+  --meadow-water: oklch(0.363 0.09 244.7);
+  --meadow-water-deep: oklch(0.319 0.083 246.2);
+  --meadow-water-light: oklch(0.446 0.087 240.3);
+  --meadow-forest-deep: oklch(0.239 0.043 167.2);
+  --meadow-leaf-1: oklch(0.305 0.068 155.5);
+  --meadow-leaf-2: oklch(0.351 0.079 152.2);
+  --meadow-leaf-3: oklch(0.408 0.097 147.1);
+  --meadow-leaf-4: oklch(0.453 0.104 142.1);
+  --meadow-leaf-5: oklch(0.304 0.044 178.6);
+  --meadow-leaf-6: oklch(0.356 0.03 193.7);
+  --meadow-leaf-light: oklch(0.565 0.107 131.2);
+  --meadow-roof: oklch(0.429 0.143 14.9);
+  --meadow-roof-shade: oklch(0.367 0.129 13.3);
+  --meadow-wall: oklch(0.639 0.011 53.3);
+  --meadow-bird: oklch(0.331 0.069 94.8);
+  --meadow-car: oklch(0.9 0.005 106.5);
+  --meadow-car-shade: oklch(0.76 0.008 106.6);
+  --meadow-glass: oklch(0.261 0.022 248.6);
+  --meadow-tail-light: oklch(0.6 0.2 19.6);
+  --meadow-beam: oklch(0.956 0.074 95.9);
+  --meadow-beam-opacity: 0.55;
 }
 
-/* Apply letter spacing to body */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply  selection:bg-gray-400 selection:text-white bg-background text-foreground;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+html,
 body {
-  letter-spacing: var(--tracking-normal);
+    scrollbar-gutter:auto;
 }
 
-
-
-/* Prevent flash - set background color immediately based on saved theme */
-html {
-  background-color: rgb(var(--gradient-from));
+body:has([data-not-found]) [data-frame-gutters] {
+  display: none;
 }
 
-html.dark {
-  background-color: rgb(0, 0, 0);
-  color-scheme: dark;
+body:has([data-not-found]) [data-site-frame] {
+  max-width: none;
 }
 
-html.light {
-  color-scheme: light;
-}
-
-/* Base body styles */
-body {
-  font-family: var(--font-geist-sans, 'Inter', system-ui, sans-serif);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  color: rgb(var(--color-foreground));
-  background: linear-gradient(
-    to bottom right,
-    rgba(var(--gradient-from), 1),
-    rgba(var(--gradient-via), 1),
-    rgba(var(--gradient-to), 1)
-  );
-  min-height: 100vh;
-  min-height: 100dvh; /* Dynamic viewport height for mobile */
-}
-
-/* Dynamic viewport height support */
-html, body {
-  height: 100%;
-  height: 100dvh;
-  overflow: hidden;
-  overscroll-behavior: none;
-  position: fixed;
-  width: 100%;
-  top: 0;
-  left: 0;
-}
-
-/* Prevent iOS zoom on input focus */
-input, textarea, select {
-  font-size: 16px !important;
-}
-
-/* Prevent iOS touch callout and selection */
-* {
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-}
-
-/* Mobile safe area support */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
-.safe-area-top {
-  padding-top: env(safe-area-inset-top, 0);
-}
-
-.pb-safe {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0.75rem));
-}
-
-/* Touch action optimizations for mobile */
-.touch-pan-y {
-  touch-action: pan-y;
-}
-
-.touch-none {
-  touch-action: none;
-}
-
-/* Prevent pull-to-refresh on mobile */
-body {
-  overscroll-behavior-y: contain;
-}
-
-/* Dark mode body - solid black */
-.dark body {
-  background: rgb(0, 0, 0);
-}
-
-/* Glass container styles with CSS variables */
-.glass-container {
-  background: rgba(var(--glass-bg), 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(var(--glass-border), 0.3);
-  box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.1),
-    inset 0 1px 1px rgba(255, 255, 255, 0.1);
-}
-
-.dark .glass-container {
-  background: rgba(var(--glass-bg), 0.95);
-  border: 1px solid rgba(var(--glass-border), 0.5);
-  box-shadow: 
-    0 25px 50px -12px rgba(0, 0, 0, 0.8),
-    inset 0 1px 1px rgba(255, 255, 255, 0.02);
-}
-
-/* Streaming animation for chat responses */
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
-
-.animate-blink {
-  animation: blink 1s infinite;
-}
-
-/* Popover entrance animations (dependency-free, no tailwindcss-animate needed) */
-@keyframes popover-in {
-  0% {
-    opacity: 0;
-    transform: translateY(6px) scale(0.96);
-  }
-  60% {
-    transform: translateY(0) scale(1.01);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes popover-item-in {
-  0% {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-popover-in {
-  animation: popover-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
-  transform-origin: bottom right;
-}
-
-.animate-popover-in [data-popover-item] {
-  opacity: 0;
-  animation: popover-item-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-.animate-popover-in [data-popover-item]:nth-child(1) { animation-delay: 0.04s; }
-.animate-popover-in [data-popover-item]:nth-child(2) { animation-delay: 0.08s; }
-.animate-popover-in [data-popover-item]:nth-child(3) { animation-delay: 0.12s; }
-.animate-popover-in [data-popover-item]:nth-child(4) { animation-delay: 0.16s; }
-.animate-popover-in [data-popover-item]:nth-child(5) { animation-delay: 0.20s; }
-
-/* No global transitions - prevents flickering during theme switch */
-
-/* Hide scrollbars globally while maintaining scroll functionality */
-* {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-}
-
-*::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
-}
-
-/* Alternative: If you want scrollbars visible on hover for specific containers, uncomment below */
-/*
-.scrollable-on-hover {
-  scrollbar-width: thin;
-}
-.scrollable-on-hover::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-  display: block;
-}
-.scrollable-on-hover::-webkit-scrollbar-thumb {
-  background: rgba(128, 128, 128, 0.3);
-  border-radius: 3px;
-}
-.scrollable-on-hover::-webkit-scrollbar-track {
+body:has([data-not-found]) [data-site-surface] {
+  border: 0;
   background: transparent;
 }
-*/
 
-/* Utility classes for theme-aware colors */
-.text-theme-foreground {
-  color: rgb(var(--color-foreground));
+body:has([data-project-page]) [data-frame-gutters] {
+  display: none;
 }
 
-.text-theme-muted {
-  color: rgb(var(--color-muted));
+body:has([data-project-page]) [data-site-surface] {
+  border: 0;
+  background: transparent;
 }
 
-.bg-theme-card {
-  background-color: rgb(var(--color-card));
-}
-
-.border-theme {
-  border-color: rgb(var(--color-border));
-}
-
-/* Text overflow handling */
-.overflow-wrap-anywhere {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-/* Markdown content container - prevents overflow */
-.markdown-content {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  min-width: 0;
-}
-
-.markdown-content a {
-  word-break: break-all;
-}
-
-.markdown-content pre {
-  overflow-x: auto;
-  max-width: 100%;
-}
-
-.markdown-content code {
-  word-break: break-word;
-}
-
-/* Utility to hide scrollbars while maintaining scroll functionality */
-@layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+@layer components {
+  .section-heading {
+    @apply text-xl font-semibold border-y border-dashed bg-muted/20 px-6 py-2;
   }
-  .scrollbar-hide::-webkit-scrollbar {
+
+  /* -------------------------------------------------------------------------
+     Testimonial marquee (components/landing/testimonials.tsx)
+
+     Two identical copies of the row sit side by side, and the track moves by
+     exactly half its own width, so the loop is seamless with no per-frame JS.
+     Each row sets its duration from its item count to keep both rows at the
+     same px/s. Hover slowdown changes the running animation's playback rate.
+  ------------------------------------------------------------------------- */
+  .testimonial-marquee {
+    display: flex;
+    width: max-content;
+    animation: marquee-left var(--marquee-duration, 60s) linear infinite;
+    will-change: transform;
+  }
+
+  .testimonial-marquee[data-reverse="true"] {
+    animation-name: marquee-right;
+  }
+
+  .testimonial-marquee[data-paused="true"] {
+    animation-play-state: paused;
+    will-change: auto;
+  }
+
+  @media (width >= 48rem) {
+    .testimonial-marquee {
+      animation-duration: var(--marquee-duration-md, var(--marquee-duration, 60s));
+    }
+  }
+
+  .micro-transition {
+    transition-property: transform, background-color, border-color, color, opacity, box-shadow;
+    transition-duration: var(--motion-duration-base);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .micro-transition-slow {
+    transition-property: transform, background-color, border-color, color, opacity, box-shadow;
+    transition-duration: var(--motion-duration-slow);
+    transition-timing-function: var(--motion-ease-smooth);
+  }
+
+  .micro-press {
+    transition-property: transform;
+    transition-duration: var(--motion-duration-fast);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .micro-press:active {
+    transform: scale(0.992);
+  }
+  /* -------------------------------------------------------------------------
+     Liquid glass (components/landing/visitor-counter-odometer.tsx)
+
+     The no-WebGL take on Apple's liquid glass. The pane is a tinted frost:
+     a translucent theme background with a short blur and a saturation boost,
+     so the footer artwork behind it bleeds through as color instead of shape.
+     The specular rim is inset shadows, one highlight per edge, so no border
+     is added (§10). Chromium also paints SVG filter references inside
+     backdrop-filter, so there the backdrop bends through a turbulence
+     displacement map for the refraction. Everywhere else the tint and the
+     rim still read as glass, just without the wobble.
+  ------------------------------------------------------------------------- */
+  .liquid-glass {
+    background-color: color-mix(in oklab, var(--background) 55%, transparent);
+    -webkit-backdrop-filter: blur(3px) saturate(160%);
+    backdrop-filter: blur(3px) saturate(160%);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.35),
+      inset 0 -1px 0 0 rgb(255 255 255 / 0.14),
+      0 10px 28px -12px rgb(0 0 0 / 0.35);
+  }
+
+  /* -------------------------------------------------------------------------
+     Bottom fade (app/page.tsx)
+
+     A lightweight gradient fade for the fixed bottom edge, avoiding per-frame
+     backdrop-filter repaints while scrolling. Pairs with PixelDissolve.
+  ------------------------------------------------------------------------- */
+  .bottom-blur {
+    pointer-events: none;
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 10;
+    height: calc(80px + env(safe-area-inset-bottom));
+    background-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      color-mix(in oklab, var(--background) 72%, transparent) 55%,
+      var(--background) 100%
+    );
+  }
+
+  @media (width < 48rem) {
+    .bottom-blur {
+      height: calc(24px + env(safe-area-inset-bottom));
+    }
+  }
+
+  .blueprint-bg {
+    background-image:
+      repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.015) 10px, rgba(0,0,0,0.015) 11px),
+      repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(0,0,0,0.015) 10px, rgba(0,0,0,0.015) 11px);
+  }
+
+  .dark .blueprint-bg {
+    background-image:
+      repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.01) 10px, rgba(255,255,255,0.01) 11px),
+      repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(255,255,255,0.01) 10px, rgba(255,255,255,0.01) 11px);
+  }
+
+  /* -------------------------------------------------------------------------
+     Frame gutters (components/frame-gutters.tsx)
+
+     Dot-grid decoration for the dead space either side of the centered column
+     on wide viewports. Drawn entirely with background gradients — no borders,
+     so the gutters never double up on an edge the frame already owns (§10).
+     Colors come from theme tokens so both themes track on their own.
+  ------------------------------------------------------------------------- */
+  .frame-gutter-dots {
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--muted-foreground) 24%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 14px 14px;
+  }
+
+  /* The same grid in the accent color, revealed only inside a soft circle
+     around the pointer. Origin and size have to match `.frame-gutter-dots`
+     exactly, or the lit dots drift off the muted ones underneath.
+     `--gutter-x/y` are written per band by components/frame-gutters.tsx. */
+  .frame-gutter-dots-lit {
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--primary) 75%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 14px 14px;
+    opacity: var(--gutter-lit, 0);
+    mask-image: radial-gradient(
+      circle 7.5rem at var(--gutter-x, -50%) var(--gutter-y, -50%),
+      black,
+      transparent 70%
+    );
+    transition: opacity var(--motion-duration-slow) var(--motion-ease-standard);
+  }
+
+  /* -------------------------------------------------------------------------
+     Preview box (app/components/[id]/preview-box.tsx)
+
+     Both panes stay mounted in one grid cell for the lifetime of the box.
+     Toggling a tab only flips a `data-active` attribute, so the demo subtree
+     is never torn down and rebuilt, and the box height — resolved once from
+     the in-flow preview pane — never changes. That is what kills the tab
+     switch jank: no remount, no collapse frame, no CLS.
+  ------------------------------------------------------------------------- */
+  .preview-box {
+    /* Reflow and paint stay inside the box: resizing the demo or scrolling the
+       code pane can't invalidate the layout of the surrounding document. */
+    contain: layout paint style;
+  }
+
+  .preview-body {
+    --preview-min-h: clamp(200px, 30vh, 300px);
+    /* Ceiling — tall demos scroll inside the pane instead of stretching the
+       box, so every component gets a similar-sized stage. */
+    --preview-max-h: clamp(420px, 62vh, 560px);
+    display: grid;
+    grid-template-areas: "pane";
+    /* Floor for small previews — the ceiling lives on the panes via
+       max-height, where tall previews scroll inside instead of stretching. */
+    min-height: var(--preview-min-h);
+  }
+
+  /* `svh` (not `vh`) so mobile URL-bar collapse can't resize the box. */
+  @supports (height: 1svh) {
+    .preview-body {
+      --preview-min-h: clamp(200px, 30svh, 300px);
+      --preview-max-h: clamp(420px, 62svh, 560px);
+    }
+  }
+
+  .preview-pane {
+    grid-area: pane;
+    /* Long lines in the code pane must not widen the single grid track. */
+    min-width: 0;
+    /* Ceiling — content taller than this scrolls inside the pane. */
+    max-height: var(--preview-max-h);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Only opacity/transform animate, so the fade stays on the compositor.
+       `visibility` is delayed to the end of the fade — it drops the hidden
+       pane from the tab order and the a11y tree without interrupting it. */
+    transition:
+      opacity var(--motion-duration-fast) var(--motion-ease-standard),
+      transform var(--motion-duration-fast) var(--motion-ease-standard),
+      visibility 0s linear var(--motion-duration-fast);
+  }
+
+  .preview-pane[data-active="true"] {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    /* No delay on the way in — the pane must appear before it fades. */
+    transition-delay: 0s;
+  }
+
+  .preview-pane[data-active="false"] {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    pointer-events: none;
+  }
+
+  /* Out of flow on purpose: the code pane's full scrollHeight must not feed
+     back into the shared row height, or the box would jump every time a
+     longer file is shown. `inset: 0` makes it inherit whatever height the
+     preview pane resolved. */
+  .preview-pane--code {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    scrollbar-width: none !important;
+    /* Scroll chaining inside the code pane never scrolls the page behind it. */
+    overscroll-behavior: contain;
+    contain: layout paint;
+  }
+  .preview-pane--code::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .preview-pane {
+      transition: none;
+    }
+  }
+
+}
+
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes marquee-left {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes marquee-right {
+  from { transform: translate3d(-50%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
     display: none;
+    width: 0;
+    height: 0;
   }
 }
 
-/* Blog layout styles */
-.blog-shell {
-  position: fixed;
-  inset: 0;
-  overflow-y: auto;
-  background: var(--color-background);
-  color: var(--color-foreground);
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
-.blog-root {
-  font-family: var(--font-blog-body, var(--font-sans));
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-.blog-serif {
-  font-family: var(--font-blog-heading, var(--font-serif));
-  letter-spacing: var(--tracking-tight);
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(220 10% 40%) transparent;
 }
 
-.blog-container {
-  width: 100%;
-  max-width: 58rem;
-  margin: 0 auto;
-  padding: 0 1.25rem;
+/* WebKit (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-.blog-nav {
-  position: sticky;
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(220 10% 40%);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(220 10% 30%);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Entrance reveals (`lib/motion.ts`) are inline styles written by Motion, so
+     the rules above never reach them. Pin the resolved state instead: an
+     `!important` declaration outranks an inline style. */
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* The signature draws itself on scroll. Reduced motion shows the finished
+     stroke immediately, including before hydration. */
+  .signature-path {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Skip to content link */
+.skip-to-content {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 8px 16px;
+  z-index: 100;
+  transition: top 0.2s ease;
+}
+
+.skip-to-content:focus {
   top: 0;
-  z-index: 20;
-  background: var(--color-background);
-  border-bottom: 1px solid var(--color-border);
 }
 
-.blog-nav-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 4rem;
-}
+/* ---- Blog (dev.to posts) ---- */
 
-.blog-logo {
-  width: 2.2rem;
-  height: 2.2rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.blog-nav-links {
-  display: flex;
-  gap: 1.25rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.blog-nav-link {
-  color: var(--color-muted-foreground);
-  transition: color 200ms ease;
-}
-
-.blog-nav-link:hover {
-  color: var(--color-foreground);
-}
-
-.blog-page {
-  min-height: 100dvh;
-  padding: 5.5rem 0 4.5rem;
-}
-
-@media screen and (max-width: 640px) {
-  .blog-page {
-    padding: 2rem 0 3rem;
+/* The same short fade, blur and rise the home page uses. Pure CSS so the blog
+   pages can stay server components. Set --rise-delay to stagger children. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(10px);
   }
 }
 
-.blog-page-light {
-  background: var(--color-background);
-  color: var(--color-foreground);
+.rise {
+  animation: rise 0.46s var(--motion-ease-standard) both;
+  animation-delay: var(--rise-delay, 0s);
 }
 
-.blog-page-article {
-  background: var(--color-background);
-  color: var(--color-foreground);
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
 }
 
-.blog-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 3.5rem;
-}
-
-.blog-hero-title {
-  font-size: clamp(2.2rem, 4vw, 3.6rem);
-  line-height: 1.05;
-}
-
-.blog-article .blog-hero-title {
-  font-size: clamp(2.6rem, 4.6vw, 4.2rem);
-}
-
-.blog-hero-subtitle {
-  color: var(--color-muted-foreground);
-  max-width: 32rem;
-  font-size: 0.95rem;
-}
-
-.blog-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2.25rem;
-}
-
-.blog-list-item {
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 2rem;
-}
-
-.blog-list-link {
-  display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-.blog-list-media {
-  display: flex;
-  align-items: flex-start;
-}
-
-.blog-list-image {
-  position: relative;
-  width: 96px;
-  height: 96px;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-}
-
-.blog-list-image-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.blog-list-placeholder {
-  width: 96px;
-  height: 96px;
-  border-radius: 10px;
-  background: var(--color-muted);
-  color: var(--color-muted-foreground);
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-}
-
-.blog-list-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.blog-list-meta {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--color-muted-foreground);
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.blog-title {
-  font-size: 1.5rem;
-  line-height: 1.2;
-}
-
-.blog-excerpt {
-  color: var(--color-muted-foreground);
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.blog-read-more {
-  font-size: 0.7rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-destructive);
-}
-
-.blog-pagination {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-top: 3rem;
-}
-
-.blog-pagination-link {
-  color: var(--color-destructive);
-}
-
-.blog-empty {
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 2rem;
-  text-align: center;
-}
-
-.blog-footer {
-  border-top: 1px solid var(--color-border);
-  padding: 1.25rem 0 2.5rem;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--color-muted-foreground);
-}
-
-.blog-footer-inner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.blog-footer-link {
-  color: var(--color-muted-foreground);
-  transition: color 200ms ease;
-}
-
-.blog-footer-link:hover {
-  color: var(--color-foreground);
-}
-
-.blog-footer-sep {
-  color: var(--color-border);
-}
-
-.blog-back-link {
-  font-size: 0.7rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--color-destructive);
-  display: inline-flex;
-  margin-bottom: 1.5rem;
-}
-
-.blog-meta {
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  color: var(--color-muted-foreground);
-  margin: 1.5rem 0 2.5rem;
-}
-
-.blog-dot {
-  opacity: 0.4;
-}
-
-.blog-cover {
-  margin: 2.5rem 0 3.5rem;
-}
-
-.blog-cover-image {
-  width: 100%;
-  height: auto;
-  border-radius: 18px;
-  border: 1px solid var(--color-border);
-}
-
+/* dev.to sends ready-made HTML, so the article body is styled by element. */
 .blog-content {
-  font-size: clamp(1.05rem, 0.6vw + 0.95rem, 1.2rem);
+  font-size: 0.9375rem;
   line-height: 1.8;
-  color: var(--color-foreground);
+  color: color-mix(in oklch, var(--foreground) 88%, transparent);
+}
+
+.blog-content > :first-child {
+  margin-top: 0;
 }
 
 .blog-content h1,
 .blog-content h2,
-.blog-content h3 {
-  font-family: var(--font-blog-heading, var(--font-serif));
-  color: var(--color-foreground);
-  margin: 2.5rem 0 1rem;
+.blog-content h3,
+.blog-content h4 {
+  font-family: var(--font-instrument-serif), serif;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
   line-height: 1.2;
+  margin: 2.25rem 0 0.75rem;
 }
 
 .blog-content h1 {
-  font-size: clamp(2rem, 2.2vw + 1.4rem, 2.8rem);
+  font-size: 1.875rem;
 }
 
 .blog-content h2 {
-  font-size: clamp(1.6rem, 1.6vw + 1.1rem, 2.2rem);
+  font-size: 1.625rem;
 }
 
 .blog-content h3 {
-  font-size: clamp(1.3rem, 1.2vw + 0.9rem, 1.8rem);
+  font-size: 1.375rem;
 }
 
 .blog-content h4 {
-  font-size: clamp(1.1rem, 0.9vw + 0.85rem, 1.5rem);
+  font-size: 1.125rem;
 }
 
-.blog-content h5 {
-  font-size: clamp(1rem, 0.6vw + 0.8rem, 1.25rem);
-}
-
+.blog-content h5,
 .blog-content h6 {
-  font-size: clamp(0.95rem, 0.4vw + 0.75rem, 1.1rem);
-  text-transform: uppercase;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin: 1.75rem 0 0.5rem;
 }
 
 .blog-content p {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.1rem;
 }
 
 .blog-content a {
-  color: var(--color-destructive);
-  text-decoration: none;
-  border-bottom: 1px solid var(--color-destructive);
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklch, var(--primary) 35%, transparent);
+  text-underline-offset: 4px;
+  transition: text-decoration-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.blog-content a:hover {
+  text-decoration-color: var(--primary);
 }
 
 .blog-content blockquote {
-  border-left: 2px solid var(--color-border);
+  border-left: 2px solid var(--border);
   padding-left: 1rem;
-  color: var(--color-muted-foreground);
+  color: var(--muted-foreground);
   margin: 1.5rem 0;
-  font-size: 0.98em;
   font-style: italic;
-}
-
-.blog-content ul,
-.blog-content ol {
-  padding-left: 1.5rem;
-  margin: 1.25rem 0;
-  color: var(--color-foreground);
 }
 
 /* Preflight sets `list-style: none` on every list, so rendered article HTML has
    to restore its markers explicitly. */
+.blog-content ul,
+.blog-content ol {
+  padding-left: 1.5rem;
+  margin: 1.1rem 0;
+}
+
 .blog-content ul {
   list-style: disc;
 }
@@ -836,11 +789,11 @@ body {
 }
 
 .blog-content li {
-  margin: 0.35rem 0;
+  margin: 0.3rem 0;
 }
 
 .blog-content li::marker {
-  color: var(--color-muted-foreground);
+  color: var(--muted-foreground);
 }
 
 /* dev.to wraps each list item's text in a <p>, whose bottom margin would
@@ -849,31 +802,37 @@ body {
   margin-bottom: 0;
 }
 
+.blog-content img {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  margin: 1.5rem 0;
+}
+
 /* dev.to emits `<div class="table-wrapper-paragraph"><table>`; the wrapper is
    the scroll container so a wide table cannot overflow the article column. */
 .blog-content .table-wrapper-paragraph {
   overflow-x: auto;
-  margin: 1.75rem 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  margin: 1.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
 }
 
 .blog-content table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.92em;
+  font-size: 0.875rem;
 }
 
 .blog-content th,
 .blog-content td {
-  padding: 0.65rem 0.9rem;
+  padding: 0.6rem 0.85rem;
   text-align: left;
   vertical-align: top;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--border);
 }
 
 .blog-content th {
-  background: var(--color-muted);
+  background: color-mix(in oklch, var(--muted) 60%, transparent);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -882,32 +841,31 @@ body {
   border-bottom: 0;
 }
 
-/* Preflight leaves `hr` inheriting the foreground colour, which renders a
-   near-black rule instead of the subtle border used elsewhere. */
 .blog-content hr {
   border: 0;
-  border-top: 1px solid var(--color-border);
-  margin: 2.5rem 0;
+  border-top: 1px dashed var(--border);
+  margin: 2.25rem 0;
 }
 
 .blog-content code {
-  background: var(--color-muted);
-  border-radius: 0.35rem;
+  font-family: var(--font-geist-mono), monospace;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
   padding: 0.15em 0.4em;
-  font-size: 0.875em;
+  font-size: 0.8125em;
 }
 
 /* Code blocks arrive as `<div class="highlight"><pre><code>` with Prism token
    classes, so only the container needs styling. */
 .blog-content pre {
-  background: var(--color-code-bg);
-  color: var(--color-code-fg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 1rem 1.15rem;
-  margin: 1.75rem 0;
+  margin: 1.5rem 0;
   overflow-x: auto;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.65;
 }
 
@@ -923,75 +881,4 @@ body {
    It is only functional on dev.to itself, so it is hidden here. */
 .blog-content .highlight__panel {
   display: none;
-}
-
-.blog-recent {
-  border-top: 1px solid var(--color-border);
-  margin-top: 3.5rem;
-  padding-top: 2.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.blog-recent-title {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  color: var(--color-muted-foreground);
-}
-
-.blog-recent-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.blog-recent-item {
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 1rem;
-}
-
-.blog-recent-link {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  color: var(--color-foreground);
-}
-
-.blog-recent-meta {
-  font-size: 0.7rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--color-muted-foreground);
-}
-
-.blog-recent-name {
-  font-size: 1.1rem;
-  line-height: 1.3;
-}
-
-.blog-recent-all {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: var(--color-destructive);
-}
-
-@media (max-width: 640px) {
-  .blog-nav-links {
-    gap: 0.8rem;
-    font-size: 0.6rem;
-  }
-
-  .blog-list-link {
-    grid-template-columns: 72px 1fr;
-    gap: 1rem;
-  }
-
-  .blog-list-image,
-  .blog-list-placeholder {
-    width: 72px;
-    height: 72px;
-  }
 }

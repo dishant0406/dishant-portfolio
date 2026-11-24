@@ -65,20 +65,19 @@ jobs:
         # `--update-env-vars` (not `--set-env-vars`) so the env vars already
         # configured on the service are preserved.
         #
-        # DEVTO_API_KEY is injected here, at runtime. It must never be passed as
+        # DEVTO_API_KEY and PROFILE_G_TOKEN are injected here, at runtime. They must
+        # never be passed as
         # a `--build-arg`: build args are recorded in the image history and are
         # readable by anyone who can pull the image.
         #
-        # ADMIN_SESSION_SECRET and INTERNAL_API_TOKEN come from Secret Manager so
-        # their values stay out of the service definition. /admin signs its login
-        # cookie with the first and authenticates the config-reload call to the
-        # Mastra process with the second.
+        # REVALIDATE_TOKEN comes from Secret Manager so its value stays out of the
+        # service definition.
         run: |
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --image "${{ steps.image.outputs.image }}" \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_ID" \
             --platform managed \
-            --update-env-vars "DEVTO_USERNAME=${{ vars.DEVTO_USERNAME }},DEVTO_API_KEY=${{ secrets.DEVTO_API_KEY }}" \
-            --update-secrets "ADMIN_SESSION_SECRET=admin-session-secret:latest,INTERNAL_API_TOKEN=internal-api-token:latest,REVALIDATE_TOKEN=revalidate-token:latest" \
+            --update-env-vars "DEVTO_USERNAME=${{ vars.DEVTO_USERNAME }},DEVTO_API_KEY=${{ secrets.DEVTO_API_KEY }},PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }}" \
+            --update-secrets "REVALIDATE_TOKEN=revalidate-token:latest" \
             --quiet

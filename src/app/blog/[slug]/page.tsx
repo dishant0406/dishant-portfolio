@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 
 import { BlogPostContent } from '@/components/blog/BlogPostContent';
 import { RecentPosts } from '@/components/blog/RecentPosts';
+import { ArrowLeft } from '@/components/shared/site-icons';
 import { JsonLd } from '@/components/JsonLd';
 import { fetchAllPosts, fetchBlogPostBySlug } from '@/lib/api/devto';
 import { blogPostingJsonLd, breadcrumbJsonLd, siteUrl } from '@/lib/seo';
@@ -125,32 +126,39 @@ export default async function BlogPostPage({
   const wasUpdated = new Date(post.updatedAt).getTime() > new Date(post.publishedAt).getTime();
 
   return (
-    <main className="blog-page blog-page-article">
+    <>
       <JsonLd data={blogPostingJsonLd(post)} />
       <JsonLd data={breadcrumbJsonLd(post)} />
-      <div className="blog-container blog-article">
-        <Link className="blog-back-link" href="/blog">
-          Back to articles
-        </Link>
-        <h1 className="blog-hero-title blog-serif">{post.title}</h1>
-        <div className="blog-meta">
-          <span>{wasUpdated ? `Updated ${formatDate(post.updatedAt)}` : formattedDate}</span>
-          <span className="blog-dot" aria-hidden="true">
-            ·
-          </span>
-          <span>{post.author.name}</span>
-          <span className="blog-dot" aria-hidden="true">
-            ·
-          </span>
-          <span>{post.readTimeInMinutes} min read</span>
-        </div>
+      <article className="flex flex-col gap-y-4">
+        <header className="rise space-y-3 px-6">
+          <Link
+            href="/blog"
+            className="micro-transition inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-3.5" />
+            Back to articles
+          </Link>
+          <h1 className="font-serif text-3xl italic leading-[1.1] tracking-tight text-balance sm:text-4xl">
+            {post.title}
+          </h1>
+          <p className="font-mono text-xs text-muted-foreground">
+            {wasUpdated ? `Updated ${formatDate(post.updatedAt)}` : formattedDate}
+            <span aria-hidden="true"> · </span>
+            {post.author.name}
+            <span aria-hidden="true"> · </span>
+            {post.readTimeInMinutes} min read
+          </p>
+        </header>
 
         {post.coverImage?.url && (
-          <div className="blog-cover">
+          <div
+            className="rise mx-6 overflow-hidden rounded-xl border"
+            style={{ '--rise-delay': '0.08s' } as React.CSSProperties}
+          >
             <Image
               priority
               alt={post.title}
-              className="blog-cover-image"
+              className="h-auto w-full"
               height={420}
               sizes="(max-width: 768px) 100vw, 768px"
               src={post.coverImage.url}
@@ -159,9 +167,11 @@ export default async function BlogPostPage({
           </div>
         )}
 
-        <BlogPostContent html={post.content.html} />
-        <RecentPosts currentSlug={slug} />
-      </div>
-    </main>
+        <div className="rise" style={{ '--rise-delay': '0.14s' } as React.CSSProperties}>
+          <BlogPostContent html={post.content.html} />
+        </div>
+      </article>
+      <RecentPosts currentSlug={slug} />
+    </>
   );
 }

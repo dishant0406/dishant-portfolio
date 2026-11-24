@@ -36,7 +36,6 @@ function wwwRedirect() {
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  serverExternalPackages: ["@mastra/*"],
   turbopack: {
     root: process.cwd(),
   },
@@ -61,7 +60,11 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'cloudmate-test.s3.us-east-1.amazonaws.com',
-      }
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+      },
     ],
   },
 };

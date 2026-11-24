@@ -1,7 +1,7 @@
-import Link from 'next/link';
-
 import { fetchAllPosts } from '@/lib/api/devto';
 import type { BlogPost } from '@/lib/types/blog';
+
+import { BlogListItem } from './BlogListItem';
 
 interface RecentPostsProps {
   currentSlug: string;
@@ -23,21 +23,13 @@ export async function RecentPosts({ currentSlug }: RecentPostsProps): Promise<Re
   }
 
   return (
-    <section className="blog-recent">
-      <h2 className="blog-recent-title blog-serif">Recent posts</h2>
-      <div className="blog-recent-list">
+    <section className="border-t border-dashed pt-6">
+      <h2 className="section-heading mb-3">Recent posts</h2>
+      <ul className="px-4 pb-6 sm:px-6">
         {posts.map((post) => (
-          <article key={post.slug} className="blog-recent-item">
-            <Link className="blog-recent-link" href={`/blog/${post.slug}`}>
-              <span className="blog-recent-meta">{post.readTimeInMinutes} min read</span>
-              <span className="blog-recent-name">{post.title}</span>
-            </Link>
-          </article>
+          <BlogListItem key={post.slug} post={post} />
         ))}
-      </div>
-      <Link className="blog-recent-all" href="/blog">
-        View all posts
-      </Link>
+      </ul>
     </section>
   );
 }

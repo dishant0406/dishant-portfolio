@@ -1,11 +1,3 @@
-interface BlogPostContentProps {
-  html: string;
-}
-
-export function BlogPostContent({ html }: BlogPostContentProps): React.JSX.Element {
-  return (
-    <div className="blog-content">
-      <div dangerouslySetInnerHTML={{ __html: html }} />
-    </div>
-  );
+export function BlogPostContent({ html }: { html: string }): React.JSX.Element {
+  return <div className="blog-content px-6 pb-10" dangerouslySetInnerHTML={{ __html: html }} />;
 }

@@ -1,11 +1,9 @@
 .gcloud-config
 .gcloud-local.env
-.mastra
 .git
 .next
 .env*
 node_modules
-mastra-server/dist
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*

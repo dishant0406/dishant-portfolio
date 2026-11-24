@@ -1,8 +1,10 @@
 import 'server-only';
 
+import config from '@/config/config.json';
+
 export const env = {
-  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://dishantsharma.dev',
-  DEVTO_USERNAME: process.env.DEVTO_USERNAME || 'dishant0406',
+  NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || config.site.url,
+  DEVTO_USERNAME: process.env.DEVTO_USERNAME || config.person.devtoUsername,
   DEVTO_API_KEY: process.env.DEVTO_API_KEY || '',
 };
 

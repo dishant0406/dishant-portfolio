@@ -1,96 +1,143 @@
-import { HomePage } from '@/components';
-import { JsonLd } from '@/components/JsonLd';
-import { defaultMetadata, ogImage } from '@/lib/constants';
-import { getThreadById } from '@/lib/get-thread';
-import { getPersonalizedGreeting } from '@/lib/helpers';
-import { profilePageJsonLd, websiteJsonLd } from '@/lib/seo';
-import type { Metadata } from 'next';
-import { Suspense } from 'react';
+import { About } from "@/components/landing/about";
+import { Bookmarks } from "@/components/landing/bookmarks";
+import { Bookshelf } from "@/components/landing/bookshelf";
+import { Certifications } from "@/components/landing/certifications";
+import { Experience } from "@/components/landing/experience";
+import { Footer } from "@/components/landing/footer";
+import { Insights } from "@/components/landing/insights";
+import { GitHubSection } from "@/components/landing/github-section";
+import { Hero } from "@/components/landing/hero";
+import { HomeProjectExplorer } from "@/components/landing/home-project-explorer";
+import { HomeSectionRail } from "@/components/landing/home-section-rail";
+import { ProfileBanner } from "@/components/landing/profile-banner";
+import Social from "@/components/landing/social";
+import { Skills } from "@/components/landing/skills";
+import { Testimonials } from "@/components/landing/testimonials";
+import { GitSkeleton } from "@/components/skeletons/github-skeleton";
+import { PixelDissolve } from "@/components/ui/pixel-dissolve";
+import { SideNote } from "@/components/shared/side-note";
+import { booksConfig } from "@/config/books";
+import config from "@/config/config.json";
+import { experienceConfig } from "@/config/experience";
+import { projectsSectionConfig } from "@/config/projects";
+import { fetchProjects } from "@/lib/github/projects";
+import { sectionNotes, sectionOrder } from "@/config/section-notes";
+import { testimonialsConfig } from "@/config/testimonials";
+import type { Project, SectionId } from "@/config/types";
+import { Suspense } from "react";
 
-// Generate metadata based on chat ID in URL
-export async function generateMetadata({ 
-  searchParams 
-}: { 
-  searchParams: Promise<{ chat?: string }> 
-}): Promise<Metadata> {
-  const params = await searchParams;
-  const chatId = params?.chat;
+// The token is read on every request, not at build time: the Docker build has no
+// secrets, so a static page would never show the GitHub section.
+export const dynamic = "force-dynamic";
 
-  // If no chat ID, return default metadata
-  if (!chatId) {
-    return defaultMetadata;
-  }
+// A section shows only when it has something to show. The GitHub section also
+// needs a token, because the contribution graph comes from the GitHub GraphQL API.
+function getHasContent(projectCount: number): Record<SectionId, boolean> {
+  return {
+    projects: projectCount > 0,
+    experience: experienceConfig.length > 0,
+    socials: config.socials.items.length > 0,
+    skills: config.skills.items.length > 0,
+    about: config.about.items.length > 0,
+    insights: config.insights.enabled,
+    github: config.github.enabled && Boolean(process.env.PROFILE_G_TOKEN),
+    testimonials: testimonialsConfig.length > 0,
+    bookshelf: booksConfig.length > 0,
+    bookmarks: config.bookmarks.items.length > 0,
+    certifications: config.certifications.items.length > 0,
+  };
+}
 
-  try {
-    // Fetch thread data from Mastra memory
-    const thread = await getThreadById(chatId);
+// The explorer reads the short line under each name as `subtitle`.
+function explorerProjects(projects: Project[]) {
+  return projects.map((project) => ({ ...project, subtitle: project.tagline }));
+}
 
-    if (!thread) {
-      return defaultMetadata;
-    }
+const sectionLabels: Record<SectionId, string> = {
+  projects: "Projects",
+  experience: "Experience",
+  socials: "Socials",
+  skills: "Stack",
+  about: "About",
+  insights: "Insights",
+  github: "GitHub",
+  testimonials: "Testimonials",
+  bookshelf: "Bookshelf",
+  bookmarks: "Bookmarks",
+  certifications: "Certificates",
+};
 
-    const title = thread.title 
-      ? `${thread.title} | Dishant Sharma` 
-      : 'Chat with Dishant Sharma';
-    
-    const description = thread.description || 
-      'A conversation about my projects, skills, and experience.';
-
-    return {
-      title,
-      description,
-      // A shared chat is a copy of the homepage with a different title, so it
-      // stays out of search results.
-      robots: { index: false, follow: true },
-      openGraph: {
-        title,
-        description,
-        type: 'website',
-        images: [
-          {
-            url: ogImage,
-            width: 1200,
-            height: 630,
-            alt: title,
-          },
-        ],
-      },
-      twitter: {
-        card: 'summary_large_image',
-        title,
-        description,
-        images: [ogImage],
-      },
-    };
-  } catch (error) {
-    console.error('Error generating metadata:', error);
-    return defaultMetadata;
+function renderSection(id: SectionId, projects: Project[]) {
+  switch (id) {
+    case "projects":
+      return <HomeProjectExplorer projects={explorerProjects(projects)} title={projectsSectionConfig.title} />;
+    case "experience":
+      return <Experience />;
+    case "socials":
+      return <Social />;
+    case "skills":
+      return <Skills />;
+    case "about":
+      return <About />;
+    case "insights":
+      return (
+        <Suspense fallback={null}>
+          <Insights />
+        </Suspense>
+      );
+    case "github":
+      return (
+        <Suspense fallback={<GitSkeleton />}>
+          <GitHubSection />
+        </Suspense>
+      );
+    case "testimonials":
+      return <Testimonials />;
+    case "bookshelf":
+      return <Bookshelf books={booksConfig} />;
+    case "bookmarks":
+      return <Bookmarks />;
+    case "certifications":
+      return <Certifications />;
   }
 }
 
-// Loading fallback component
-function LoadingFallback() {
-  return (
-    <div className="h-screen w-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-  );
-}
-
-// Server Component - wraps the client HomePage with Suspense
 export default async function Home() {
-  const greetingData = await getPersonalizedGreeting();
-  
+  const projects = await fetchProjects();
+  const hasContent = getHasContent(projects.length);
+  const visibleSections = sectionOrder.filter((id) => hasContent[id]);
+
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <JsonLd data={profilePageJsonLd()} />
-      <JsonLd data={websiteJsonLd()} />
-      <HomePage 
-        serverGreeting={greetingData.greeting}
-        city={greetingData.city}
-        weather={greetingData.weather}
-        holiday={greetingData.holiday}
+    <>
+      <main
+        id="main-content"
+        className="relative flex min-h-dvh flex-col gap-y-4 overflow-x-clip border-x bg-background pt-0 xl:overflow-x-visible"
+      >
+        <div id="hero" className="bg-background scroll-mt-20">
+          <ProfileBanner />
+          <Hero />
+        </div>
+        {visibleSections.map((id) => {
+          const note = sectionNotes[id];
+          return (
+            <div key={id} id={id} className="relative bg-background scroll-mt-20">
+              {note && <SideNote side={note.side}>{note.text}</SideNote>}
+              {renderSection(id, projects)}
+            </div>
+          );
+        })}
+      </main>
+      <Footer />
+      <HomeSectionRail
+        items={[
+          { id: "hero", label: "Top" },
+          ...visibleSections.map((id) => ({ id, label: sectionLabels[id] })),
+        ]}
       />
-    </Suspense>
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 mx-auto w-full max-w-[var(--frame-max-w)]">
+        <div aria-hidden="true" className="bottom-blur" />
+        <PixelDissolve />
+      </div>
+    </>
   );
 }

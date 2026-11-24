@@ -1,0 +1,56 @@
+import {
+  asteriskDef,
+  flowerRedDef,
+  flowerYellowDef,
+  lightningBoltDef,
+  pinkDinoDef,
+  redCrabDef,
+  sixStarDef,
+  solidStarDef,
+  spiralDef,
+  starOutlineDef,
+  starfishDef,
+  sunBurstDef,
+  type StickerDef,
+} from "trazo-stickers/svg";
+
+export const githubRepoStickers: readonly StickerDef[] = [
+  sunBurstDef,
+  solidStarDef,
+  starfishDef,
+  lightningBoltDef,
+  flowerRedDef,
+  sixStarDef,
+  pinkDinoDef,
+  flowerYellowDef,
+  redCrabDef,
+  spiralDef,
+  asteriskDef,
+  starOutlineDef,
+];
+
+export const githubSectionConfig = {
+  calendarLabel: "Daily GitHub contributions",
+  minWeeks: 57,
+  keyboardHint:
+    "Use arrow keys to explore days. Left and right move by week. Home and End move to the first and last week in a row. Control Home and Control End move to the first and last day.",
+  less: "Less",
+  more: "More",
+  legend: "0, 1, 2, 3, 4+ contributions",
+  unavailable: "No data available",
+  contribution: "contribution",
+  contributions: "contributions",
+  newRepository: "New repo",
+  newRepositories: "New repos",
+  star: "star",
+  stars: "stars",
+  weekdays: [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ],
+} as const;

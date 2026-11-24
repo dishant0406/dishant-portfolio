@@ -1,18 +1,18 @@
+import config from '@/config/config.json';
+
 import { ogImage } from './constants';
 import { siteUrl } from './env';
 
 export { siteUrl };
 
-export const personName = 'Dishant Sharma';
-export const personJobTitle = 'Full Stack Developer';
-export const personDescription =
-  'Full Stack Developer building interactive web products with React, Next.js and TypeScript.';
+export const personName = config.person.fullName;
+export const personJobTitle = config.site.jobTitle;
+export const personDescription = config.site.description;
 
-const sameAs = [
-  'https://github.com/dishant0406',
-  'https://twitter.com/dishant0406',
-  'https://dev.to/dishant0406',
-];
+// Every social link that has an address becomes a `sameAs` entry.
+const sameAs = config.socials.items.flatMap((item) =>
+  'href' in item && item.href && !item.href.startsWith('mailto:') ? [item.href] : [],
+);
 
 /**
  * Structured data for the person the site is about. `@id` is reused by
@@ -30,7 +30,7 @@ export function personJsonLd() {
     description: personDescription,
     image: ogImage,
     sameAs,
-    knowsAbout: ['React', 'Next.js', 'TypeScript', 'Node.js', 'Full Stack Development'],
+    knowsAbout: config.site.knowsAbout,
   };
 }
 

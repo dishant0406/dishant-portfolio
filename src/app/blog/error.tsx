@@ -13,18 +13,18 @@ export default function BlogError({ error, reset }: BlogErrorProps): React.JSX.E
   }, [error]);
 
   return (
-    <main className="blog-page blog-page-light">
-      <div className="blog-container">
-        <div className="blog-empty">
-          <h2 className="blog-title blog-serif">Could not load articles</h2>
-          <p className="blog-excerpt">
-            The blog is temporarily unavailable. Please try again in a moment.
-          </p>
-          <button className="blog-read-more" onClick={reset} type="button">
-            try again
-          </button>
-        </div>
-      </div>
-    </main>
+    <section className="space-y-3 px-6">
+      <h1 className="font-serif text-3xl italic leading-none">Could not load articles</h1>
+      <p className="text-sm text-muted-foreground">
+        The blog is temporarily unavailable. Please try again in a moment.
+      </p>
+      <button
+        className="micro-transition font-mono text-xs text-muted-foreground hover:text-foreground"
+        onClick={reset}
+        type="button"
+      >
+        Try again
+      </button>
+    </section>
   );
 }

@@ -14,7 +14,6 @@ ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 COPY ./ .
 COPY --from=dependencies /app/node_modules ./node_modules
 
-# Build both Next.js and Mastra server
 RUN npm run build
 
 FROM node:lts AS runner
@@ -24,25 +23,17 @@ ARG NEXT_PUBLIC_SITE_URL
 
 ENV NODE_ENV=production
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
-ENV MASTRA_API_URL=http://localhost:4000
-ENV MASTRA_PORT=4000
 
 COPY --from=builder /app/next.config.ts ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/mastra-server ./mastra-server
-COPY --from=builder /app/start.sh ./start.sh
-COPY --from=builder /app/src ./src
-
-# Make start script executable
-RUN chmod +x start.sh
 
 ENV HOSTNAME="0.0.0.0"
-# Cloud Run injects PORT; Mastra runs internally on 4000.
+# Cloud Run injects PORT.
 EXPOSE 8080
 
-# Run the script directly. Going through `npm run` would add an npm process in
-# front of it that only forwards signals and arguments.
-CMD ["sh", "start.sh"]
+# Run the Next.js binary directly. Going through `npm run` would add an npm
+# process in front of it that only forwards signals and arguments.
+CMD ["sh", "-c", "exec node node_modules/next/dist/bin/next start -p \"${PORT:-8080}\" -H 0.0.0.0"]

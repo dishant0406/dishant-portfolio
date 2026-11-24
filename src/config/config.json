@@ -1,0 +1,442 @@
+{
+  "site": {
+    "url": "https://dishantsharma.dev",
+    "title": "Dishant Sharma | Full Stack Developer",
+    "titleTemplate": "%s | Dishant Sharma",
+    "shortTitle": "Dishant Sharma",
+    "description": "Dishant Sharma is a full stack developer at Groww. He builds web and mobile products, and tools for AI coding agents such as Kaji and WhyOps.",
+    "keywords": [
+      "Dishant Sharma",
+      "Portfolio",
+      "Full Stack Developer",
+      "Software Engineer",
+      "React",
+      "Next.js",
+      "TypeScript",
+      "Kaji",
+      "WhyOps"
+    ],
+    "jobTitle": "Full Stack Developer",
+    "category": "technology",
+    "classification": "Portfolio",
+    "locale": "en_US",
+    "twitterCreator": "@dishant_ic",
+    "ogImage": {
+      "url": "https://cdn.jsdelivr.net/gh/dishant0406/images-repo@master/dishantsharma.webp",
+      "width": 1200,
+      "height": 630,
+      "alt": "Dishant Sharma, Full Stack Developer"
+    },
+    "knowsAbout": [
+      "React",
+      "Next.js",
+      "TypeScript",
+      "Node.js",
+      "React Native",
+      "Rust",
+      "AI agents",
+      "Full Stack Development"
+    ]
+  },
+  "person": {
+    "fullName": "Dishant Sharma",
+    "firstName": "Dishant",
+    "location": {
+      "label": "Bengaluru, India",
+      "timeZone": "Asia/Kolkata"
+    },
+    "githubUsername": "dishant0406",
+    "devtoUsername": "dishant0406"
+  },
+  "hero": {
+    "greeting": "Dishant Sharma",
+    "headline": [
+      "I build apps",
+      "and AI tools."
+    ],
+    "description": "I am a software engineer at Groww. On my own time, I build Kaji, a Mac app for AI coding agents, and WhyOps, which shows what an AI agent did. I write about what I learn on my blog.",
+    "descriptionHighlight": "blog"
+  },
+  "navigation": [
+    {
+      "id": "home",
+      "label": "Home",
+      "href": "/",
+      "icon": "home"
+    },
+    {
+      "id": "blog",
+      "label": "Blog",
+      "href": "/blog",
+      "icon": "stack"
+    }
+  ],
+  "sections": {
+    "order": [
+      "projects",
+      "experience",
+      "socials",
+      "skills",
+      "about",
+      "insights",
+      "github",
+      "testimonials",
+      "bookshelf",
+      "bookmarks",
+      "certifications"
+    ],
+    "notes": {
+      "testimonials": {
+        "text": "Big thanks\nto these folks",
+        "side": "left"
+      },
+      "bookshelf": {
+        "text": "Books I keep\ncoming back to",
+        "side": "right"
+      },
+      "insights": {
+        "text": "My GitHub activity\nover the last 7 days",
+        "side": "right"
+      }
+    }
+  },
+  "projects": {
+    "title": "Projects",
+    "github": {
+      "limit": 8,
+      "exclude": [
+        "dishant-portfolio",
+        "portfolio",
+        "akidev-sources",
+        "homebrew-akidev",
+        "manga-sources",
+        "blog-assets",
+        "akidev-voices",
+        "pepper-carrot-source",
+        "homebrew-kaji"
+      ],
+      "featured": [
+        "kaji",
+        "whyops-org/whyops-op",
+        "akidev",
+        "ice-out",
+        "quickleap",
+        "vocapp"
+      ]
+    },
+    "overrides": {
+      "kaji": {
+        "title": "Kaji",
+        "tagline": "Mac app for AI coding agents",
+        "description": "A native macOS command center for terminal-native AI coding agents.",
+        "category": "Open source"
+      },
+      "whyops-op": {
+        "title": "WhyOps",
+        "tagline": "See what your AI agents did",
+        "description": "An observability and evaluation platform for AI agents.",
+        "liveUrl": "https://whyops.com",
+        "category": "AI"
+      },
+      "ice-out": {
+        "title": "Ice Out",
+        "tagline": "Hide Mac menu bar icons",
+        "description": "Hide macOS menu bar icons and open them from one click. It needs Accessibility only, not Screen Recording.",
+        "category": "Open source"
+      },
+      "quickleap": {
+        "title": "Quickleap",
+        "tagline": "Domain redirects without hosting",
+        "description": "A dashboard that redirects any domain with no server, with analytics and custom SSL.",
+        "liveUrl": "https://quickleap.io",
+        "image": "https://res.cloudinary.com/dx8xxeege/image/upload/v1765015533/q1_ozegec.webp",
+        "imageAlt": "Quickleap dashboard",
+        "category": "SaaS"
+      },
+      "vocapp": {
+        "title": "Vocapp",
+        "tagline": "AI podcasts in three minutes",
+        "description": "An app that turns a topic into a full podcast episode, with more than 10 voices.",
+        "liveUrl": "https://onelink.to/8sak8r",
+        "image": "https://res.cloudinary.com/dx8xxeege/image/upload/v1765015830/40334_gwvwi6.png",
+        "imageAlt": "Vocapp app screen",
+        "category": "AI"
+      },
+      "konflix": {
+        "title": "Konflix",
+        "tagline": "Anime streaming site",
+        "description": "An anime streaming website built with Next.js and GraphQL.",
+        "liveUrl": "https://konflix.xyz",
+        "category": "Web"
+      },
+      "lazyweb": {
+        "title": "Lazyweb",
+        "tagline": "Useful websites for your next project",
+        "description": "A web app that lists the websites you need for your next project. It is my most starred repository.",
+        "liveUrl": "https://lazyweb.rocks",
+        "category": "Open source"
+      },
+      "seedFunding": {
+        "title": "SeedFunding",
+        "tagline": "Crowdfunding on the blockchain",
+        "description": "A crowdfunding app built with web3 and Next.js.",
+        "liveUrl": "https://seed-funding.vercel.app",
+        "category": "Web3"
+      },
+      "akidev": {
+        "title": "Akidev",
+        "tagline": "Anime, series and music in one place",
+        "category": "Open source"
+      },
+      "dev-to": {
+        "title": "Dev.to SDK",
+        "tagline": "Typed SDK and CLI for the dev.to API",
+        "category": "Open source"
+      }
+    }
+  },
+  "socials": {
+    "title": "Socials",
+    "items": [
+      {
+        "id": "github",
+        "platform": "GitHub",
+        "handle": "@dishant0406",
+        "href": "https://github.com/dishant0406",
+        "icon": "github",
+        "action": "external"
+      },
+      {
+        "id": "x",
+        "platform": "X (Twitter)",
+        "handle": "@dishant_ic",
+        "href": "https://x.com/dishant_ic",
+        "icon": "x",
+        "action": "external",
+        "tooltipDefault": "Message on X"
+      },
+      {
+        "id": "linkedin",
+        "platform": "LinkedIn",
+        "handle": "in/dishant0406",
+        "href": "https://www.linkedin.com/in/dishant0406",
+        "icon": "linkedin",
+        "action": "external",
+        "tooltipDefault": "Connect on LinkedIn"
+      },
+      {
+        "id": "devto",
+        "platform": "DEV",
+        "handle": "@dishant0406",
+        "href": "https://dev.to/dishant0406",
+        "icon": "devto",
+        "action": "external",
+        "tooltipDefault": "Read my posts"
+      },
+      {
+        "id": "email",
+        "platform": "Email",
+        "handle": "dishant5570@gmail.com",
+        "href": "mailto:dishant5570@gmail.com",
+        "icon": "gmail",
+        "action": "mailto",
+        "tooltipDefault": "Send email"
+      }
+    ]
+  },
+  "skills": {
+    "title": "Stack",
+    "categories": [
+      {
+        "id": "language",
+        "label": "Language"
+      },
+      {
+        "id": "frontend",
+        "label": "Frontend"
+      },
+      {
+        "id": "backend",
+        "label": "Backend"
+      },
+      {
+        "id": "database",
+        "label": "Database"
+      }
+    ],
+    "items": [
+      {
+        "name": "TypeScript",
+        "icon": "typescript",
+        "category": "language"
+      },
+      {
+        "name": "JavaScript",
+        "icon": "javascript",
+        "category": "language"
+      },
+      {
+        "name": "Rust",
+        "icon": "rust",
+        "category": "language"
+      },
+      {
+        "name": "Next.js",
+        "icon": "nextjs",
+        "category": "frontend"
+      },
+      {
+        "name": "React",
+        "icon": "react",
+        "category": "frontend"
+      },
+      {
+        "name": "React Native",
+        "icon": "react",
+        "category": "frontend"
+      },
+      {
+        "name": "Tailwind CSS",
+        "icon": "tailwind",
+        "category": "frontend"
+      },
+      {
+        "name": "Node.js",
+        "icon": "nodejs",
+        "category": "backend"
+      },
+      {
+        "name": "Express.js",
+        "icon": "express",
+        "category": "backend"
+      },
+      {
+        "name": "GraphQL",
+        "icon": "graphql",
+        "category": "backend"
+      },
+      {
+        "name": "PostgreSQL",
+        "icon": "postgresql",
+        "category": "database"
+      },
+      {
+        "name": "MongoDB",
+        "icon": "mongodb",
+        "category": "database"
+      },
+      {
+        "name": "Redis",
+        "icon": "redis",
+        "category": "database"
+      }
+    ]
+  },
+  "about": {
+    "greetings": {
+      "morning": "Good morning !",
+      "afternoon": "Good afternoon !",
+      "evening": "Good evening !"
+    },
+    "items": [
+      {
+        "id": "build",
+        "lead": "I'm Dishant. I build web and mobile apps",
+        "illustration": "browser",
+        "body": "from the screens to the backend, for products that real people use every day."
+      },
+      {
+        "id": "agents",
+        "lead": "I build tools for AI coding agents",
+        "illustration": "notebook",
+        "body": "like Kaji for the Mac and WhyOps, which shows what an agent did and why."
+      },
+      {
+        "id": "write",
+        "lead": "I write about what I learn",
+        "illustration": "plane",
+        "body": "on my blog, and I keep my work open source where I can."
+      }
+    ]
+  },
+  "footer": {
+    "quote": "The soul becomes dyed with the color of its thoughts.",
+    "attribution": "Marcus Aurelius",
+    "credit": "Made with <3 and lots of coffee.",
+    "iconCredit": {
+      "text": "Icons by Solar, 480 Design (CC BY 4.0)",
+      "href": "https://github.com/480-Design/Solar-Icon-Set"
+    }
+  },
+  "github": {
+    "enabled": true
+  },
+  "testimonials": {
+    "title": "Testimonials",
+    "items": []
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "items": []
+  },
+  "certifications": {
+    "title": "Certificates",
+    "items": []
+  },
+  "notFound": {
+    "heading": "Took a wrong turn.",
+    "description": "This page is not here. Let's get you back on familiar ground."
+  },
+  "bookshelf": {
+    "title": "Bookshelf",
+    "defaultBookId": "",
+    "items": []
+  },
+  "experience": {
+    "title": "Experience",
+    "items": [
+      {
+        "id": "groww",
+        "role": "Software Engineer",
+        "company": "Groww",
+        "period": "May 2024 - Present",
+        "location": "Bengaluru",
+        "summary": "Feature flag portal, campaign management and Groww Stories for more than 10 million users."
+      },
+      {
+        "id": "nocap",
+        "role": "Full-stack Developer",
+        "company": "NoCap Meta",
+        "period": "Feb 2023 - Jul 2023",
+        "location": "Remote"
+      },
+      {
+        "id": "alive",
+        "role": "Frontend Web Developer",
+        "company": "a.live",
+        "period": "Jun 2022 - Apr 2023",
+        "location": "Bengaluru",
+        "summary": "Moved the Unity website to React, then to Next.js for speed and SEO."
+      },
+      {
+        "id": "yellomonkey",
+        "role": "SDE Intern",
+        "company": "YelloMonkey Labs",
+        "period": "Apr 2022 - Sep 2022",
+        "location": "India",
+        "summary": "Built 3D websites with Three.js and a resource management app with Firebase."
+      },
+      {
+        "id": "wobot",
+        "role": "Web Developer",
+        "company": "Wobot.ai",
+        "period": "Jun 2022 - Jul 2022",
+        "location": "Bengaluru"
+      }
+    ]
+  },
+  "insights": {
+    "enabled": true,
+    "title": "Insights"
+  }
+}

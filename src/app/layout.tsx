@@ -1,103 +1,112 @@
-import { ThemeProvider } from '@/components';
-import { siteUrl } from '@/lib/seo';
-import type { Metadata, Viewport } from 'next';
-import './globals.css';
-import { interFont } from './fonts';
+import { BottomNav } from "@/components/landing/bottom-nav";
+import { BackToTop } from "@/components/shared/back-to-top";
+import { FrameGutters } from "@/components/shared/frame-gutters";
+import { SiteHeader } from "@/components/shared/site-header";
+import { ThemeProvider } from "@/components/shared/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { siteConfig } from "@/config/site";
+import { fetchProjects } from "@/lib/github/projects";
+import { cn } from "@/lib/utils";
+import { personJsonLd, websiteJsonLd } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import type { Metadata, Viewport } from "next";
+import { dmSans, geistMono, instrumentSerif } from "./fonts";
+import "./globals.css";
 
-const inter = interFont;
+const { meta, personal } = siteConfig;
 
-// OG Image URL
-const ogImage = 'https://cdn.jsdelivr.net/gh/dishant0406/images-repo@master/dishantsharma.webp';
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#141414" },
+  ],
+};
 
-// Base metadata - specific page metadata will override these
 export const metadata: Metadata = {
-  // Same origin as `siteUrl`, so relative URLs and the sitemap can never point
-  // at a different host than the pages they describe.
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: 'Dishant Sharma | Full Stack Developer',
-    template: '%s | Dishant Sharma',
-  },
-  description: 'Interactive portfolio of Dishant Sharma - Full Stack Developer. Chat with me to learn about my projects, skills, and experience.',
-  keywords: ['Dishant Sharma', 'Portfolio', 'Full Stack Developer', 'React', 'Next.js', 'TypeScript'],
-  authors: [{ name: 'Dishant Sharma', url: siteUrl }],
-  creator: 'Dishant Sharma',
+  metadataBase: new URL(meta.url),
+  title: { default: meta.title, template: meta.titleTemplate },
+  description: meta.description,
+  keywords: meta.keywords,
+  authors: [{ name: personal.fullName, url: meta.url }],
+  creator: personal.fullName,
+  publisher: personal.fullName,
+  classification: meta.classification,
+  category: meta.category,
+  alternates: { canonical: meta.url },
   openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    siteName: 'Dishant Sharma Portfolio',
-    images: [
-      {
-        url: ogImage,
-        width: 1200,
-        height: 630,
-        alt: 'Dishant Sharma - Full Stack Developer',
-      },
-    ],
+    type: "website",
+    locale: meta.locale,
+    url: meta.url,
+    title: meta.title,
+    description: meta.description,
+    siteName: meta.shortTitle,
+    images: [meta.ogImage],
   },
   twitter: {
-    card: 'summary_large_image',
-    creator: '@dishant0406',
-    images: [ogImage],
+    card: "summary_large_image",
+    title: meta.title,
+    description: meta.description,
+    images: [meta.ogImage.url],
+    creator: meta.twitterCreator,
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
-  ],
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
-};
-
-// Script to prevent flash on page load
-const themeScript = `
-  (function() {
-    try {
-      const storedTheme = localStorage.getItem('portfolio-theme');
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      
-      let theme = storedTheme || 'system';
-      if (theme === 'system') {
-        theme = prefersDark ? 'dark' : 'light';
-      }
-      
-      document.documentElement.classList.add(theme);
-      document.documentElement.style.colorScheme = theme;
-    } catch (e) {}
-  })();
-`;
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
+  const projects = await fetchProjects();
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={cn("bg-background font-sans", dmSans.variable, instrumentSerif.variable)}
+      suppressHydrationWarning
+    >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script
           defer
           src="https://cloud.umami.is/script.js"
           data-website-id="f85088d6-f79d-45a1-844e-45417e551ac4"
         />
       </head>
-      <body className={inter.className}>
-        <ThemeProvider
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange={true}
-        >
-          {children}
+      <body className={`${geistMono.variable} antialiased`}>
+        <noscript>
+          <style>{`.no-js-visible { opacity: 1 !important; transform: none !important; filter: none !important; stroke-dashoffset: 0 !important; stroke-dasharray: none !important; }`}</style>
+        </noscript>
+        <JsonLd data={personJsonLd()} />
+        <JsonLd data={websiteJsonLd()} />
+        <ThemeProvider>
+          <TooltipProvider>
+            <div data-site-chrome="" className="contents">
+              <SiteHeader projects={projects} />
+              <FrameGutters />
+            </div>
+            <div data-site-frame="" className="relative mx-auto w-full max-w-[var(--frame-max-w)]">
+              <div data-site-surface="" className="relative w-full border-x bg-muted/20">
+                {children}
+              </div>
+              <div data-site-chrome="" className="contents">
+                <BottomNav />
+                <BackToTop />
+              </div>
+            </div>
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

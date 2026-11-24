@@ -51,16 +51,17 @@ export default async function BlogPage(): Promise<React.JSX.Element> {
   const posts = await fetchAllPosts();
 
   return (
-    <main className="blog-page blog-page-light">
-      <div className="blog-container">
-        <header className="blog-hero">
-          <h1 className="blog-hero-title blog-serif">Articles</h1>
-          <p className="blog-hero-subtitle">
-            A quiet corner for essays, system thinking, and work-in-progress notes.
-          </p>
-        </header>
+    <>
+      <header className="rise space-y-1 px-6">
+        <h1 className="font-serif text-3xl italic leading-none tracking-tight">Articles</h1>
+        <p className="text-sm text-muted-foreground">
+          Notes on AI coding tools, new models and the frameworks I use.
+        </p>
+      </header>
+      <section className="rise border-t border-dashed pt-6" style={{ '--rise-delay': '0.1s' } as React.CSSProperties}>
+        <h2 className="section-heading mb-3">All posts</h2>
         <BlogList posts={posts} />
-      </div>
-    </main>
+      </section>
+    </>
   );
 }
