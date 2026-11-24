@@ -65,19 +65,19 @@ jobs:
         # `--update-env-vars` (not `--set-env-vars`) so the env vars already
         # configured on the service are preserved.
         #
-        # DEVTO_API_KEY and PROFILE_G_TOKEN are injected here, at runtime. They must
-        # never be passed as
+        # DEVTO_API_KEY is injected here, at runtime. It must never be passed as
         # a `--build-arg`: build args are recorded in the image history and are
         # readable by anyone who can pull the image.
         #
         # REVALIDATE_TOKEN comes from Secret Manager so its value stays out of the
-        # service definition.
+        # service definition. PROFILE_G_TOKEN is also a Secret Manager secret that is
+        # already set on the service, so `--update-env-vars` must not set it again.
         run: |
           gcloud run deploy "$CLOUD_RUN_SERVICE" \
             --image "${{ steps.image.outputs.image }}" \
             --region "$GCP_REGION" \
             --project "$GCP_PROJECT_ID" \
             --platform managed \
-            --update-env-vars "DEVTO_USERNAME=${{ vars.DEVTO_USERNAME }},DEVTO_API_KEY=${{ secrets.DEVTO_API_KEY }},PROFILE_G_TOKEN=${{ secrets.PROFILE_G_TOKEN }}" \
+            --update-env-vars "DEVTO_USERNAME=${{ vars.DEVTO_USERNAME }},DEVTO_API_KEY=${{ secrets.DEVTO_API_KEY }}" \
             --update-secrets "REVALIDATE_TOKEN=revalidate-token:latest" \
             --quiet
