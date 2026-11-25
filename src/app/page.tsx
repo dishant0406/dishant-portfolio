@@ -14,6 +14,7 @@ import Social from "@/components/landing/social";
 import { Skills } from "@/components/landing/skills";
 import { Articles } from "@/components/landing/articles";
 import { GitSkeleton } from "@/components/skeletons/github-skeleton";
+import { JsonLd } from "@/components/JsonLd";
 import { PixelDissolve } from "@/components/ui/pixel-dissolve";
 import { SideNote } from "@/components/shared/side-note";
 import { booksConfig } from "@/config/books";
@@ -21,6 +22,7 @@ import config from "@/config/config.json";
 import { experienceConfig } from "@/config/experience";
 import { projectsSectionConfig } from "@/config/projects";
 import { fetchAllPosts } from "@/lib/api/devto";
+import { profilePageJsonLd } from "@/lib/seo";
 import { fetchProjects } from "@/lib/github/projects";
 import type { BlogPost } from "@/lib/types/blog";
 import { sectionNotes, sectionOrder } from "@/config/section-notes";
@@ -111,6 +113,7 @@ export default async function Home() {
 
   return (
     <>
+      <JsonLd data={profilePageJsonLd()} />
       <main
         id="main-content"
         className="relative flex min-h-dvh flex-col gap-y-4 overflow-x-clip border-x bg-background pt-0 xl:overflow-x-visible"

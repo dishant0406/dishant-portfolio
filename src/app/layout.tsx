@@ -7,13 +7,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
 import { fetchProjects } from "@/lib/github/projects";
 import { cn } from "@/lib/utils";
-import { personJsonLd, websiteJsonLd } from "@/lib/seo";
+import { siteUrl, websiteJsonLd } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 import type { Metadata, Viewport } from "next";
 import { dmSans, geistMono, instrumentSerif } from "./fonts";
 import "./globals.css";
 
-const { meta, personal } = siteConfig;
+const { personal } = siteConfig;
+const meta = { ...siteConfig.meta, url: siteUrl };
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -90,7 +91,6 @@ export default async function RootLayout({
         <noscript>
           <style>{`.no-js-visible { opacity: 1 !important; transform: none !important; filter: none !important; stroke-dashoffset: 0 !important; stroke-dasharray: none !important; }`}</style>
         </noscript>
-        <JsonLd data={personJsonLd()} />
         <JsonLd data={websiteJsonLd()} />
         <ThemeProvider>
           <TooltipProvider>

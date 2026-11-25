@@ -30,7 +30,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const post of posts) {
     entries.push({
       url: `${siteUrl}/blog/${post.slug}`,
-      lastModified: post.updatedAt,
       changeFrequency: 'weekly',
       priority: 0.8,
     });

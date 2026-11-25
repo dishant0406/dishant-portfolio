@@ -53,7 +53,7 @@ export default async function BlogPage(): Promise<React.JSX.Element> {
   return (
     <>
       <header className="rise space-y-1 px-6">
-        <h1 className="font-serif text-3xl italic leading-none tracking-tight">Blog</h1>
+        <h1 className="font-serif text-3xl italic leading-none tracking-tight">Blog: AI coding tools and model reviews</h1>
         <p className="text-sm text-muted-foreground">
           Articles on AI coding tools, new models and the frameworks I use.
         </p>

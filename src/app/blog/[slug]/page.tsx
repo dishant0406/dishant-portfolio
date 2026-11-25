@@ -7,6 +7,8 @@ import { BlogPostContent } from '@/components/blog/BlogPostContent';
 import { RecentPosts } from '@/components/blog/RecentPosts';
 import { ArrowLeft } from '@/components/shared/site-icons';
 import { JsonLd } from '@/components/JsonLd';
+import { siteConfig } from '@/config/site';
+import { blogOgImage } from '@/lib/constants';
 import { fetchAllPosts, fetchBlogPostBySlug } from '@/lib/api/devto';
 import { blogPostingJsonLd, breadcrumbJsonLd, siteUrl } from '@/lib/seo';
 
@@ -60,6 +62,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     const title = post.title;
     const description = post.brief;
     const image = post.coverImage?.url;
+    const socialImage = image
+      ? { url: image, width: 1000, height: 420, alt: title }
+      : blogOgImage;
     const canonicalUrl = `${siteUrl}/blog/${slug}`;
     const keywords = post.tags?.map((tag) => tag.name).filter(Boolean);
 
@@ -80,24 +85,15 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
         publishedTime: post.publishedAt,
         modifiedTime: post.updatedAt,
         authors: [post.author.name],
-        ...(image && {
-          images: [
-            {
-              url: image,
-              width: 1000,
-              height: 420,
-              alt: title,
-            },
-          ],
-        }),
+        siteName: siteConfig.meta.shortTitle,
+        images: [socialImage],
       },
       twitter: {
         card: 'summary_large_image',
         title,
         description,
-        ...(image && {
-          images: [image],
-        }),
+        images: [socialImage.url],
+        creator: siteConfig.meta.twitterCreator,
       },
     };
   } catch (error) {
@@ -142,9 +138,17 @@ export default async function BlogPostPage({
             {post.title}
           </h1>
           <p className="font-mono text-xs text-muted-foreground">
-            {wasUpdated ? `Updated ${formatDate(post.updatedAt)}` : formattedDate}
+            Published {formattedDate}
+            {wasUpdated && (
+              <>
+                <span aria-hidden="true"> · </span>
+                Updated {formatDate(post.updatedAt)}
+              </>
+            )}
             <span aria-hidden="true"> · </span>
-            {post.author.name}
+            <Link href="/#about" className="underline decoration-border/50 underline-offset-4 hover:text-foreground">
+              {post.author.name}
+            </Link>
             <span aria-hidden="true"> · </span>
             {post.readTimeInMinutes} min read
           </p>
@@ -157,6 +161,7 @@ export default async function BlogPostPage({
           >
             <Image
               priority
+              fetchPriority="high"
               alt={post.title}
               className="h-auto w-full"
               height={420}
@@ -171,7 +176,7 @@ export default async function BlogPostPage({
           <BlogPostContent html={post.content.html} />
         </div>
       </article>
-      <RecentPosts currentSlug={slug} />
+      <RecentPosts currentSlug={slug} currentTags={post.tags?.map((tag) => tag.name) ?? []} />
     </>
   );
 }

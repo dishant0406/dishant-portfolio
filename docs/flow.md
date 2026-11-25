@@ -30,7 +30,13 @@ If you never call the endpoint, the post shows on the site after the hourly time
 
 `pnpm devto:canonical` (`scripts/sync-devto-canonical.ts`) still works from a laptop. Use it with `-- --dry-run` when you only want to see what would change.
 
-To check one URL in Google: `gsc-cli inspect url --site sc-domain:dishantsharma.dev --url <url>`.
+To check one URL in Google, use the repo-local credentials:
+
+```bash
+gsc-cli inspect url --credentials-file .gsc-cli/credentials.json --site sc-domain:dishantsharma.dev --url <url>
+```
+
+The `.gsc-cli/` folder is ignored by Git. It uses the `dishant5570@gmail.com` Search Console account. The global Google Cloud account stays unchanged.
 
 ## Edge cases
 
@@ -112,3 +118,69 @@ Edge cases:
 Edge cases:
 - dev.to cannot be read: the section hides and the rest of the page loads.
 - Motion is off in the system settings: the rows stay still.
+
+## Homepage identity and project links
+
+1. `Hero` in `src/components/landing/hero.tsx` shows the name, role message, location, and intro.
+2. The H1 comes from `hero.headline` in `src/config/config.json`.
+3. The highlighted word `blog` links to `/blog`.
+4. `HomeProjectExplorer` passes GitHub projects to `ProjectExplorer`.
+5. `WorkRow` uses `href`, then `liveUrl`, then `githubUrl`.
+
+Edge cases:
+
+- The hero text renders visible before client JavaScript runs.
+- A project with no live URL opens its GitHub repository.
+- A project with no URL of any kind keeps a `#` link. Current GitHub projects always have a repository URL.
+- `ProfilePage` structured data renders on the homepage. `WebSite` structured data renders on every route.
+
+## Article identity, dates, and related links
+
+1. `BlogPostPage` reads one dev.to article through `fetchBlogPostBySlug`.
+2. The page shows the publication date first.
+3. If the update time is later, the page also shows the update date.
+4. The author name links to `/#about`.
+5. The cover image uses high fetch priority when a cover exists.
+6. `RecentPosts` reads the cached article list.
+7. It excludes the current article and counts shared tags.
+8. It sorts by shared tags, then by publication date.
+9. It shows four posts.
+
+Edge cases:
+
+- No article shares a tag: the section shows the newest posts and uses `More articles`.
+- No other article exists: the section does not render.
+- The dev.to list fails: the section does not render and the article still loads.
+- No allowed cover image exists: share metadata uses `site.blogOgImage`.
+- The article is missing: the page returns 404 with no canonical URL.
+
+## Response headers and sitemap dates
+
+1. `next.config.ts` adds security headers to every route.
+2. `sitemap.ts` lists the homepage, blog, and article URLs.
+3. Article entries do not include `lastmod` because the list feed cannot prove prose edit dates.
+4. Search Console reads the sitemap without errors or warnings.
+
+Edge cases:
+
+- A request uses HTTP: Cloud Run redirects it to HTTPS with 302. A deployment change can make this permanent.
+- A request uses `www`: Next.js redirects it to the apex host with 308.
+- A request uses an unknown URL: the 404 page returns `noindex, nofollow` and no canonical URL.
+
+## Repo-local Search Console commands
+
+1. Read `.gsc-cli/config.json` for the account and property.
+2. Pass `.gsc-cli/credentials.json` to `gsc-cli`.
+3. Keep `.gsc-cli/` ignored by Git.
+
+Example:
+
+```bash
+gsc-cli report overview --credentials-file .gsc-cli/credentials.json --site sc-domain:dishantsharma.dev --days 28 --output table
+```
+
+Edge cases:
+
+- The token expires: repeat the Google sign-in flow for `dishant5570@gmail.com`.
+- The global Google Cloud account changes: do not use it for this repository. Restore or keep `dishants@groww.in` as the global account.
+- The credential file is missing: the command stops before it reads another account.

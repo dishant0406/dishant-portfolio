@@ -5,6 +5,9 @@ import styles from "./not-found.module.css";
 
 export const metadata: Metadata = {
   title: notFoundConfig.title,
+  alternates: {
+    canonical: null,
+  },
   robots: {
     index: false,
     follow: false,

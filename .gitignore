@@ -42,6 +42,7 @@ yarn-error.log*
 # local cloud auth/config
 .gcloud-config/
 .gcloud-local.env
+.gsc-cli/
 
 # local agent tooling state
 .kajicode/

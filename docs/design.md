@@ -225,3 +225,31 @@ Old entries above mention the chat, `/admin`, Mastra and `INTERNAL_API_TOKEN`. A
 **To change them.** Edit the text or the scene, take a new picture the same way, and replace the JPEG files. The picture is baked in, so it does not update by itself when `hero.greeting` changes in the config.
 
 **Trade-off.** Social networks keep share pictures for a long time. After a deploy, use each network's debugger (for example the LinkedIn Post Inspector) to refresh the old picture.
+
+## SEO and performance fixes from 2026-11-25
+
+We made the homepage text visible before JavaScript runs. The old Motion setup started the main text at zero opacity. Lighthouse measured an 11.7-second mobile largest contentful paint (LCP). The final local page measured 2.7 seconds and a performance score of 89. We removed the entrance delay because main content must not wait for client code. The trade-off is a simpler entrance animation.
+
+We changed the homepage H1 to `Dishant Sharma builds apps and AI tools.` The old H1 omitted the name. We rejected hidden name text because visible content gives clearer meaning to readers and search engines.
+
+We changed the blog H1 to `Blog: AI coding tools and model reviews`. The old H1 only said `Blog`. The title, description, and H1 now describe the same topic.
+
+We linked the homepage word `blog` to `/blog`. We also linked each article byline to `/#about`. These links give readers and search engines clear paths between the homepage, author identity, and articles.
+
+We rank related articles by shared tags. We use publication date when tag counts match. We rejected a topic model because it adds cost and complexity. If no post shares a tag, the section shows the newest posts and keeps the `More articles` heading.
+
+We replaced the missing `/project/<id>` fallback with the project GitHub URL. We rejected a new case-study route because the repository has no case-study content. A project with no live site now opens its code.
+
+We use `ProfilePage` on the homepage and keep `WebSite` in the root layout. We rejected `ProfilePage` on every route because it describes the homepage, not each article.
+
+We show `Published` and `Updated` as separate dates. We removed article `lastmod` values from the sitemap because the authenticated dev.to list does not prove prose edit dates. We rejected a build-time date guess because Google only trusts accurate modification dates.
+
+We use the blog share image when an article has no allowed cover image. We also add the site name and Twitter creator to article metadata. This prevents empty share cards without inventing an image.
+
+We replaced the header Starfish import with a small Solar star. The old package import pulled its full catalog into every route. The largest local blog script chunk fell from 1,572,731 bytes to 214,810 bytes. The trade-off is a different decorative icon.
+
+We removed the optional GitHub star-count request. It often returned 403 and added no required content. The repository link and click event remain.
+
+We added HSTS, content-type protection, referrer policy, permissions policy, and frame protection. We rejected an enforced content security policy because analytics, inline scripts, fonts, images, and 3D code need a tested policy first.
+
+We store Search Console credentials in ignored `.gsc-cli/` files. The configuration uses `dishant5570@gmail.com`. The global Google Cloud account remains `dishants@groww.in`.

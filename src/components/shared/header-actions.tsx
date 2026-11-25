@@ -11,14 +11,13 @@ import { revealOnMount } from "@/lib/motion";
 import dynamic from "next/dynamic";
 import { siteConfig } from "@/config/site";
 import { trackEvent } from "@/lib/analytics";
-import { Moon, Search, SiteMap, Sun } from "@/components/shared/site-icons";
+import { Moon, Search, SiteMap, Star, Sun } from "@/components/shared/site-icons";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { navigationConfig } from "@/config/navigation";
 import type { Project } from "@/config/types";
 import { FaGithub } from "react-icons/fa6";
-import { Starfish } from "trazo-stickers";
 import styles from "./site-header.module.css";
 
 const SiteCommandPalette = dynamic(
@@ -37,7 +36,7 @@ function GitHubStarIcon() {
           <FaGithub className="block size-full" focusable="false" />
         </span>
         <span className="absolute inset-0 rotate-y-180 backface-hidden">
-          <Starfish size={16.2} style={{ display: "block" }} focusable="false" />
+          <Star className="size-full" focusable="false" />
         </span>
       </span>
     </span>
@@ -45,48 +44,6 @@ function GitHubStarIcon() {
 }
 
 function GitHubNavLink() {
-  const [starCount, setStarCount] = useState<string | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    try {
-      const path = new URL(siteConfig.banner.openSourceUrl).pathname
-        .split("/")
-        .filter(Boolean);
-      const [owner, repo] = path;
-
-      if (!owner || !repo) return;
-
-      const fetchStarCount = async () => {
-        try {
-          const response = await fetch(
-            `https://api.github.com/repos/${owner}/${repo}`,
-            { signal: controller.signal },
-          );
-          if (!response.ok) return;
-
-          const data = (await response.json()) as { stargazers_count?: number };
-          if (typeof data.stargazers_count !== "number") return;
-
-          setStarCount(
-            new Intl.NumberFormat("en", {
-              notation: "compact",
-              maximumFractionDigits: 1,
-            }).format(data.stargazers_count),
-          );
-        } catch {
-          // silently fail to keep UI stable
-        }
-      };
-
-      fetchStarCount();
-    } catch {
-      // silently fail if URL parsing fails
-    }
-
-    return () => controller.abort();
-  }, []);
-
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -98,14 +55,12 @@ function GitHubNavLink() {
           onClick={() => {
             trackEvent("github_repo_clicked", {
               repo_url: siteConfig.banner.openSourceUrl,
-              star_count: starCount,
             });
           }}
           className={`group ${styles.githubLink} outline-none`}
         >
           <span className={styles.githubFace}>
             <GitHubStarIcon />
-            {starCount !== null && <span className="font-mono text-[10px]">{starCount}</span>}
           </span>
         </Link>
       </TooltipTrigger>

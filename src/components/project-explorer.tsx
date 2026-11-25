@@ -196,7 +196,7 @@ function WorkRow({
   const [titleName, titleSubtitle] = project.title.split(" — ");
   const name = project.subtitle ? project.title : titleName;
   const subtitle = project.subtitle ?? titleSubtitle;
-  const href = project.href ?? project.liveUrl ?? (project.id ? `/project/${project.id}` : "#");
+  const href = project.href ?? project.liveUrl ?? project.githubUrl ?? "#";
   const isExternal = Boolean(
     project.liveUrl ||
       (project.href &&

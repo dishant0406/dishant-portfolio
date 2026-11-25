@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { VerseText } from "@/components/verse-text";
 import { heroConfig } from "@/config/hero";
@@ -134,7 +136,7 @@ export function Hero() {
   return (
     <motion.section
       className="relative z-20 space-y-4 px-6 pt-0"
-      initial="hidden"
+      initial="visible"
       animate="visible"
     >
       <div className="flex flex-col items-start gap-2">
@@ -242,9 +244,9 @@ export function Hero() {
             ) : (
               <>
                 {beforeHighlight}
-                <span className="underline decoration-border/50 underline-offset-4">
+                <Link href="/blog" className="underline decoration-border/50 underline-offset-4 hover:text-foreground">
                   {heroConfig.descriptionHighlight}
-                </span>
+                </Link>
                 {afterHighlight}
               </>
             )}
